@@ -42,7 +42,7 @@ reportados, con notificaciones en tiempo real hacia los responsables.
 | Módulo | Carpeta | Estado |
 | ------ | ------- | ------ |
 | Backend / API REST | [`backend/`](backend/) | En desarrollo — configuración y capa de entrega mínima operativas |
-| Base de datos | [`base de datos/`](base%20de%20datos/) | En diseño — motor definido: **PostgreSQL** |
+| Base de datos | [`bd/`](bd/) | En diseño — motor definido: **PostgreSQL** |
 | Frontend | [`frontend/`](frontend/) | ⏳ Pendiente de definición (tecnología y alcance) |
 | Hardware | [`hardware/`](hardware/) | ⏳ Pendiente de definición (plataforma, sensores y firmware) |
 
@@ -145,7 +145,7 @@ Respuesta de `GET /api/health`:
 ## 📚 Documentación adicional
 
 - Backend: [`backend/readme.md`](backend/readme.md)
-- Base de datos: [`base de datos/readme.md`](base%20de%20datos/readme.md)
+- Base de datos: [`bd/readme.md`](bd/readme.md)
 - Frontend: [`frontend/readme.md`](frontend/readme.md) *(pendiente)*
 - Hardware: [`hardware/readme.md`](hardware/readme.md) *(pendiente)*
 

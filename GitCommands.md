@@ -29,7 +29,7 @@ git checkout -b feature/1-init-backend
 
 ### 3. Realizar los cambios
 
-Avanzar en el código del módulo correspondiente (`backend/`, `base de datos/`, etc.).
+Avanzar en el código del módulo correspondiente (`backend/`, `bd/`, etc.).
 
 ### 4. Agregar los cambios al área de preparación (staging)
 
@@ -79,7 +79,7 @@ git checkout main
 Agregar otra carpeta:
 
 ```bash
-git sparse-checkout add "base de datos"
+git sparse-checkout add bd
 ```
 
 Redefinir el conjunto de carpetas:

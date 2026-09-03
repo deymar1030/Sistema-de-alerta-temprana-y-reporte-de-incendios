@@ -16,7 +16,7 @@ El repositorio es un monorepo con cuatro módulos:
 | Carpeta          | Módulo        |
 | ---------------- | ------------- |
 | `backend/`       | API REST (Node.js + Express) |
-| `base de datos/` | Modelo y scripts de PostgreSQL |
+| `bd/`            | Modelo y scripts de PostgreSQL |
 | `frontend/`      | Cliente de visualización *(por definir)* |
 | `hardware/`      | Sensores y firmware *(por definir)* |
 

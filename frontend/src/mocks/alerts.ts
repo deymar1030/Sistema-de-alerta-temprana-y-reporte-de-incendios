@@ -1,0 +1,40 @@
+import type { AlertEntry } from '../types'
+
+export const alertsMock: AlertEntry[] = [
+  {
+    id_alerta: 'ALR-00124',
+    fecha: '2026-09-08',
+    hora: '09:10',
+    nivel: 'CRÍTICO',
+    estado: 'ACTIVA',
+    id_sensor: 'S-004',
+    sensor: 'Sensor de temperatura D4',
+    ubicacion: 'Panel eléctrico',
+    descripcion: 'Temperatura elevada + humo detectado en área crítica.',
+    lectura_referencia: 'L-012',
+  },
+  {
+    id_alerta: 'ALR-00118',
+    fecha: '2026-09-08',
+    hora: '08:50',
+    nivel: 'ALTO',
+    estado: 'EN REVISIÓN',
+    id_sensor: 'S-003',
+    sensor: 'Sensor de CO C3',
+    ubicacion: 'Nave de almacenamiento',
+    descripcion: 'Concentración de CO por encima del umbral de monitoreo.',
+    lectura_referencia: 'L-009',
+  },
+  {
+    id_alerta: 'ALR-00109',
+    fecha: '2026-09-07',
+    hora: '21:30',
+    nivel: 'MEDIO',
+    estado: 'RESUELTA',
+    id_sensor: 'S-002',
+    sensor: 'Sensor de humo B2',
+    ubicacion: 'Oficina 2',
+    descripcion: 'Nivel de humo elevado durante mantenimiento de equipo.',
+    lectura_referencia: 'L-006',
+  },
+]

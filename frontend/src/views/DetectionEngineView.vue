@@ -60,7 +60,7 @@ onMounted(async () => {
       <div class="grid gap-4 md:grid-cols-5 md:items-center">
         <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
           <div class="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400"><Gauge class="h-4 w-4" /> Temperatura</div>
-          <input v-model.number="temperatura" type="range" min="15" max="80" step="1" class="w-full accent-sky-500" />
+          <input v-model.number="temperatura" type="range" min="15" max="80" step="1" class="w-full accent-orange-500" />
           <div class="mt-2 text-lg font-semibold text-white">{{ temperatura }}°C</div>
         </div>
         <div class="flex justify-center text-slate-500"><ArrowRight class="h-5 w-5" /></div>
@@ -78,7 +78,7 @@ onMounted(async () => {
       </div>
 
       <div class="mt-6 flex justify-center">
-        <button @click="runAnalysis" class="rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400">Ejecutar análisis</button>
+        <button @click="runAnalysis" class="rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-400">Ejecutar análisis</button>
       </div>
     </section>
 

@@ -12,6 +12,11 @@ export const alertsMock: AlertEntry[] = [
     ubicacion: 'Panel eléctrico',
     descripcion: 'Temperatura elevada + humo detectado en área crítica.',
     lectura_referencia: 'L-012',
+    instituciones_notificadas: [
+      { nombre: 'Bomberos de la Policía Boliviana', fecha_envio: '2026-09-08', hora_envio: '09:10', estado_envio: 'RECIBIDA' },
+      { nombre: 'Policía Boliviana', fecha_envio: '2026-09-08', hora_envio: '09:10', estado_envio: 'ENVIADA' },
+      { nombre: 'Defensa Civil', fecha_envio: '2026-09-08', hora_envio: '09:11', estado_envio: 'EN_PROCESO' },
+    ],
   },
   {
     id_alerta: 'ALR-00118',
@@ -24,6 +29,10 @@ export const alertsMock: AlertEntry[] = [
     ubicacion: 'Nave de almacenamiento',
     descripcion: 'Concentración de CO por encima del umbral de monitoreo.',
     lectura_referencia: 'L-009',
+    instituciones_notificadas: [
+      { nombre: 'Bomberos de la Policía Boliviana', fecha_envio: '2026-09-08', hora_envio: '08:50', estado_envio: 'RECIBIDA' },
+      { nombre: 'Gobierno Autónomo Municipal de La Paz', fecha_envio: '2026-09-08', hora_envio: '08:51', estado_envio: 'ENVIADA' },
+    ],
   },
   {
     id_alerta: 'ALR-00109',
@@ -36,5 +45,9 @@ export const alertsMock: AlertEntry[] = [
     ubicacion: 'Oficina 2',
     descripcion: 'Nivel de humo elevado durante mantenimiento de equipo.',
     lectura_referencia: 'L-006',
+    instituciones_notificadas: [
+      { nombre: 'SAR-FAB', fecha_envio: '2026-09-07', hora_envio: '21:30', estado_envio: 'RECIBIDA' },
+      { nombre: 'Guardia Municipal', fecha_envio: '2026-09-07', hora_envio: '21:31', estado_envio: 'ENVIADA' },
+    ],
   },
 ]

@@ -84,8 +84,8 @@ const initializeChart = () => {
       {
         label: 'Temperatura',
         data: [24.2, 24.5, 25.1, 24.8, 25.4, 26.1, 25.6, 25.9, 26.4, 26.1, 25.8, 26.2],
-        borderColor: '#38bdf8',
-        backgroundColor: 'rgba(56, 189, 248, 0.12)',
+        borderColor: '#F56E2B',
+        backgroundColor: 'rgba(245, 110, 43, 0.12)',
         tension: 0.35,
         fill: true,
       },
@@ -137,7 +137,7 @@ onMounted(async () => {
         <select v-model="selectedScenario" @change="setScenario(selectedScenario)" class="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-slate-100">
           <option v-for="option in scenarioOptions" :key="option" :value="option">{{ option }}</option>
         </select>
-        <button class="rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2.5 text-sm font-medium text-sky-200 transition hover:bg-sky-500/20" @click="setScenario('Sistema normal')">Restaurar</button>
+        <button class="rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-2.5 text-sm font-medium text-orange-200 transition hover:bg-orange-500/20" @click="setScenario('Sistema normal')">Restaurar</button>
       </div>
     </div>
 

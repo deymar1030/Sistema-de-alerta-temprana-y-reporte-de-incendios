@@ -21,7 +21,7 @@ const toneMap = {
   warning: 'border-amber-500/30 bg-amber-500/5',
   danger: 'border-red-500/30 bg-red-500/5',
   neutral: 'border-slate-700 bg-slate-800/80',
-  info: 'border-sky-500/30 bg-sky-500/5',
+  info: 'border-orange-500/30 bg-orange-500/5',
 }
 
 const indicatorMap = {
@@ -29,7 +29,7 @@ const indicatorMap = {
   warning: 'text-amber-300',
   danger: 'text-red-300',
   neutral: 'text-slate-200',
-  info: 'text-sky-300',
+  info: 'text-orange-300',
 }
 </script>
 

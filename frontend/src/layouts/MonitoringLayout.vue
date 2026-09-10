@@ -63,7 +63,7 @@ const formattedTime = computed(() =>
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100">
+  <div class="min-h-screen bg-[#f1f3f1] text-slate-900">
     <div class="flex min-h-screen">
       <aside
         :class="[
@@ -74,12 +74,10 @@ const formattedTime = computed(() =>
       >
         <div class="flex items-center justify-between border-b border-slate-800 px-4 py-5">
           <div class="flex items-center gap-3 overflow-hidden">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-300 ring-1 ring-red-500/30">
-              <Flame class="h-5 w-5" />
-            </div>
+            <img src="/logo-alerta-ave.svg" alt="Logo ALERTA" class="h-10 w-10 shrink-0" />
             <div v-if="!collapsed" class="min-w-0">
-              <div class="text-xs uppercase tracking-[0.28em] text-slate-400">Sistema</div>
-              <div class="truncate text-lg font-semibold text-white">FIREGUARD</div>
+              <div class="text-xs uppercase tracking-[0.28em] text-orange-300">ALERTA</div>
+              <div class="truncate text-sm font-medium text-slate-200">Prevención de Incendios</div>
             </div>
           </div>
           <button class="hidden rounded-lg border border-slate-700 p-1 text-slate-300 lg:block" @click="collapsed = !collapsed" aria-label="Colapsar menú">
@@ -95,8 +93,8 @@ const formattedTime = computed(() =>
             v-for="item in navItems"
             :key="item.to"
             :to="item.to"
-            class="group flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
-            :class="route.path === item.to || (item.to !== '/' && route.path.startsWith(item.to)) ? 'bg-slate-800 text-white ring-1 ring-slate-700' : ''"
+            class="group flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 transition hover:bg-orange-500/10 hover:text-orange-100"
+            :class="route.path === item.to || (item.to !== '/' && route.path.startsWith(item.to)) ? 'bg-orange-500/12 text-orange-100 ring-1 ring-orange-500/35' : ''"
           >
             <component :is="item.icon" class="h-4 w-4" />
             <span v-if="!collapsed" class="truncate">{{ item.label }}</span>
@@ -124,7 +122,7 @@ const formattedTime = computed(() =>
                 <Menu class="h-5 w-5" />
               </button>
               <div>
-                <p class="text-[10px] uppercase tracking-[0.26em] text-slate-400">Centro de monitoreo</p>
+                <p class="flex items-center gap-2 text-[10px] uppercase tracking-[0.26em] text-slate-400"><span class="h-1.5 w-1.5 rounded-full bg-orange-400"></span> ALERTA · Centro de monitoreo</p>
                 <h1 class="mt-1 text-xl font-semibold text-white">{{ currentTitle }}</h1>
               </div>
             </div>
@@ -143,7 +141,7 @@ const formattedTime = computed(() =>
                 <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white">3</span>
               </button>
               <div class="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-2 py-1.5">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-sky-500/10 text-sky-300">OP</div>
+                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500/15 text-orange-300">OP</div>
                 <div class="hidden text-left sm:block">
                   <div class="text-xs font-medium text-white">Operador</div>
                   <div class="text-[10px] uppercase tracking-[0.2em] text-slate-400">online</div>

@@ -77,7 +77,7 @@ watch(
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div class="relative flex-1">
             <Search class="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-            <input v-model="search" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-2.5 pl-10 pr-3 text-sm text-white outline-none ring-0 placeholder:text-slate-400 focus:border-sky-500" placeholder="Buscar sensor" />
+            <input v-model="search" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-2.5 pl-10 pr-3 text-sm text-white outline-none ring-0 placeholder:text-slate-400 focus:border-orange-500" placeholder="Buscar sensor" />
           </div>
           <div class="flex flex-col gap-2 sm:flex-row">
             <select v-model="selectedType" class="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-slate-100">
@@ -114,7 +114,7 @@ watch(
                 <td class="py-3 font-medium text-white">{{ sensor.id_sensor }}</td>
                 <td class="py-3">
                   <div class="flex items-center gap-3">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-300">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 text-orange-300">
                       <Wifi class="h-4 w-4" />
                     </div>
                     <div>
@@ -132,7 +132,7 @@ watch(
                 <td class="py-3">{{ sensor.ultima_lectura }} {{ sensor.unidad_medida }}</td>
                 <td class="py-3">{{ sensor.ubicacion }}</td>
                 <td class="py-3">
-                  <button class="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-sky-500 hover:text-white" @click="openSensor(sensor)">
+                  <button class="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-orange-500 hover:text-white" @click="openSensor(sensor)">
                     Ver detalle <ArrowRight class="h-3.5 w-3.5" />
                   </button>
                 </td>
@@ -179,7 +179,7 @@ watch(
 
         <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
           <div class="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
-            <Factory class="h-4 w-4 text-sky-300" />
+                    <Factory class="h-4 w-4 text-orange-300" />
             Últimas lecturas
           </div>
           <ul class="space-y-2 text-sm text-slate-300">

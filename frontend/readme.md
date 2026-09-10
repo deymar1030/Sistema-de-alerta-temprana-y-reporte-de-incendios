@@ -1,8 +1,10 @@
-# Sistema Inteligente de Detección y Prevención de Incendios
+# ALERTA - Prevención de Incendios
 
 ## Descripción
 
-Frontend prototipo para un sistema universitario de ingeniería de software orientado a la vigilancia, análisis y prevención de incendios. La interfaz está diseñada para simular un centro de monitoreo operativo con sensores, lecturas, alertas y motor de detección.
+Frontend prototipo para un sistema de vigilancia, análisis y prevención de incendios orientado al contexto boliviano. ALERTA simula un centro de monitoreo operativo con sensores, lecturas, alertas y motor de detección.
+
+La identidad visual utiliza el logo de ALERTA y una paleta oscura de operación con acentos naranja y rojo para comunicar niveles de riesgo sin perder jerarquía visual. El logo se encuentra en `public/logo-alerta.svg` y también se utiliza como favicon.
 
 ## Tecnologías
 
@@ -63,7 +65,7 @@ La aplicación separa claramente:
 
 ## Datos mock
 
-Los datos de sensores, lecturas, alertas, ubicaciones y detección se encuentran en `src/mocks` y están diseñados para ser consistentes entre sí. Esto permite reemplazarlos por llamadas HTTP reales sin rehacer la interfaz.
+Los datos de sensores, lecturas, alertas, ubicaciones y detección se encuentran en `src/mocks` y están diseñados para ser consistentes entre sí. Cada alerta incluye `instituciones_notificadas` con nombre, fecha, hora y estado de entrega (`ENVIADA`, `RECIBIDA`, `EN_PROCESO` o `FALLIDA`). La vista de alertas permite filtrar por estado, buscar por sensor o ubicación y consultar el detalle de las instituciones notificadas.
 
 ## Modo demostración
 

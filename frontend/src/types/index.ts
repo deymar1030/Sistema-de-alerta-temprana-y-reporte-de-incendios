@@ -1,6 +1,14 @@
 export type SensorState = 'Activo' | 'Inactivo' | 'Mantenimiento' | 'Error'
 export type AlertState = 'ACTIVA' | 'EN REVISIÓN' | 'RESUELTA'
 export type RiskLevel = 'normal' | 'warning' | 'high' | 'critical'
+export type InstitutionDeliveryState = 'ENVIADA' | 'RECIBIDA' | 'EN_PROCESO' | 'FALLIDA'
+
+export interface InstitucionNotificada {
+  nombre: string
+  fecha_envio: string
+  hora_envio: string
+  estado_envio: InstitutionDeliveryState
+}
 
 export interface Sensor {
   id_sensor: string
@@ -43,6 +51,7 @@ export interface AlertEntry {
   ubicacion: string
   descripcion: string
   lectura_referencia: string
+  instituciones_notificadas: InstitucionNotificada[]
 }
 
 export interface LocationEntry {

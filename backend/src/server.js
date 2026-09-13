@@ -3,8 +3,7 @@ import cors from "cors";
 import morgan from "morgan";
 
 import { envs } from "./config/envs.js";
-import { AppRouter } from "./routes/router.js";
-import { initNotificationSocket } from "./sockets/notification.socket.js";
+import { AppRouter } from "./interfaces/router.js";
 
 export default class Server {
   constructor(options = {}) {
@@ -35,10 +34,9 @@ export default class Server {
   }
 
   start() {
-    const httpServer = this.app.listen(this.port, () => {
+    this.app.listen(this.port, () => {
       console.log(`Server running on port ${this.port}`);
       console.log(`Health check: http://localhost:${this.port}/api/health`);
     });
-    initNotificationSocket(httpServer);
   }
 }

@@ -3,8 +3,8 @@ import cors from "cors";
 import morgan from "morgan";
 
 import { envs } from "./config/envs.js";
-import { AppRouter } from "./routes/router.js";
-import { initNotificationSocket } from "./sockets/notification.socket.js";
+import { AppRouter } from "./interfaces/router.js";
+import { setupSwagger } from "./interfaces/docs/swagger.setup.js";
 
 export default class Server {
   constructor(options = {}) {
@@ -25,6 +25,7 @@ export default class Server {
 
   routes() {
     this.app.use("/api", AppRouter.routes);
+    setupSwagger(this.app);
 
     this.app.get("/", (req, res) => {
       res.json({
@@ -35,10 +36,10 @@ export default class Server {
   }
 
   start() {
-    const httpServer = this.app.listen(this.port, () => {
+    this.app.listen(this.port, () => {
       console.log(`Server running on port ${this.port}`);
       console.log(`Health check: http://localhost:${this.port}/api/health`);
+      console.log(`Swagger docs: http://localhost:${this.port}/docs`);
     });
-    initNotificationSocket(httpServer);
   }
 }

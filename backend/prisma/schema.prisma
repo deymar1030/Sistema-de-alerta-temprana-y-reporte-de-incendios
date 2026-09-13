@@ -1,0 +1,362 @@
+// ============================================================
+// PRISMA SCHEMA
+// Sistema de Alerta Temprana y Reporte de Incendios
+// Transcrito 1:1 desde bd/modelo relacional.pdf (entidades + relaciones N:M).
+// No incluye columnas que no esten en ese documento.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------------------------
+// ZONA_GEOGRAFICA
+// ------------------------------------------------------------
+model zona_geografica {
+  id_zona              Int      @id @default(autoincrement())
+  nombre               String?  @db.VarChar(150)
+  departamento         String?  @db.VarChar(100)
+  municipio            String?  @db.VarChar(100)
+  descripcion          String?
+  estado               String?  @db.VarChar(50)
+  densidad_poblacional Decimal? @db.Decimal
+
+  tipo_entorno         tipo_entorno[]
+  ubicacion_geografica ubicacion_geografica[]
+  cubre_jurisdiccion   cubre_jurisdiccion[]
+}
+
+// ------------------------------------------------------------
+// TIPO_ENTORNO
+// ------------------------------------------------------------
+model tipo_entorno {
+  id_tipo_entorno       Int      @id @default(autoincrement())
+  id_zona               Int
+  clasificacion         String?  @db.VarChar(100)
+  descripcion           String?
+  material_predominante String?  @db.VarChar(150)
+  nivel_riesgo_base     Decimal? @db.Decimal
+
+  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona])
+}
+
+// ------------------------------------------------------------
+// INSTITUCION
+// ------------------------------------------------------------
+model institucion {
+  id_institucion Int     @id @default(autoincrement())
+  categoria      String? @db.VarChar(100)
+  detalle        String?
+  nombre         String? @db.VarChar(150)
+  razon_social   String? @db.VarChar(150)
+  telefono_ins   String? @db.VarChar(30)
+
+  usuario            usuario[]
+  envia              envia[]
+  cubre_jurisdiccion cubre_jurisdiccion[]
+}
+
+// ------------------------------------------------------------
+// ROL
+// ------------------------------------------------------------
+model rol {
+  id_rol Int     @id @default(autoincrement())
+  nombre String? @db.VarChar(100)
+
+  usuario      usuario[]
+  rol_politica rol_politica[]
+}
+
+// ------------------------------------------------------------
+// MOTOR_DET
+// ------------------------------------------------------------
+model motor_det {
+  id_motordet         Int       @id @default(autoincrement())
+  fecha_actualizacion DateTime? @db.Timestamp(6)
+  tipo_analisis       String?   @db.VarChar(100)
+  rango_min           Decimal?  @db.Decimal
+  rango_max           Decimal?  @db.Decimal
+  porcentaje_riesgo   Decimal?  @db.Decimal
+  nombre              String?   @db.VarChar(150)
+  version             String?   @db.VarChar(50)
+  estado              String?   @db.VarChar(50)
+  nivel_sensibilidad  String?   @db.VarChar(50)
+
+  ubicacion_geografica ubicacion_geografica[]
+  lectura              lectura[]
+}
+
+// ------------------------------------------------------------
+// POLITICA
+// ------------------------------------------------------------
+model politica {
+  id_politica     Int       @id @default(autoincrement())
+  intentos        Int?
+  bloqueo         Int?
+  tiempo          DateTime? @db.Timestamp(6)
+  ip_origen       String?   @db.Inet
+  modo_emergencia Boolean?
+  horario_inicio  DateTime? @db.Time(6)
+  horario_fin     DateTime? @db.Time(6)
+  ip_bloqueado    String?   @db.Inet
+  mfa             Boolean?
+
+  rol_politica rol_politica[]
+}
+
+// ------------------------------------------------------------
+// UBICACION_GEOGRAFICA
+// ------------------------------------------------------------
+model ubicacion_geografica {
+  id_ubic_geo         Int      @id @default(autoincrement())
+  id_zona             Int
+  id_motordet         Int?
+  latitud             Decimal? @db.Decimal(10, 7)
+  longitud            Decimal? @db.Decimal(10, 7)
+  altitud             Decimal? @db.Decimal
+  poligono_geografico Json?    @db.JsonB
+
+  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona])
+  motor_det       motor_det?      @relation(fields: [id_motordet], references: [id_motordet])
+  predio          predio[]
+  sensor          sensor[]
+  reporte_u       reporte_u[]
+}
+
+// ------------------------------------------------------------
+// PREDIO (NUEVO — propuesto en el PDF, pendiente de aceptacion por el
+// equipo; SENSOR.id_predio queda opcional mientras tanto)
+// ------------------------------------------------------------
+model predio {
+  id_predio   Int     @id @default(autoincrement())
+  id_ubic_geo Int
+  nombre      String? @db.VarChar(150)
+  direccion   String? @db.VarChar(255)
+
+  ubicacion_geografica ubicacion_geografica @relation(fields: [id_ubic_geo], references: [id_ubic_geo])
+  sensor               sensor[]
+}
+
+// ------------------------------------------------------------
+// SENSOR
+// ------------------------------------------------------------
+model sensor {
+  id_sensor         Int       @id @default(autoincrement())
+  id_ubic_geo       Int
+  id_predio         Int?
+  fecha_instalacion DateTime? @db.Date
+  estado            String?   @db.VarChar(50)
+  tipo_sensor       String?   @db.VarChar(100)
+  unidad_medida     String?   @db.VarChar(50)
+  nombre            String?   @db.VarChar(150)
+  modelo            String?   @db.VarChar(100)
+  fabricante        String?   @db.VarChar(150)
+
+  ubicacion_geografica ubicacion_geografica @relation(fields: [id_ubic_geo], references: [id_ubic_geo])
+  predio               predio?              @relation(fields: [id_predio], references: [id_predio])
+  lectura              lectura[]
+  auditoria            auditoria[]
+}
+
+// ------------------------------------------------------------
+// USUARIO
+// ------------------------------------------------------------
+model usuario {
+  id_usuario       Int      @id @default(autoincrement())
+  id_rol           Int?
+  id_institucion   Int?
+  nombre           String?  @db.VarChar(150)
+  telefono         String?  @db.VarChar(30)
+  // "rol" aparece como atributo propio en el PDF ademas del FK id_rol;
+  // se transcribe tal cual, aunque parece redundante — revisar con el equipo.
+  rol              String?  @db.VarChar(100)
+  multiF_S         Boolean?
+  multiF_A         Boolean?
+  // "contraseña" normalizado a "contrasena" (Prisma no admite "ñ" en
+  // identificadores); ajustar si el equipo prefiere otro nombre de columna.
+  contrasena       String?  @db.VarChar(255)
+  correo           String?  @db.VarChar(150)
+  primer_apellido  String?  @db.VarChar(100)
+  segundo_apellido String?  @db.VarChar(100)
+
+  institucion  institucion? @relation(fields: [id_institucion], references: [id_institucion])
+  rol_catalogo rol?         @relation(fields: [id_rol], references: [id_rol])
+  sesion       sesion[]
+  auditoria    auditoria[]
+  auditoriau   auditoriau[]
+  reporte_u    reporte_u[]
+  recepciona   recepciona[]
+}
+
+// ------------------------------------------------------------
+// SESION (NUEVO — gestion de refresh tokens JWT por dispositivo)
+// ------------------------------------------------------------
+model sesion {
+  id_sesion     Int     @id @default(autoincrement())
+  id_usuario    Int
+  refresh_token String?
+  dispositivo   String? @db.VarChar(150)
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario])
+}
+
+// ------------------------------------------------------------
+// ALERTA
+// ------------------------------------------------------------
+model alerta {
+  id_alerta       Int       @id @default(autoincrement())
+  fecha           DateTime? @db.Date
+  hora            DateTime? @db.Time(6)
+  estado          String?   @db.VarChar(100)
+  tipo_superficie String?   @db.VarChar(100)
+  nivel_riesgo    String?   @db.VarChar(100)
+
+  lectura      lectura[]
+  realiza_audi realiza_audi[]
+  recepciona   recepciona[]
+  generaru     generaru[]
+  envia        envia[]
+}
+
+// ------------------------------------------------------------
+// LECTURA
+// ------------------------------------------------------------
+model lectura {
+  id_lectura     Int       @id @default(autoincrement())
+  id_sensor      Int
+  id_alerta      Int?
+  id_motordet    Int?
+  valor          Decimal?  @db.Decimal
+  fecha_hora     DateTime? @db.Timestamp(6)
+  estado_lectura String?   @db.VarChar(100)
+  tipo_variable  String?   @db.VarChar(100)
+
+  sensor    sensor     @relation(fields: [id_sensor], references: [id_sensor])
+  alerta    alerta?    @relation(fields: [id_alerta], references: [id_alerta])
+  motor_det motor_det? @relation(fields: [id_motordet], references: [id_motordet])
+}
+
+// ------------------------------------------------------------
+// AUDITORIA
+// ------------------------------------------------------------
+model auditoria {
+  id_auditoria   Int       @id @default(autoincrement())
+  id_usuario     Int
+  valor          Decimal?  @db.Decimal
+  firma_recibida String?
+  firma_valida   Boolean?
+  tiempo         DateTime? @db.Timestamp(6)
+  id_sensor      Int?
+  // Nombre tal cual aparece en el PDF; su proposito no esta documentado
+  // (revisar con el grupo de seguridad antes de usarlo).
+  id_long        Int?
+  hp             String?
+  ha             String?
+
+  usuario      usuario        @relation(fields: [id_usuario], references: [id_usuario])
+  sensor       sensor?        @relation(fields: [id_sensor], references: [id_sensor])
+  realiza_audi realiza_audi[]
+}
+
+// ------------------------------------------------------------
+// AUDITORIAU
+// ------------------------------------------------------------
+model auditoriau {
+  id_auditoriau Int       @id @default(autoincrement())
+  id_usuario    Int
+  ip_origen     String?   @db.Inet
+  accion        String?   @db.VarChar(100)
+  detalle       Json?     @db.JsonB
+  tiempo        DateTime? @db.Timestamp(6)
+  hash_previo   String?
+  hash_actual   String?
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario])
+}
+
+// ------------------------------------------------------------
+// REPORTE_U (parametros segun la correccion "en base al ER" del PDF)
+// ------------------------------------------------------------
+model reporte_u {
+  id_reporteu     Int       @id @default(autoincrement())
+  id_usuario      Int
+  id_ubic_geo     Int
+  descripcion     String?
+  tipo            String?   @db.VarChar(100)
+  nivel_prioridad String?   @db.VarChar(50)
+  fecha_envio     DateTime? @db.Timestamp(6)
+  hp              String?
+  ha              String?
+
+  usuario              usuario              @relation(fields: [id_usuario], references: [id_usuario])
+  ubicacion_geografica ubicacion_geografica @relation(fields: [id_ubic_geo], references: [id_ubic_geo])
+  generaru             generaru[]
+}
+
+// ============================================================
+// RELACIONES N:M
+// ============================================================
+
+model realiza_audi {
+  id_auditoria Int
+  id_alerta    Int
+
+  auditoria auditoria @relation(fields: [id_auditoria], references: [id_auditoria])
+  alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta])
+
+  @@id([id_auditoria, id_alerta])
+}
+
+model recepciona {
+  id_usuario Int
+  id_alerta  Int
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario])
+  alerta  alerta  @relation(fields: [id_alerta], references: [id_alerta])
+
+  @@id([id_usuario, id_alerta])
+}
+
+model rol_politica {
+  id_rol      Int
+  id_politica Int
+
+  rol      rol      @relation(fields: [id_rol], references: [id_rol])
+  politica politica @relation(fields: [id_politica], references: [id_politica])
+
+  @@id([id_rol, id_politica])
+}
+
+model generaru {
+  id_alerta    Int
+  id_reporte_u Int
+
+  alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta])
+  reporte_u reporte_u @relation(fields: [id_reporte_u], references: [id_reporteu])
+
+  @@id([id_alerta, id_reporte_u])
+}
+
+model envia {
+  id_alerta      Int
+  id_institucion Int
+
+  alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta])
+  institucion institucion @relation(fields: [id_institucion], references: [id_institucion])
+
+  @@id([id_alerta, id_institucion])
+}
+
+model cubre_jurisdiccion {
+  id_zona        Int
+  id_institucion Int
+
+  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona])
+  institucion     institucion     @relation(fields: [id_institucion], references: [id_institucion])
+
+  @@id([id_zona, id_institucion])
+}

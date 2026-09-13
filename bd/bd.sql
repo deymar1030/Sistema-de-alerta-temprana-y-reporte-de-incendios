@@ -1,455 +1,436 @@
 -- ============================================================
+-- MODELO RELACIONAL
+-- SISTEMA DE ALERTA TEMPRANA Y REPORTE DE INCENDIOS
 -- PostgreSQL
 -- ============================================================
 
+
 -- ============================================================
--- 1. ZONA GEOGRÁFICA
+-- ENTIDADES
 -- ============================================================
 
-CREATE TABLE zona_geografica (
-    id_zona BIGSERIAL PRIMARY KEY,
-    nombre VARCHAR(150) NOT NULL,
-    departamento VARCHAR(100) NOT NULL,
-    municipio VARCHAR(100) NOT NULL,
-    descripcion TEXT,
-    estado BOOLEAN NOT NULL DEFAULT TRUE,
-    densidad_poblacional NUMERIC(10,2)
+
+-- ------------------------------------------------------------
+-- ZONA_GEOGRAFICA
+-- ------------------------------------------------------------
+
+CREATE TABLE ZONA_GEOGRAFICA (
+    id_zona              SERIAL PRIMARY KEY,
+    nombre               VARCHAR(150),
+    departamento         VARCHAR(100),
+    municipio            VARCHAR(100),
+    descripcion          TEXT,
+    estado               VARCHAR(50),
+    densidad_poblacional NUMERIC
 );
 
--- ============================================================
--- 2. TIPO DE ENTORNO
--- ============================================================
 
-CREATE TABLE tipo_entorno (
-    id_tipo_entorno BIGSERIAL PRIMARY KEY,
-    id_zona BIGINT NOT NULL,
-    clasificacion VARCHAR(100) NOT NULL,
-    descripcion TEXT,
+-- ------------------------------------------------------------
+-- INSTITUCION
+-- ------------------------------------------------------------
+
+CREATE TABLE INSTITUCION (
+    id_institucion       SERIAL PRIMARY KEY,
+    categoria            VARCHAR(100),
+    detalle              TEXT,
+);
+
+
+-- ------------------------------------------------------------
+-- ROL
+-- ------------------------------------------------------------
+
+CREATE TABLE ROL (
+    id_rol                SERIAL PRIMARY KEY,
+    nombre                VARCHAR(100),
+    nivel                 VARCHAR(50),
+);
+
+
+-- ------------------------------------------------------------
+-- MOTOR_DET
+-- ------------------------------------------------------------
+
+CREATE TABLE MOTOR_DET (
+    id_motordet          SERIAL PRIMARY KEY,
+    fecha_actualizacion  TIMESTAMP,
+    tipo_analisis        VARCHAR(100),
+    rango_min            NUMERIC,
+    rango_max            NUMERIC,
+    porcentaje_riesgo    NUMERIC,
+    nombre               VARCHAR(150),
+    version              VARCHAR(50),
+    estado               VARCHAR(50),
+    nivel_sensibilidad   VARCHAR(50)
+);
+
+
+-- ------------------------------------------------------------
+-- POLITICA
+-- ------------------------------------------------------------
+
+CREATE TABLE POLITICA (
+    id_politica     SERIAL PRIMARY KEY,
+    intentos        INTEGER,
+    bloqueo         INTEGER,
+    tiempo          TIMESTAMP,
+    id_origen       INET,
+    modo_emergencia BOOLEAN,
+    horario_inicio  TIME,
+    horario_fin     TIME,
+    ppbloqueado     TEXT,
+    mfa             BOOLEAN
+);
+
+
+-- ------------------------------------------------------------
+-- TIPO_ENTORNO
+-- ------------------------------------------------------------
+
+CREATE TABLE TIPO_ENTORNO (
+    id_tipo_entorno       SERIAL PRIMARY KEY,
+    id_zona               INTEGER,
+    clasificacion         VARCHAR(100),
+    descripcion           TEXT,
     material_predominante VARCHAR(150),
-    nivel_riesgo_base NUMERIC(5,2),
-
+    nivel_riesgo          VARCHAR(50),
+    base                  NUMERIC,
     CONSTRAINT fk_tipo_entorno_zona
         FOREIGN KEY (id_zona)
-        REFERENCES zona_geografica(id_zona)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT
+        REFERENCES ZONA_GEOGRAFICA(id_zona)
 );
 
--- ============================================================
--- 3. MOTOR DE DETECCIÓN / ANÁLISIS
--- ============================================================
 
-CREATE TABLE motor_det (
-    id_motordet BIGSERIAL PRIMARY KEY,
-    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    tipo_analisis VARCHAR(100) NOT NULL,
-    rango_min NUMERIC(10,2),
-    rango_max NUMERIC(10,2),
-    porcentaje_riesgo NUMERIC(5,2),
-    nombre VARCHAR(150) NOT NULL,
-    version VARCHAR(50),
-    estado BOOLEAN NOT NULL DEFAULT TRUE,
-    nivel_sensibilidad NUMERIC(5,2)
-);
+-- ------------------------------------------------------------
+-- UBICACION_GEOGRAFICA
+-- ------------------------------------------------------------
 
--- ============================================================
--- 4. UBICACIÓN GEOGRÁFICA
--- ============================================================
-
-CREATE TABLE ubicacion_geografica (
-    id_ubic_geo BIGSERIAL PRIMARY KEY,
-    id_zona BIGINT NOT NULL,
-    id_motordet BIGINT,
-    latitud NUMERIC(10,7) NOT NULL,
-    longitud NUMERIC(10,7) NOT NULL,
-    altitud NUMERIC(10,2),
-    poligono_geografico TEXT,
+CREATE TABLE UBICACION_GEOGRAFICA (
+    id_ubic_geo         SERIAL PRIMARY KEY,
+    id_zona             INTEGER,
+    id_motordet         INTEGER,
+    latitud             NUMERIC(10,7),
+    longitud            NUMERIC(10,7),
+    altitud             NUMERIC,
+    poligono_geografico JSONB,
 
     CONSTRAINT fk_ubicacion_zona
         FOREIGN KEY (id_zona)
-        REFERENCES zona_geografica(id_zona)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
+        REFERENCES ZONA_GEOGRAFICA(id_zona),
 
     CONSTRAINT fk_ubicacion_motor
         FOREIGN KEY (id_motordet)
-        REFERENCES motor_det(id_motordet)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
+        REFERENCES MOTOR_DET(id_motordet)
 );
 
--- ============================================================
--- 5. SENSOR
--- ============================================================
 
-CREATE TABLE sensor (
-    id_sensor BIGSERIAL PRIMARY KEY,
-    fecha_instalacion DATE,
-    estado BOOLEAN NOT NULL DEFAULT TRUE,
-    tipo_sensor VARCHAR(100) NOT NULL,
-    unidad_medida VARCHAR(50),
-    nombre VARCHAR(150) NOT NULL,
-    modelo VARCHAR(100),
-    fabricante VARCHAR(100)
-);
+-- ------------------------------------------------------------
+-- USUARIO
+-- ------------------------------------------------------------
 
--- ============================================================
--- 6. INSTITUCIÓN
--- ============================================================
-
-CREATE TABLE institucion (
-    id_institucion BIGSERIAL PRIMARY KEY,
-    categoria VARCHAR(100) NOT NULL,
-    detalle TEXT,
-    atributo_adicional_1 VARCHAR(255),
-    atributo_adicional_2 VARCHAR(255),
-    atributo_adicional_3 VARCHAR(255)
-);
-
--- ============================================================
--- 7. ROL
--- ============================================================
-
-CREATE TABLE rol (
-    id_rol BIGSERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL UNIQUE,
-    nivel INTEGER,
-    atributo_adicional_1 VARCHAR(255),
-    atributo_adicional_2 VARCHAR(255),
-    atributo_adicional_3 VARCHAR(255)
-);
-
--- ============================================================
--- 8. USUARIO
--- ============================================================
-
-CREATE TABLE usuario (
-    id_usuario BIGSERIAL PRIMARY KEY,
-    id_rol BIGINT NOT NULL,
-    id_institucion BIGINT,
-    nombre VARCHAR(150) NOT NULL,
-    telefono VARCHAR(30),
-    rol VARCHAR(100),
-    atributo_adicional_1 VARCHAR(255),
+CREATE TABLE USUARIO (
+    id_usuario    SERIAL PRIMARY KEY,
+    id_institucion INTEGER,
+    nombre        VARCHAR(150),
+    telefono      VARCHAR(30),
+    mfa_secreto   VARCHAR(255),
+    mfa_activado  BOOLEAN,
 
     CONSTRAINT fk_usuario_rol
         FOREIGN KEY (id_rol)
-        REFERENCES rol(id_rol)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
+        REFERENCES ROL(id_rol),
 
     CONSTRAINT fk_usuario_institucion
         FOREIGN KEY (id_institucion)
-        REFERENCES institucion(id_institucion)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
+        REFERENCES INSTITUCION(id_institucion)
 );
 
--- ============================================================
--- 9. POLÍTICA
--- ============================================================
 
-CREATE TABLE politica (
-    id_politica BIGSERIAL PRIMARY KEY,
-    intentos INTEGER,
-    bloqueo BOOLEAN NOT NULL DEFAULT FALSE,
-    tiempo INTEGER,
-    id_instituto BIGINT,
-    id_origen BIGINT,
+-- ------------------------------------------------------------
+-- SENSOR
+-- ------------------------------------------------------------
 
-    CONSTRAINT fk_politica_institucion
-        FOREIGN KEY (id_instituto)
-        REFERENCES institucion(id_institucion)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
+CREATE TABLE SENSOR (
+    id_sensor         SERIAL PRIMARY KEY,
+    id_ubic_geo       INTEGER,
+    fecha_instalacion DATE,
+    estado            VARCHAR(50),
+    tipo_sensor       VARCHAR(100),
+    unidad_medida     VARCHAR(50),
+    nombre            VARCHAR(150),
+    modelo            VARCHAR(100),
+    fabricante        VARCHAR(150),
+
+    CONSTRAINT fk_sensor_ubicacion
+        FOREIGN KEY (id_ubic_geo)
+        REFERENCES UBICACION_GEOGRAFICA(id_ubic_geo)
 );
 
--- ============================================================
--- 10. ROL - POLÍTICA
--- Relación N:M entre Rol y Política
--- ============================================================
 
-CREATE TABLE rol_politica (
-    id_rol_politica BIGSERIAL PRIMARY KEY,
-    id_rol BIGINT NOT NULL,
-    id_politica BIGINT NOT NULL,
+-- ------------------------------------------------------------
+-- ALERTA
+-- ------------------------------------------------------------
 
-    CONSTRAINT fk_rol_politica_rol
-        FOREIGN KEY (id_rol)
-        REFERENCES rol(id_rol)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_rol_politica_politica
-        FOREIGN KEY (id_politica)
-        REFERENCES politica(id_politica)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    CONSTRAINT uq_rol_politica
-        UNIQUE (id_rol, id_politica)
-);
-
--- ============================================================
--- 11. AUDITORÍA
--- ============================================================
-
-CREATE TABLE auditoria (
-    id_auditoria BIGSERIAL PRIMARY KEY,
-    valor NUMERIC(15,4),
-    firma_recibida TEXT,
-    firma_valida BOOLEAN,
-    tiempo TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    id_sensor BIGINT,
-    id_long BIGINT,
-
-    CONSTRAINT fk_auditoria_sensor
-        FOREIGN KEY (id_sensor)
-        REFERENCES sensor(id_sensor)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
-);
-
--- ============================================================
--- 12. ALERTA
--- ============================================================
-
-CREATE TABLE alerta (
-    id_alerta BIGSERIAL PRIMARY KEY,
-    id_ubic_geo BIGINT NOT NULL,
-    id_auditoria BIGINT,
-    id_usuario BIGINT,
-    fecha DATE NOT NULL,
-    hora TIME NOT NULL,
-    estado VARCHAR(50) NOT NULL,
+CREATE TABLE ALERTA (
+    id_alerta       SERIAL PRIMARY KEY,
+    id_ubic_geo     INTEGER,
+    id_usuario      INTEGER,
+    fecha           DATE,
+    hora            TIME,
+    estado          VARCHAR(100),
     tipo_superficie VARCHAR(100),
-    nivel_riesgo NUMERIC(5,2),
+    nivel_riesgo    VARCHAR(100),
 
     CONSTRAINT fk_alerta_ubicacion
         FOREIGN KEY (id_ubic_geo)
-        REFERENCES ubicacion_geografica(id_ubic_geo)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    CONSTRAINT fk_alerta_auditoria
-        FOREIGN KEY (id_auditoria)
-        REFERENCES auditoria(id_auditoria)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL,
+        REFERENCES UBICACION_GEOGRAFICA(id_ubic_geo),
 
     CONSTRAINT fk_alerta_usuario
         FOREIGN KEY (id_usuario)
-        REFERENCES usuario(id_usuario)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
+        REFERENCES USUARIO(id_usuario)
 );
 
--- ============================================================
--- 13. LECTURA
--- ============================================================
 
-CREATE TABLE lectura (
-    id_lectura BIGSERIAL PRIMARY KEY,
-    id_sensor BIGINT NOT NULL,
-    id_alerta BIGINT,
-    id_motordet BIGINT,
-    valor NUMERIC(15,4) NOT NULL,
-    fecha_hora TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    estado_lectura VARCHAR(50),
-    tipo_variable VARCHAR(100),
+-- ------------------------------------------------------------
+-- LECTURA
+-- ------------------------------------------------------------
+
+CREATE TABLE LECTURA (
+    id_lectura     SERIAL PRIMARY KEY,
+    id_sensor      INTEGER,
+    id_alerta      INTEGER,
+    id_motordet     INTEGER,
+    valor          NUMERIC,
+    fecha_hora     TIMESTAMP,
+    estado_lectura VARCHAR(100),
+    tipo_variable  VARCHAR(100),
 
     CONSTRAINT fk_lectura_sensor
         FOREIGN KEY (id_sensor)
-        REFERENCES sensor(id_sensor)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
+        REFERENCES SENSOR(id_sensor),
 
     CONSTRAINT fk_lectura_alerta
         FOREIGN KEY (id_alerta)
-        REFERENCES alerta(id_alerta)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL,
+        REFERENCES ALERTA(id_alerta),
 
-    CONSTRAINT fk_lectura_motor
+    CONSTRAINT fk_lectura_motordet
         FOREIGN KEY (id_motordet)
-        REFERENCES motor_det(id_motordet)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
+        REFERENCES MOTOR_DET(id_motordet)
 );
 
--- ============================================================
--- 14. AUDITORÍA DE USUARIOS
--- ============================================================
 
-CREATE TABLE auditoriau (
-    id_auditoriau BIGSERIAL PRIMARY KEY,
-    id_origen BIGINT,
-    id_usuarios BIGINT,
-    accion VARCHAR(100) NOT NULL,
-    detalle TEXT,
-    tiempo TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+-- ------------------------------------------------------------
+-- AUDITORIA
+-- ------------------------------------------------------------
 
-    CONSTRAINT fk_auditoriau_usuario
-        FOREIGN KEY (id_usuarios)
-        REFERENCES usuario(id_usuario)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
-);
+CREATE TABLE AUDITORIA (
+    id_auditoria    SERIAL PRIMARY KEY,
+    valor           NUMERIC,
+    firma_recibida  TEXT,
+    firma_valida    BOOLEAN,
+    tiempo          TIMESTAMP,
+    id_sensor       INTEGER,
+    id_long         SERIAL,
+    id_usuario      INTEGER,
+    hash_previo     TEXT,
+    hash_actual     TEXT,
+    id_alerta       INTEGER,
+    hash_previo     TEXT,
+    hash_actual     TEXT,
 
--- ============================================================
--- 15. REPORTE DE USUARIO
--- ============================================================
+    CONSTRAINT fk_auditoria_sensor
+        FOREIGN KEY (id_sensor)
+        REFERENCES SENSOR(id_sensor),
 
-CREATE TABLE reporte_u (
-    id_reporte_u BIGSERIAL PRIMARY KEY,
-    id_usuario BIGINT NOT NULL,
-    descripcion TEXT NOT NULL,
-    tipo VARCHAR(100),
-    fecha_envio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    nivel_prioridad VARCHAR(50),
-
-    CONSTRAINT fk_reporte_usuario
+    CONSTRAINT fk_auditoria_usuario
         FOREIGN KEY (id_usuario)
-        REFERENCES usuario(id_usuario)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT
-);
+        REFERENCES USUARIO(id_usuario),
 
--- ============================================================
--- 16. GENERA REPORTE DE USUARIO
--- Relación ALERTA - REPORTE_U
--- ============================================================
-
-CREATE TABLE genera_ru (
-    id_genera_ru BIGSERIAL PRIMARY KEY,
-    id_alerta BIGINT NOT NULL,
-    id_reporte_u BIGINT NOT NULL,
-
-    CONSTRAINT fk_genera_ru_alerta
+    CONSTRAINT fk_auditoria_alerta
         FOREIGN KEY (id_alerta)
-        REFERENCES alerta(id_alerta)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_genera_ru_reporte
-        FOREIGN KEY (id_reporte_u)
-        REFERENCES reporte_u(id_reporte_u)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    CONSTRAINT uq_genera_ru
-        UNIQUE (id_alerta, id_reporte_u)
+        REFERENCES ALERTA(id_alerta)
 );
 
+
+-- ------------------------------------------------------------
+-- AUDITORIAU
+-- ------------------------------------------------------------
+
+CREATE TABLE AUDITORIAU (
+    id_auditoriau SERIAL PRIMARY KEY,
+    ip_origen     INET,
+    id_usuario    INTEGER,
+    accion        VARCHAR(100),
+    detalle       JSONB,
+    tiempo        TIMESTAMP,
+    hash_previo   TEXT,
+    hash_actual   TEXT,
+    CONSTRAINT fk_auditoriau_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES USUARIO(id_usuario)
+);
+
+
+-- ------------------------------------------------------------
+-- REPORTE_U
+-- ------------------------------------------------------------
+
+CREATE TABLE REPORTE_U (
+    id_reporteu SERIAL PRIMARY KEY,
+    id_usuario  INTEGER,
+    accion      VARCHAR(100),
+    detalle     JSONB,
+    tiempo      TIMESTAMP,
+    hash_previo TEXT,
+    hash_actual TEXT,
+
+    CONSTRAINT fk_reporteu_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES USUARIO(id_usuario)
+);
+
+
 -- ============================================================
--- 17. ENVÍA
--- Relación ALERTA - INSTITUCIÓN
+-- RELACIONES N:M
 -- ============================================================
+
+
+-- ------------------------------------------------------------
+-- REALIZA
+-- ------------------------------------------------------------
+
+CREATE TABLE realiza (
+    id_rol        INTEGER,
+    id_auditoriau INTEGER,
+
+    PRIMARY KEY (id_rol, id_auditoriau),
+
+    CONSTRAINT fk_realiza_rol
+        FOREIGN KEY (id_rol)
+        REFERENCES ROL(id_rol),
+
+    CONSTRAINT fk_realiza_auditoriau
+        FOREIGN KEY (id_auditoriau)
+        REFERENCES AUDITORIAU(id_auditoriau)
+);
+
+
+-- ------------------------------------------------------------
+-- REALIZA_AUDI
+-- ------------------------------------------------------------
+
+CREATE TABLE realiza_audi (
+    id_auditoria INTEGER,
+    id_alerta    INTEGER,
+
+    PRIMARY KEY (id_auditoria, id_alerta),
+
+    CONSTRAINT fk_realiza_audi_auditoria
+        FOREIGN KEY (id_auditoria)
+        REFERENCES AUDITORIA(id_auditoria),
+
+    CONSTRAINT fk_realiza_audi_alerta
+        FOREIGN KEY (id_alerta)
+        REFERENCES ALERTA(id_alerta)
+);
+
+
+-- ------------------------------------------------------------
+-- RECEPCIONA
+-- ------------------------------------------------------------
+
+CREATE TABLE recepciona (
+    id_usuario INTEGER,
+    id_alerta  INTEGER,
+
+    PRIMARY KEY (id_usuario, id_alerta),
+
+    CONSTRAINT fk_recepciona_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES USUARIO(id_usuario),
+
+    CONSTRAINT fk_recepciona_alerta
+        FOREIGN KEY (id_alerta)
+        REFERENCES ALERTA(id_alerta)
+);
+
+
+-- ------------------------------------------------------------
+-- ROL_POLITICA
+-- ------------------------------------------------------------
+
+CREATE TABLE rol_politica (
+    id_rol      INTEGER,
+    id_politica INTEGER,
+
+    PRIMARY KEY (id_rol, id_politica),
+
+    CONSTRAINT fk_rol_politica_rol
+        FOREIGN KEY (id_rol)
+        REFERENCES ROL(id_rol),
+
+    CONSTRAINT fk_rol_politica_politica
+        FOREIGN KEY (id_politica)
+        REFERENCES POLITICA(id_politica)
+);
+
+
+-- ------------------------------------------------------------
+-- GENERARU
+-- ------------------------------------------------------------
+
+CREATE TABLE generaRU (
+    id_alerta    INTEGER,
+    id_reporte_u INTEGER,
+
+    PRIMARY KEY (id_alerta, id_reporte_u),
+
+    CONSTRAINT fk_generaru_alerta
+        FOREIGN KEY (id_alerta)
+        REFERENCES ALERTA(id_alerta),
+
+    CONSTRAINT fk_generaru_reporte
+        FOREIGN KEY (id_reporte_u)
+        REFERENCES REPORTE_U(id_reporteu)
+);
+
+
+-- ------------------------------------------------------------
+-- ENVIA
+-- ------------------------------------------------------------
 
 CREATE TABLE envia (
-    id_envia BIGSERIAL PRIMARY KEY,
-    id_alerta BIGINT NOT NULL,
-    id_institucion BIGINT NOT NULL,
+    id_alerta      INTEGER,
+    id_institucion INTEGER,
+
+    PRIMARY KEY (id_alerta, id_institucion),
 
     CONSTRAINT fk_envia_alerta
         FOREIGN KEY (id_alerta)
-        REFERENCES alerta(id_alerta)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
+        REFERENCES ALERTA(id_alerta),
 
     CONSTRAINT fk_envia_institucion
         FOREIGN KEY (id_institucion)
-        REFERENCES institucion(id_institucion)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    CONSTRAINT uq_envia
-        UNIQUE (id_alerta, id_institucion)
+        REFERENCES INSTITUCION(id_institucion)
 );
 
--- ============================================================
--- 18. CUBRE JURISDICCIÓN
--- Relación ZONA - INSTITUCIÓN
--- ============================================================
+
+-- ------------------------------------------------------------
+-- CUBRE_JURISDICCION
+-- ------------------------------------------------------------
 
 CREATE TABLE cubre_jurisdiccion (
-    id_jurisdiccion BIGSERIAL PRIMARY KEY,
-    id_zona BIGINT NOT NULL,
-    id_institucion BIGINT NOT NULL,
+    id_zona        INTEGER,
+    id_institucion INTEGER,
 
-    CONSTRAINT fk_jurisdiccion_zona
+    PRIMARY KEY (id_zona, id_institucion),
+
+    CONSTRAINT fk_cubre_jurisdiccion_zona
         FOREIGN KEY (id_zona)
-        REFERENCES zona_geografica(id_zona)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
+        REFERENCES ZONA_GEOGRAFICA(id_zona),
 
-    CONSTRAINT fk_jurisdiccion_institucion
+    CONSTRAINT fk_cubre_jurisdiccion_institucion
         FOREIGN KEY (id_institucion)
-        REFERENCES institucion(id_institucion)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    CONSTRAINT uq_cubre_jurisdiccion
-        UNIQUE (id_zona, id_institucion)
+        REFERENCES INSTITUCION(id_institucion)
 );
-
--- ============================================================
--- ÍNDICES RECOMENDADOS PARA FK
--- ============================================================
-
-CREATE INDEX idx_tipo_entorno_zona
-    ON tipo_entorno(id_zona);
-
-CREATE INDEX idx_ubicacion_zona
-    ON ubicacion_geografica(id_zona);
-
-CREATE INDEX idx_ubicacion_motor
-    ON ubicacion_geografica(id_motordet);
-
-CREATE INDEX idx_usuario_rol
-    ON usuario(id_rol);
-
-CREATE INDEX idx_usuario_institucion
-    ON usuario(id_institucion);
-
-CREATE INDEX idx_rol_politica_rol
-    ON rol_politica(id_rol);
-
-CREATE INDEX idx_rol_politica_politica
-    ON rol_politica(id_politica);
-
-CREATE INDEX idx_lectura_sensor
-    ON lectura(id_sensor);
-
-CREATE INDEX idx_lectura_alerta
-    ON lectura(id_alerta);
-
-CREATE INDEX idx_lectura_motor
-    ON lectura(id_motordet);
-
-CREATE INDEX idx_alerta_ubicacion
-    ON alerta(id_ubic_geo);
-
-CREATE INDEX idx_alerta_usuario
-    ON alerta(id_usuario);
-
-CREATE INDEX idx_alerta_fecha
-    ON alerta(fecha);
-
-CREATE INDEX idx_auditoria_sensor
-    ON auditoria(id_sensor);
-
-CREATE INDEX idx_reporte_usuario
-    ON reporte_u(id_usuario);
-
-CREATE INDEX idx_envia_alerta
-    ON envia(id_alerta);
-
-CREATE INDEX idx_envia_institucion
-    ON envia(id_institucion);
-
-CREATE INDEX idx_jurisdiccion_zona
-    ON cubre_jurisdiccion(id_zona);
-
-CREATE INDEX idx_jurisdiccion_institucion
-    ON cubre_jurisdiccion(id_institucion);
+```

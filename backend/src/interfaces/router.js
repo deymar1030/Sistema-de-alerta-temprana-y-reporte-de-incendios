@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ZonaGeograficaRouter } from "./features/zonaGeograficaRoter/routes.js";
 
 export class AppRouter {
   static get routes() {
@@ -8,7 +9,7 @@ export class AppRouter {
       res.json({ status: "ok", uptime: process.uptime() });
     });
 
-    // Las rutas de módulos (reportes, alertas, usuarios, ...) se montan aquí.
+    router.use("/zonas-geograficas", ZonaGeograficaRouter.routes);
 
     return router;
   }

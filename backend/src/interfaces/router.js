@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ZonaGeograficaRouter } from "./features/zonaGeograficaRoter/routes.js";
+import { UbicacionGeograficaRouter } from "./features/ubicacionGeograficaRoter/routes.js";
 
 export class AppRouter {
   static get routes() {
@@ -10,6 +11,7 @@ export class AppRouter {
     });
 
     router.use("/zonas-geograficas", ZonaGeograficaRouter.routes);
+    router.use("/ubicaciones-geograficas", UbicacionGeograficaRouter.routes);
 
     return router;
   }

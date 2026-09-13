@@ -4,6 +4,7 @@ import morgan from "morgan";
 
 import { envs } from "./config/envs.js";
 import { AppRouter } from "./interfaces/router.js";
+import { setupSwagger } from "./interfaces/docs/swagger.setup.js";
 
 export default class Server {
   constructor(options = {}) {
@@ -24,6 +25,7 @@ export default class Server {
 
   routes() {
     this.app.use("/api", AppRouter.routes);
+    setupSwagger(this.app);
 
     this.app.get("/", (req, res) => {
       res.json({
@@ -37,6 +39,7 @@ export default class Server {
     this.app.listen(this.port, () => {
       console.log(`Server running on port ${this.port}`);
       console.log(`Health check: http://localhost:${this.port}/api/health`);
+      console.log(`Swagger docs: http://localhost:${this.port}/docs`);
     });
   }
 }

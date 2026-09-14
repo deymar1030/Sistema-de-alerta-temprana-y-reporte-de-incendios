@@ -1,4 +1,5 @@
 import { Router } from "express";
+import SensorRouter from "./features/sensor/routes.js";
 import { ZonaGeograficaRouter } from "./features/zonaGeograficaRoter/routes.js";
 
 export class AppRouter {
@@ -10,6 +11,7 @@ export class AppRouter {
     });
 
     router.use("/zonas-geograficas", ZonaGeograficaRouter.routes);
+    router.use("/sensores", SensorRouter);
 
     return router;
   }

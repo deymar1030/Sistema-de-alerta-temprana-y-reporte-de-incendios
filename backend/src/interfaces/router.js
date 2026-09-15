@@ -3,6 +3,7 @@ import SensorRouter from "./features/sensor/routes.js";
 import { ZonaGeograficaRouter } from "./features/zonaGeograficaRoter/routes.js";
 import { InstitucionRouter } from "./features/institucionRoter/routes.js";
 import { UbicacionGeograficaRouter } from "./features/ubicacionGeograficaRoter/routes.js";
+import { UsuarioRouter } from "./features/usuarioRoter/routes.js";
 
 export class AppRouter {
   static get routes() {
@@ -19,6 +20,7 @@ export class AppRouter {
     router.use("/sensores", SensorRouter);
     router.use("/instituciones", InstitucionRouter.routes);
     router.use("/ubicaciones-geograficas", UbicacionGeograficaRouter.routes);
+    router.use("/usuarios", UsuarioRouter.routes);
 
     return router;
   }

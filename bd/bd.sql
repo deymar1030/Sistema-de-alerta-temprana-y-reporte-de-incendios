@@ -2,6 +2,7 @@
 -- MODELO RELACIONAL
 -- SISTEMA DE ALERTA TEMPRANA Y REPORTE DE INCENDIOS
 -- PostgreSQL
+-- Sincronizado 1:1 con backend/prisma/schema.prisma
 -- ============================================================
 
 
@@ -30,9 +31,12 @@ CREATE TABLE ZONA_GEOGRAFICA (
 -- ------------------------------------------------------------
 
 CREATE TABLE INSTITUCION (
-    id_institucion       SERIAL PRIMARY KEY,
-    categoria            VARCHAR(100),
-    detalle              TEXT,
+    id_institucion SERIAL PRIMARY KEY,
+    categoria      VARCHAR(100),
+    detalle        TEXT,
+    nombre         VARCHAR(150),
+    razon_social   VARCHAR(150),
+    telefono_ins   VARCHAR(30)
 );
 
 
@@ -41,9 +45,8 @@ CREATE TABLE INSTITUCION (
 -- ------------------------------------------------------------
 
 CREATE TABLE ROL (
-    id_rol                SERIAL PRIMARY KEY,
-    nombre                VARCHAR(100),
-    nivel                 VARCHAR(50),
+    id_rol SERIAL PRIMARY KEY,
+    nombre VARCHAR(100)
 );
 
 
@@ -74,11 +77,11 @@ CREATE TABLE POLITICA (
     intentos        INTEGER,
     bloqueo         INTEGER,
     tiempo          TIMESTAMP,
-    id_origen       INET,
+    ip_origen       INET,
     modo_emergencia BOOLEAN,
     horario_inicio  TIME,
     horario_fin     TIME,
-    ppbloqueado     TEXT,
+    ip_bloqueado    INET,
     mfa             BOOLEAN
 );
 
@@ -93,8 +96,8 @@ CREATE TABLE TIPO_ENTORNO (
     clasificacion         VARCHAR(100),
     descripcion           TEXT,
     material_predominante VARCHAR(150),
-    nivel_riesgo          VARCHAR(50),
-    base                  NUMERIC,
+    nivel_riesgo_base     NUMERIC,
+
     CONSTRAINT fk_tipo_entorno_zona
         FOREIGN KEY (id_zona)
         REFERENCES ZONA_GEOGRAFICA(id_zona)
@@ -125,16 +128,37 @@ CREATE TABLE UBICACION_GEOGRAFICA (
 
 
 -- ------------------------------------------------------------
+-- PREDIO (NUEVO)
+-- ------------------------------------------------------------
+
+CREATE TABLE PREDIO (
+    id_predio   SERIAL PRIMARY KEY,
+    id_ubic_geo INTEGER,
+    nombre      VARCHAR(150),
+    direccion   VARCHAR(255),
+
+    CONSTRAINT fk_predio_ubicacion
+        FOREIGN KEY (id_ubic_geo)
+        REFERENCES UBICACION_GEOGRAFICA(id_ubic_geo)
+);
+
+
+-- ------------------------------------------------------------
 -- USUARIO
 -- ------------------------------------------------------------
 
 CREATE TABLE USUARIO (
-    id_usuario    SERIAL PRIMARY KEY,
-    id_institucion INTEGER,
-    nombre        VARCHAR(150),
-    telefono      VARCHAR(30),
-    mfa_secreto   VARCHAR(255),
-    mfa_activado  BOOLEAN,
+    id_usuario       SERIAL PRIMARY KEY,
+    id_rol           INTEGER,
+    id_institucion   INTEGER,
+    nombre           VARCHAR(150),
+    telefono         VARCHAR(30),
+    multiF_S         BOOLEAN,
+    multiF_A         BOOLEAN,
+    contrasena       VARCHAR(255),
+    correo           VARCHAR(150),
+    primer_apellido  VARCHAR(100),
+    segundo_apellido VARCHAR(100),
 
     CONSTRAINT fk_usuario_rol
         FOREIGN KEY (id_rol)
@@ -147,12 +171,29 @@ CREATE TABLE USUARIO (
 
 
 -- ------------------------------------------------------------
+-- SESION (NUEVO)
+-- ------------------------------------------------------------
+
+CREATE TABLE SESION (
+    id_sesion     SERIAL PRIMARY KEY,
+    id_usuario    INTEGER,
+    refresh_token TEXT,
+    dispositivo   VARCHAR(150),
+
+    CONSTRAINT fk_sesion_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES USUARIO(id_usuario)
+);
+
+
+-- ------------------------------------------------------------
 -- SENSOR
 -- ------------------------------------------------------------
 
 CREATE TABLE SENSOR (
     id_sensor         SERIAL PRIMARY KEY,
     id_ubic_geo       INTEGER,
+    id_predio         INTEGER,
     fecha_instalacion DATE,
     estado            VARCHAR(50),
     tipo_sensor       VARCHAR(100),
@@ -163,7 +204,11 @@ CREATE TABLE SENSOR (
 
     CONSTRAINT fk_sensor_ubicacion
         FOREIGN KEY (id_ubic_geo)
-        REFERENCES UBICACION_GEOGRAFICA(id_ubic_geo)
+        REFERENCES UBICACION_GEOGRAFICA(id_ubic_geo),
+
+    CONSTRAINT fk_sensor_predio
+        FOREIGN KEY (id_predio)
+        REFERENCES PREDIO(id_predio)
 );
 
 
@@ -173,21 +218,11 @@ CREATE TABLE SENSOR (
 
 CREATE TABLE ALERTA (
     id_alerta       SERIAL PRIMARY KEY,
-    id_ubic_geo     INTEGER,
-    id_usuario      INTEGER,
     fecha           DATE,
     hora            TIME,
     estado          VARCHAR(100),
     tipo_superficie VARCHAR(100),
-    nivel_riesgo    VARCHAR(100),
-
-    CONSTRAINT fk_alerta_ubicacion
-        FOREIGN KEY (id_ubic_geo)
-        REFERENCES UBICACION_GEOGRAFICA(id_ubic_geo),
-
-    CONSTRAINT fk_alerta_usuario
-        FOREIGN KEY (id_usuario)
-        REFERENCES USUARIO(id_usuario)
+    nivel_riesgo    VARCHAR(100)
 );
 
 
@@ -199,7 +234,7 @@ CREATE TABLE LECTURA (
     id_lectura     SERIAL PRIMARY KEY,
     id_sensor      INTEGER,
     id_alerta      INTEGER,
-    id_motordet     INTEGER,
+    id_motordet    INTEGER,
     valor          NUMERIC,
     fecha_hora     TIMESTAMP,
     estado_lectura VARCHAR(100),
@@ -224,31 +259,26 @@ CREATE TABLE LECTURA (
 -- ------------------------------------------------------------
 
 CREATE TABLE AUDITORIA (
-    id_auditoria    SERIAL PRIMARY KEY,
-    valor           NUMERIC,
-    firma_recibida  TEXT,
-    firma_valida    BOOLEAN,
-    tiempo          TIMESTAMP,
-    id_sensor       INTEGER,
-    id_long         SERIAL,
-    id_usuario      INTEGER,
-    hash_previo     TEXT,
-    hash_actual     TEXT,
-    id_alerta       INTEGER,
-    hash_previo     TEXT,
-    hash_actual     TEXT,
-
-    CONSTRAINT fk_auditoria_sensor
-        FOREIGN KEY (id_sensor)
-        REFERENCES SENSOR(id_sensor),
+    id_auditoria   SERIAL PRIMARY KEY,
+    id_usuario     INTEGER,
+    valor          NUMERIC,
+    firma_recibida TEXT,
+    firma_valida   BOOLEAN,
+    tiempo         TIMESTAMP,
+    id_sensor      INTEGER,
+    -- Nombre tal cual aparece en el PDF; su proposito no esta documentado
+    -- (revisar con el grupo de seguridad antes de usarlo).
+    id_long        INTEGER,
+    hp             TEXT,
+    ha             TEXT,
 
     CONSTRAINT fk_auditoria_usuario
         FOREIGN KEY (id_usuario)
         REFERENCES USUARIO(id_usuario),
 
-    CONSTRAINT fk_auditoria_alerta
-        FOREIGN KEY (id_alerta)
-        REFERENCES ALERTA(id_alerta)
+    CONSTRAINT fk_auditoria_sensor
+        FOREIGN KEY (id_sensor)
+        REFERENCES SENSOR(id_sensor)
 );
 
 
@@ -258,13 +288,14 @@ CREATE TABLE AUDITORIA (
 
 CREATE TABLE AUDITORIAU (
     id_auditoriau SERIAL PRIMARY KEY,
-    ip_origen     INET,
     id_usuario    INTEGER,
+    ip_origen     INET,
     accion        VARCHAR(100),
     detalle       JSONB,
     tiempo        TIMESTAMP,
     hash_previo   TEXT,
     hash_actual   TEXT,
+
     CONSTRAINT fk_auditoriau_usuario
         FOREIGN KEY (id_usuario)
         REFERENCES USUARIO(id_usuario)
@@ -276,17 +307,23 @@ CREATE TABLE AUDITORIAU (
 -- ------------------------------------------------------------
 
 CREATE TABLE REPORTE_U (
-    id_reporteu SERIAL PRIMARY KEY,
-    id_usuario  INTEGER,
-    accion      VARCHAR(100),
-    detalle     JSONB,
-    tiempo      TIMESTAMP,
-    hash_previo TEXT,
-    hash_actual TEXT,
+    id_reporteu     SERIAL PRIMARY KEY,
+    id_usuario      INTEGER,
+    id_ubic_geo     INTEGER,
+    descripcion     TEXT,
+    tipo            VARCHAR(100),
+    nivel_prioridad VARCHAR(50),
+    fecha_envio     TIMESTAMP,
+    hp              TEXT,
+    ha              TEXT,
 
     CONSTRAINT fk_reporteu_usuario
         FOREIGN KEY (id_usuario)
-        REFERENCES USUARIO(id_usuario)
+        REFERENCES USUARIO(id_usuario),
+
+    CONSTRAINT fk_reporteu_ubicacion
+        FOREIGN KEY (id_ubic_geo)
+        REFERENCES UBICACION_GEOGRAFICA(id_ubic_geo)
 );
 
 
@@ -294,25 +331,8 @@ CREATE TABLE REPORTE_U (
 -- RELACIONES N:M
 -- ============================================================
 
-
--- ------------------------------------------------------------
--- REALIZA
--- ------------------------------------------------------------
-
-CREATE TABLE realiza (
-    id_rol        INTEGER,
-    id_auditoriau INTEGER,
-
-    PRIMARY KEY (id_rol, id_auditoriau),
-
-    CONSTRAINT fk_realiza_rol
-        FOREIGN KEY (id_rol)
-        REFERENCES ROL(id_rol),
-
-    CONSTRAINT fk_realiza_auditoriau
-        FOREIGN KEY (id_auditoriau)
-        REFERENCES AUDITORIAU(id_auditoriau)
-);
+-- Se elimina la relacion de "realiza" (ROL <-> AUDITORIAU): la auditoria de
+-- usuario ahora se asocia directamente a USUARIO.id_usuario.
 
 
 -- ------------------------------------------------------------
@@ -433,4 +453,3 @@ CREATE TABLE cubre_jurisdiccion (
         FOREIGN KEY (id_institucion)
         REFERENCES INSTITUCION(id_institucion)
 );
-```

@@ -171,9 +171,6 @@ model usuario {
   id_institucion   Int?
   nombre           String?  @db.VarChar(150)
   telefono         String?  @db.VarChar(30)
-  // "rol" aparece como atributo propio en el PDF ademas del FK id_rol;
-  // se transcribe tal cual, aunque parece redundante — revisar con el equipo.
-  rol              String?  @db.VarChar(100)
   multiF_S         Boolean?
   multiF_A         Boolean?
   // "contraseña" normalizado a "contrasena" (Prisma no admite "ñ" en

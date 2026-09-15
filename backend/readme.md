@@ -85,6 +85,7 @@ HTTP response
 cd backend
 cp .env.example .env
 npm install
+npx prisma generate
 npm run dev    # recarga en caliente (node --watch)
 # o
 npm start

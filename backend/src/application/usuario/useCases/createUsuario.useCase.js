@@ -1,5 +1,6 @@
 import { CreateUsuarioDTO } from "../../../domain/usuario/dtos/createUsuario.dto.js";
 import { UsuarioEntity } from "../../../domain/usuario/entities/usuario.entity.js";
+import { Hash } from "../../../config/hash.js";
 
 export default class CreateUsuarioUseCase {
   constructor(usuarioRepository) {
@@ -13,7 +14,10 @@ export default class CreateUsuarioUseCase {
       throw new Error(`Validation errors: ${errors.join(", ")}`);
     }
 
-    const usuarioDTO = new CreateUsuarioDTO(usuarioData);
+    const usuarioDTO = new CreateUsuarioDTO({
+      ...usuarioData,
+      contrasena: await Hash.hash(usuarioData.contrasena),
+    });
 
     const usuarioEntity = new UsuarioEntity({
       id_usuario: null,

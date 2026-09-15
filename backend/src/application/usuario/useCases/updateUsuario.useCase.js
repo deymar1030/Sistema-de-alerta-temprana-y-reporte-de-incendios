@@ -1,4 +1,5 @@
 import { UpdateUsuarioDTO } from "../../../domain/usuario/dtos/updateUsuario.dto.js";
+import { Hash } from "../../../config/hash.js";
 
 export default class UpdateUsuarioUseCase {
   constructor(usuarioRepository) {
@@ -18,9 +19,13 @@ export default class UpdateUsuarioUseCase {
       throw new Error("Usuario not found");
     }
 
+    const contrasena = usuarioData.contrasena
+      ? await Hash.hash(usuarioData.contrasena)
+      : existingUsuario.contrasena;
+
     const usuarioDTO = new UpdateUsuarioDTO({
       ...usuarioData,
-      contrasena: usuarioData.contrasena || existingUsuario.contrasena,
+      contrasena,
     });
 
     return await this.usuarioRepository.update(id, usuarioDTO);

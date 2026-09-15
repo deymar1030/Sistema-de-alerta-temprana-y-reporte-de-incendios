@@ -79,6 +79,7 @@
  *         contrasena:
  *           type: string
  *           format: password
+ *           description: Se almacena hasheada con bcrypt; nunca en texto plano.
  *           example: "S3cr3ta123!"
  *         correo:
  *           type: string
@@ -125,7 +126,9 @@
  *           type: string
  *           format: password
  *           nullable: true
- *           description: Opcional; si se omite se conserva la contraseña actual.
+ *           description: >
+ *             Opcional; si se omite se conserva la contraseña actual.
+ *             Se almacena hasheada con bcrypt; nunca en texto plano.
  *           example: "NuevaClave456!"
  *         correo:
  *           type: string

@@ -3,6 +3,154 @@ export type AlertState = 'ACTIVA' | 'EN REVISIÓN' | 'RESUELTA'
 export type RiskLevel = 'normal' | 'warning' | 'high' | 'critical'
 export type InstitutionDeliveryState = 'ENVIADA' | 'RECIBIDA' | 'EN_PROCESO' | 'FALLIDA'
 
+export type UserRole = 'CENTRAL_OPERATOR' | 'INSTITUTION_ADMIN' | 'INSTITUTION_USER' | 'CITIZEN'
+export type IncidentStatus =
+  | 'NUEVA'
+  | 'EN_VALIDACION'
+  | 'VALIDADA'
+  | 'DESPACHADA'
+  | 'ACEPTADA'
+  | 'EN_CAMINO'
+  | 'EN_SITIO'
+  | 'CONTROLADA'
+  | 'FINALIZADA'
+  | 'CERRADA'
+  | 'RECHAZADA'
+  | 'FALSA_ALARMA'
+  | 'CANCELADA'
+export type DispatchStatus = 'PENDIENTE' | 'ENVIADA' | 'RECIBIDA' | 'ACEPTADA' | 'RECHAZADA' | 'EN_CAMINO' | 'EN_SITIO' | 'CONTROLADA' | 'FINALIZADA'
+export type ReportStatus = 'BORRADOR' | 'PENDIENTE' | 'COMPLETADO' | 'REVISADO'
+export type CitizenReportStatus = 'RECIBIDO' | 'EN_REVISION' | 'VALIDADO' | 'DESCARTADO' | 'ATENDIDO'
+
+export interface User {
+  id: string
+  nombre: string
+  email: string
+  rol: UserRole
+  institucionId: string | null
+  telefono?: string
+  activo?: boolean
+}
+
+export interface Institution {
+  id: string
+  nombre: string
+  tipo: string
+  direccion: string
+  latitud: number
+  longitud: number
+  telefono: string
+  estado: 'ACTIVA' | 'INACTIVA'
+  disponibilidad: 'DISPONIBLE' | 'ATENDIENDO' | 'NO_DISPONIBLE'
+  distanciaDemo: number
+}
+
+export interface Incident {
+  id: string
+  alertId: string | null
+  origen: 'SENSOR' | 'CIUDADANO'
+  status: IncidentStatus
+  riesgo: RiskLevel
+  ubicacion: string
+  latitud: number
+  longitud: number
+  descripcion: string
+  createdAt: string
+  updatedAt?: string
+  citizenReportId?: string
+}
+
+export interface Alert {
+  id: string
+  incidentId: string
+  origen: 'SENSOR' | 'CIUDADANO'
+  tipo: string
+  ubicacion: string
+  riesgo: RiskLevel
+  estado: IncidentStatus
+  evidenciaDisponible: boolean
+  createdAt: string
+  descripcion: string
+}
+
+export interface Dispatch {
+  id: string
+  incidentId: string
+  alertId: string
+  institutionId: string
+  sentBy: string
+  sentAt: string
+  updatedAt: string
+  status: DispatchStatus
+}
+
+export interface CitizenReport {
+  id: string
+  descripcion: string
+  ubicacion: string
+  latitud: number
+  longitud: number
+  status: CitizenReportStatus
+  createdAt: string
+  fotoNombre?: string
+  fotoUrl?: string
+  factores: string[]
+}
+
+export interface Attachment {
+  id: string
+  nombre: string
+  tipo: string
+  tamano: number
+  fecha: string
+}
+
+export interface AttentionReport {
+  id: string
+  incidentId: string
+  institutionId: string
+  status: ReportStatus
+  fechaIncidente: string
+  horaRecepcion: string
+  horaSalida: string
+  horaLlegada: string
+  horaControl: string
+  horaFinalizacion: string
+  personal: number
+  vehiculos: number
+  personasAfectadas: number
+  personasEvacuadas: number
+  heridos: number
+  fallecidos: number
+  danosMateriales: string
+  causa: string
+  acciones: string
+  observaciones: string
+  recomendaciones: string
+  attachments: Attachment[]
+}
+
+export interface IncidentTimelineEvent {
+  id: string
+  incidentId: string
+  dispatchId?: string
+  institutionId?: string
+  estado: IncidentStatus | DispatchStatus
+  titulo: string
+  detalle: string
+  createdAt: string
+  actor: string
+}
+
+export interface AuditLog {
+  id: string
+  usuario: string
+  accion: string
+  fecha: string
+  incidenteId?: string
+  detalle: string
+}
+
 export interface InstitucionNotificada {
   nombre: string
   fecha_envio: string

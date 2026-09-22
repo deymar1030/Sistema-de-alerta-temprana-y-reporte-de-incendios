@@ -53,6 +53,36 @@ CREATE TABLE motor_det (
 );
 
 -- ============================================================
+-- NUEVO: CELDA
+-- Grilla de simulación del predio (mercado). No representa
+-- necesariamente puntos con sensor; es el "mundo interno" del
+-- motor de fuego headless.
+-- ============================================================
+
+CREATE TABLE celda (
+    id_celda BIGSERIAL PRIMARY KEY,
+    id_zona BIGINT NOT NULL,
+    id_tipo_entorno BIGINT,
+    fila INTEGER NOT NULL,
+    columna INTEGER NOT NULL,
+
+    CONSTRAINT fk_celda_zona
+        FOREIGN KEY (id_zona)
+        REFERENCES zona_geografica(id_zona)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_celda_tipo_entorno
+        FOREIGN KEY (id_tipo_entorno)
+        REFERENCES tipo_entorno(id_tipo_entorno)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT uq_celda_posicion
+        UNIQUE (id_zona, fila, columna)
+);
+
+-- ============================================================
 -- 4. UBICACIÓN GEOGRÁFICA
 -- ============================================================
 
@@ -60,6 +90,8 @@ CREATE TABLE ubicacion_geografica (
     id_ubic_geo BIGSERIAL PRIMARY KEY,
     id_zona BIGINT NOT NULL,
     id_motordet BIGINT,
+    id_tipo_entorno BIGINT,
+    id_celda BIGINT,
     latitud NUMERIC(10,7) NOT NULL,
     longitud NUMERIC(10,7) NOT NULL,
     altitud NUMERIC(10,2),
@@ -75,6 +107,18 @@ CREATE TABLE ubicacion_geografica (
         FOREIGN KEY (id_motordet)
         REFERENCES motor_det(id_motordet)
         ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_ubicacion_tipo_entorno
+        FOREIGN KEY (id_tipo_entorno)
+        REFERENCES tipo_entorno(id_tipo_entorno)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_ubicacion_celda
+        FOREIGN KEY (id_celda)
+        REFERENCES celda(id_celda)
+        ON UPDATE CASCADE
         ON DELETE SET NULL
 );
 
@@ -84,13 +128,20 @@ CREATE TABLE ubicacion_geografica (
 
 CREATE TABLE sensor (
     id_sensor BIGSERIAL PRIMARY KEY,
+    id_ubic_geo BIGINT,
     fecha_instalacion DATE,
     estado BOOLEAN NOT NULL DEFAULT TRUE,
     tipo_sensor VARCHAR(100) NOT NULL,
     unidad_medida VARCHAR(50),
     nombre VARCHAR(150) NOT NULL,
     modelo VARCHAR(100),
-    fabricante VARCHAR(100)
+    fabricante VARCHAR(100),
+
+    CONSTRAINT fk_sensor_ubicacion
+        FOREIGN KEY (id_ubic_geo)
+        REFERENCES ubicacion_geografica(id_ubic_geo)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
 );
 
 -- ============================================================
@@ -394,6 +445,64 @@ CREATE TABLE cubre_jurisdiccion (
 );
 
 -- ============================================================
+-- NUEVO: EJECUCIÓN DE SIMULACIÓN
+-- Una corrida del incendio simulado sobre el predio (semilla,
+-- punto de ignición, parámetros). Permite repetir y comparar.
+-- ============================================================
+
+CREATE TABLE ejecucion_simulacion (
+    id_ejecucion BIGSERIAL PRIMARY KEY,
+    id_zona BIGINT NOT NULL,
+    id_celda_ignicion BIGINT NOT NULL,
+    semilla BIGINT,
+    fecha_inicio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    parametros TEXT,
+    estado VARCHAR(50) NOT NULL DEFAULT 'en_curso',
+
+    CONSTRAINT fk_ejecucion_zona
+        FOREIGN KEY (id_zona)
+        REFERENCES zona_geografica(id_zona)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_ejecucion_celda_ignicion
+        FOREIGN KEY (id_celda_ignicion)
+        REFERENCES celda(id_celda)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
+-- ============================================================
+-- NUEVO: ESTADO_CELDA
+-- Estado real del fuego (verdad de terreno) por celda y paso,
+-- separado del ruido de las lecturas de sensores. Insumo para
+-- la futura animación/visualización.
+-- ============================================================
+
+CREATE TABLE estado_celda (
+    id_estado_celda BIGSERIAL PRIMARY KEY,
+    id_ejecucion BIGINT NOT NULL,
+    id_celda BIGINT NOT NULL,
+    paso INTEGER NOT NULL,
+    estado VARCHAR(20) NOT NULL,
+
+    CONSTRAINT fk_estado_celda_ejecucion
+        FOREIGN KEY (id_ejecucion)
+        REFERENCES ejecucion_simulacion(id_ejecucion)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_estado_celda_celda
+        FOREIGN KEY (id_celda)
+        REFERENCES celda(id_celda)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_estado_celda
+        UNIQUE (id_ejecucion, id_celda, paso)
+);
+
+-- ============================================================
 -- ÍNDICES RECOMENDADOS PARA FK
 -- ============================================================
 
@@ -453,3 +562,30 @@ CREATE INDEX idx_jurisdiccion_zona
 
 CREATE INDEX idx_jurisdiccion_institucion
     ON cubre_jurisdiccion(id_institucion);
+
+CREATE INDEX idx_celda_zona
+    ON celda(id_zona);
+
+CREATE INDEX idx_celda_tipo_entorno
+    ON celda(id_tipo_entorno);
+
+CREATE INDEX idx_ubicacion_tipo_entorno
+    ON ubicacion_geografica(id_tipo_entorno);
+
+CREATE INDEX idx_ubicacion_celda
+    ON ubicacion_geografica(id_celda);
+
+CREATE INDEX idx_sensor_ubicacion
+    ON sensor(id_ubic_geo);
+
+CREATE INDEX idx_ejecucion_zona
+    ON ejecucion_simulacion(id_zona);
+
+CREATE INDEX idx_ejecucion_celda_ignicion
+    ON ejecucion_simulacion(id_celda_ignicion);
+
+CREATE INDEX idx_estado_celda_ejecucion
+    ON estado_celda(id_ejecucion);
+
+CREATE INDEX idx_estado_celda_celda
+    ON estado_celda(id_celda);

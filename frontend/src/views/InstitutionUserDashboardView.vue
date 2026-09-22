@@ -1,0 +1,17 @@
+<script setup lang="ts">
+import { computed, onMounted } from 'vue'
+import { AlertTriangle, CheckCircle2, Clock3, MapPin } from 'lucide-vue-next'
+import StatusBadge from '../components/common/StatusBadge.vue'
+import { useAuthStore } from '../stores/auth.store'
+import { useDispatchStore } from '../stores/dispatch.store'
+import { useIncidentStore } from '../stores/incident.store'
+
+const authStore = useAuthStore(); const dispatchStore = useDispatchStore(); const incidentStore = useIncidentStore()
+const institutionId = computed(()=>authStore.user?.institucionId ?? 'INS-001')
+const myDispatches = computed(()=>dispatchStore.dispatches.filter((item)=>item.institutionId===institutionId.value))
+const active = computed(()=>myDispatches.value.find((item)=>!['FINALIZADA','RECHAZADA'].includes(item.status)))
+const incident = computed(()=>active.value ? incidentStore.incidents.find((item)=>item.id===active.value?.incidentId) : undefined)
+const fmt=(value:string)=>new Intl.DateTimeFormat('es-BO',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value))
+onMounted(async()=>{await Promise.all([dispatchStore.fetchDispatches(),incidentStore.fetchIncidents()])})
+</script>
+<template><div class="space-y-6"><section><p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500">Personal operativo · Modo demostración</p><h2 class="mt-2 text-2xl font-semibold text-slate-900">Inicio operativo</h2><p class="mt-2 text-sm text-slate-600">Vista simplificada para actuar rápido desde teléfono o tablet.</p></section><section v-if="active&&incident" class="rounded-2xl border border-orange-200 bg-[#f6efe7] p-6 shadow-sm"><div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><div class="flex items-center gap-2"><AlertTriangle class="h-5 w-5 text-orange-600"/><span class="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Emergencia activa · {{ active.id }}</span></div><h3 class="mt-3 text-2xl font-semibold text-slate-900">{{ incident.ubicacion }}</h3><p class="mt-2 max-w-2xl text-sm text-slate-700">{{ incident.descripcion }}</p></div><StatusBadge :state="active.status" tone="info">{{ active.status.replaceAll('_',' ') }}</StatusBadge></div><div class="mt-5 grid gap-3 sm:grid-cols-2"><div class="rounded-xl bg-white/80 p-4"><MapPin class="h-5 w-5 text-orange-500"/><p class="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Ubicación</p><p class="mt-1 font-medium text-slate-900">{{ incident.ubicacion }}</p></div><div class="rounded-xl bg-white/80 p-4"><Clock3 class="h-5 w-5 text-slate-500"/><p class="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Alerta recibida</p><p class="mt-1 font-medium text-slate-900">{{ fmt(active.sentAt) }}</p></div></div><RouterLink :to="`/institucion/emergencias/${active.id}`" class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#f24a23] px-5 py-3.5 text-sm font-semibold text-white sm:w-auto"><CheckCircle2 class="h-4 w-4"/> Abrir emergencia y actualizar estado</RouterLink></section><section v-else class="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center"><CheckCircle2 class="mx-auto h-9 w-9 text-emerald-600"/><h3 class="mt-3 text-lg font-semibold text-slate-900">Sin emergencias activas</h3><p class="mt-1 text-sm text-slate-600">Cuando el Operador Central despache una alerta a tu institución aparecerá aquí.</p></section></div></template>

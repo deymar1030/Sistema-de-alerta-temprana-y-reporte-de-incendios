@@ -1,8 +1,8 @@
 # ALERTA — Prevención de Incendios
 
-Frontend demostrativo para un sistema de detección temprana, monitoreo, reporte ciudadano y coordinación institucional de emergencias por incendios.
+Frontend web demostrativo para monitoreo central y administración institucional de emergencias por incendios.
 
-Esta versión reorganiza las vistas por rol, recupera el mapa como elemento central del Centro de Monitoreo y evita la repetición de pantallas que existía en la versión anterior.
+El frontend web está destinado a Operador Central y Admin de Institución. Los roles Ciudadano y Usuario de Institución se implementan en la aplicación móvil ALERTA.
 
 ## Tecnologías
 
@@ -57,10 +57,8 @@ Cuentas:
 |---|---|
 | Operador Central | `operador@alerta.bo` |
 | Admin Institución | `admin.bomberos@alerta.bo` |
-| Usuario Institución | `operativo@alerta.bo` |
-| Ciudadano | `ciudadano@alerta.bo` |
 
-También existe un selector **Modo demostración** en el sidebar para cambiar rápidamente de rol.
+También existe un selector **Modo demostración** en el sidebar para cambiar entre los dos roles web.
 
 ## Roles y vistas
 
@@ -108,56 +106,16 @@ Funciones:
 - registro de tiempos, personal, vehículos, afectados y resultados;
 - historial institucional.
 
-### 3. Usuario de Institución
-
-Rutas:
-
-- `/institucion/dashboard`
-- `/institucion/emergencias`
-- `/institucion/historial`
-
-Funciones:
-
-- recibe únicamente emergencias despachadas a su institución;
-- confirma recepción;
-- marca unidad en camino;
-- confirma llegada;
-- marca incidente controlado;
-- finaliza intervención;
-- cada acción queda registrada con fecha/hora en el timeline y bitácora.
-
-### 4. Ciudadano
-
-Rutas:
-
-- `/ciudadano/inicio`
-- `/ciudadano/reportar`
-- `/ciudadano/mis-reportes`
-- `/ciudadano/notificaciones`
-- `/ciudadano/instrucciones`
-
-Funciones:
-
-- reportar una situación con descripción, ubicación y fotografía;
-- seguimiento del reporte;
-- notificaciones diferenciadas;
-- instrucciones generales de emergencia.
-
-Un reporte ciudadano **no se confirma automáticamente** como incendio. Primero queda pendiente de revisión por el Operador Central.
+Las rutas web `/institucion/...` y `/ciudadano/...` redirigen al login. Las interfaces operativas de esos roles pertenecen a `ALERTA_Movil`.
 
 ## Flujo demo recomendado
 
-1. Ingresar como **Ciudadano**.
-2. Crear un reporte con ubicación y, opcionalmente, fotografía.
-3. Cambiar a **Operador Central**.
-4. Abrir `Alertas` y validar el reporte.
-5. Revisar el mapa y las instituciones cercanas.
-6. Seleccionar una institución y despachar manualmente.
-7. Cambiar a **Usuario Institución**.
-8. Abrir la emergencia y actualizar sus estados operativos.
-9. Cambiar a **Admin Institución**.
-10. Crear el informe de atención y adjuntar un PDF.
-11. Volver a **Operador Central** y revisar historial/bitácora.
+1. Ingresar como **Operador Central**.
+2. Abrir `Alertas` y revisar reportes ciudadanos pendientes.
+3. Revisar el mapa y las instituciones cercanas.
+4. Seleccionar una institución y despachar manualmente.
+5. Revisar incidentes, historial y bitácora.
+6. Ingresar como **Admin Institución** para consultar alertas, personal e informes de atención.
 
 ## Estructura
 
@@ -219,3 +177,11 @@ Backend / Base de datos
 ```
 
 La autenticación real deberá validar correo/contraseña en backend y devolver usuario, rol y sesión/token. Los guards del frontend seguirán siendo útiles para UX, pero la autorización definitiva debe aplicarse también en backend.
+
+## Contratos de datos
+
+Actualmente el frontend web sigue el flujo `Views -> Pinia Stores -> Services -> mocks`; sus services son de demostración y no realizan llamadas de red. La app móvil todavía no tiene una capa propia de mocks, services o stores.
+
+Los tipos objetivo para una futura integración están en `src/types/contracts.ts` y, duplicados para mantener los proyectos independientes, en `ALERTA_Movil/src/types/contracts.ts`. Los modelos legacy que consumen las vistas se conservan temporalmente; cualquier respuesta API deberá mapearse a ellos hasta migrar las vistas.
+
+El documento [Contratos de datos del frontend](docs/frontend-data-contracts.md) define enums, campos requeridos/opcionales, fechas ISO 8601, relaciones y ejemplos JSON ficticios. No hay API ni persistencia implementadas.

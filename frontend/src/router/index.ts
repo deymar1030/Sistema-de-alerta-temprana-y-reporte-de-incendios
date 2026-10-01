@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
-import type { UserRole } from '../types'
+import type { WebUserRole } from '../types'
 
 import LoginView from '../views/LoginView.vue'
 import MonitoringLayout from '../layouts/MonitoringLayout.vue'
@@ -24,23 +24,11 @@ import CentralHistoryView from '../views/CentralHistoryView.vue'
 import InstitutionAdminDashboardView from '../views/InstitutionAdminDashboardView.vue'
 import InstitutionAlertsView from '../views/InstitutionAlertsView.vue'
 import InstitutionHistoryView from '../views/InstitutionHistoryView.vue'
-import InstitutionUserDashboardView from '../views/InstitutionUserDashboardView.vue'
-import InstitutionActiveView from '../views/InstitutionActiveView.vue'
-import InstitutionUserHistoryView from '../views/InstitutionUserHistoryView.vue'
 import InstitutionReportsView from '../views/InstitutionReportsView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
 
-// Ciudadano
-import CitizenHomeView from '../views/CitizenHomeView.vue'
-import CitizenReportView from '../views/CitizenReportView.vue'
-import CitizenReportsView from '../views/CitizenReportsView.vue'
-import CitizenNotificationsView from '../views/CitizenNotificationsView.vue'
-import CitizenInstructionsView from '../views/CitizenInstructionsView.vue'
-
-const centralRoles: UserRole[] = ['CENTRAL_OPERATOR']
-const institutionAdminRoles: UserRole[] = ['INSTITUTION_ADMIN']
-const institutionUserRoles: UserRole[] = ['INSTITUTION_USER']
-const citizenRoles: UserRole[] = ['CITIZEN']
+const centralRoles: WebUserRole[] = ['CENTRAL_OPERATOR']
+const institutionAdminRoles: WebUserRole[] = ['INSTITUTION_ADMIN']
 
 export const routes: RouteRecordRaw[] = [
   { path: '/login', name: 'login', component: LoginView, meta: { title: 'Acceso' } },
@@ -91,27 +79,7 @@ export const routes: RouteRecordRaw[] = [
     ],
   },
 
-  {
-    path: '/institucion', component: MonitoringLayout, meta: { roles: institutionUserRoles }, children: [
-      { path: '', redirect: '/institucion/dashboard' },
-      { path: 'dashboard', name: 'institution-user-dashboard', component: InstitutionUserDashboardView, meta: { roles: institutionUserRoles, title: 'Inicio operativo' } },
-      { path: 'emergencias/:id?', name: 'institution-emergencies', component: InstitutionActiveView, meta: { roles: institutionUserRoles, title: 'Emergencia activa' } },
-      { path: 'historial', name: 'institution-user-history', component: InstitutionUserHistoryView, meta: { roles: institutionUserRoles, title: 'Historial' } },
-      { path: 'alertas', redirect: '/institucion/emergencias' },
-      { path: 'emergencia/:id', redirect: (to) => `/institucion/emergencias/${String(to.params.id)}` },
-    ],
-  },
-
-  {
-    path: '/ciudadano', component: MonitoringLayout, meta: { roles: citizenRoles }, children: [
-      { path: '', redirect: '/ciudadano/inicio' },
-      { path: 'inicio', name: 'citizen-home', component: CitizenHomeView, meta: { roles: citizenRoles, title: 'Inicio' } },
-      { path: 'reportar', name: 'citizen-report', component: CitizenReportView, meta: { roles: citizenRoles, title: 'Reportar incendio' } },
-      { path: 'mis-reportes', name: 'citizen-reports', component: CitizenReportsView, meta: { roles: citizenRoles, title: 'Mis reportes' } },
-      { path: 'notificaciones', name: 'citizen-notifications', component: CitizenNotificationsView, meta: { roles: citizenRoles, title: 'Notificaciones' } },
-      { path: 'instrucciones', name: 'citizen-instructions', component: CitizenInstructionsView, meta: { roles: citizenRoles, title: 'Instrucciones de emergencia' } },
-    ],
-  },
-
-  { path: '/:pathMatch(.*)*', redirect: '/' },
+  { path: '/institucion/:pathMatch(.*)*', redirect: { path: '/login', query: { access: 'mobile' } } },
+  { path: '/ciudadano/:pathMatch(.*)*', redirect: { path: '/login', query: { access: 'mobile' } } },
+  { path: '/:pathMatch(.*)*', redirect: '/login' },
 ]

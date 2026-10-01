@@ -2,7 +2,7 @@ import { incidentsMock } from '../mocks/incidents'
 import type { CitizenReport, Incident, IncidentStatus } from '../types'
 
 export const incidentService = {
-  async getIncidents() { return incidentsMock },
+  async getIncidents(): Promise<Incident[]> { return incidentsMock },
   async updateStatus(id: string, status: IncidentStatus): Promise<Incident | undefined> {
     const incident = incidentsMock.find((item) => item.id === id)
     if (incident) {

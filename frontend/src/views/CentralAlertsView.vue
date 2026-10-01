@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Camera, CheckCircle2, Clock3, MapPin, RadioTower, Send, ShieldAlert } from 'lucide-vue-next'
 import StatusBadge from '../components/common/StatusBadge.vue'
 import MonitoringMap from '../components/dashboard/MonitoringMap.vue'
+import { useToast } from '../composables/useToast'
 import { useIncidentStore } from '../stores/incident.store'
 import { useCitizenReportStore } from '../stores/citizen-report.store'
 import { useInstitutionStore } from '../stores/institution.store'
@@ -19,6 +20,7 @@ const dispatchStore = useDispatchStore()
 const timelineStore = useTimelineStore()
 const authStore = useAuthStore()
 const auditStore = useAuditStore()
+const { showToast } = useToast()
 
 const selectedId = ref<string | null>(null)
 const selectedInstitutions = ref<string[]>([])
@@ -53,6 +55,11 @@ const validate = async () => {
     actor: authStore.user?.nombre ?? 'Operador Central',
   })
   await auditStore.addLog({ usuario: authStore.user?.nombre ?? 'Operador Central', accion: 'Validó alerta', incidenteId: incident.id, detalle: 'Alerta habilitada para despacho manual.' })
+  showToast({
+    type: 'success',
+    title: 'Alerta validada',
+    description: 'La información fue verificada y queda lista para despacho.',
+  })
 }
 
 const confirmDispatch = () => {
@@ -84,6 +91,11 @@ const dispatch = async () => {
   }
   await incidentStore.updateStatus(incident.id, 'DESPACHADA')
   successMessage.value = `Alerta enviada a ${selectedInstitutions.value.length} institución(es).`
+  showToast({
+    type: 'success',
+    title: 'Alerta despachada',
+    description: `Se notificó a ${selectedInstitutions.value.length} institución(es) correctamente.`,
+  })
   selectedInstitutions.value = []
   confirmationOpen.value = false
 }

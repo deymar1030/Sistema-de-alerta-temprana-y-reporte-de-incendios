@@ -4,6 +4,9 @@ export type RiskLevel = 'normal' | 'warning' | 'high' | 'critical'
 export type InstitutionDeliveryState = 'ENVIADA' | 'RECIBIDA' | 'EN_PROCESO' | 'FALLIDA'
 
 export type UserRole = 'CENTRAL_OPERATOR' | 'INSTITUTION_ADMIN' | 'INSTITUTION_USER' | 'CITIZEN'
+export type WebUserRole = Extract<UserRole, 'CENTRAL_OPERATOR' | 'INSTITUTION_ADMIN'>
+export const WEB_USER_ROLES: readonly WebUserRole[] = ['CENTRAL_OPERATOR', 'INSTITUTION_ADMIN']
+export const isWebUserRole = (role: UserRole): role is WebUserRole => WEB_USER_ROLES.includes(role as WebUserRole)
 export type IncidentStatus =
   | 'NUEVA'
   | 'EN_VALIDACION'

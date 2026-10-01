@@ -2,21 +2,20 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  Activity, AlertTriangle, Bell, BookOpenCheck, Building2, ChevronRight, ClipboardList,
-  Flame, Gauge, History, Menu, RadioTower, Settings, ShieldCheck, SlidersHorizontal,
+  Activity, AlertTriangle, Bell, Building2, ChevronRight, ClipboardList,
+  Flame, Gauge, History, Menu, Settings, ShieldCheck, SlidersHorizontal,
   UserCircle2, Users, X,
 } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth.store'
 import { roleLabels } from '../mocks/users'
-import { institutionsMock } from '../mocks/institutions'
-import type { UserRole } from '../types'
+import { isWebUserRole, WEB_USER_ROLES, type WebUserRole } from '../types'
 
 const route = useRoute(); const router = useRouter(); const authStore = useAuthStore()
 const sidebarOpen = ref(false); const collapsed = ref(false); const notificationsOpen = ref(false)
 const now = ref(new Date()); let timer: ReturnType<typeof setInterval> | undefined
 
 type NavItem = { label: string; to: string; icon: Component }
-const navByRole: Record<UserRole, NavItem[]> = {
+const navByRole: Record<WebUserRole, NavItem[]> = {
   CENTRAL_OPERATOR: [
     { label: 'Dashboard', to: '/central/dashboard', icon: Gauge },
     { label: 'Alertas', to: '/central/alertas', icon: AlertTriangle },
@@ -30,46 +29,22 @@ const navByRole: Record<UserRole, NavItem[]> = {
     { label: 'Alertas recibidas', to: '/admin-institucion/alertas', icon: AlertTriangle },
     { label: 'Sensores', to: '/admin-institucion/sensores', icon: Activity },
     { label: 'Lecturas', to: '/admin-institucion/lecturas', icon: ShieldCheck },
-    { label: 'Motor de Detección', to: '/admin-institucion/motor', icon: Flame },
-    { label: 'Personal', to: '/admin-institucion/usuarios', icon: Users },
+    { label: 'Usuarios', to: '/admin-institucion/usuarios', icon: Users },
     { label: 'Informes de Atención', to: '/admin-institucion/informes', icon: ClipboardList },
     { label: 'Historial', to: '/admin-institucion/historial', icon: History },
     { label: 'Configuración', to: '/admin-institucion/configuracion', icon: Settings },
   ],
-  INSTITUTION_USER: [
-    { label: 'Inicio', to: '/institucion/dashboard', icon: Gauge },
-    { label: 'Emergencias', to: '/institucion/emergencias', icon: RadioTower },
-    { label: 'Historial', to: '/institucion/historial', icon: History },
-  ],
-  CITIZEN: [
-    { label: 'Inicio', to: '/ciudadano/inicio', icon: Gauge },
-    { label: 'Reportar incendio', to: '/ciudadano/reportar', icon: Flame },
-    { label: 'Mis reportes', to: '/ciudadano/mis-reportes', icon: ClipboardList },
-    { label: 'Notificaciones', to: '/ciudadano/notificaciones', icon: Bell },
-    { label: 'Instrucciones', to: '/ciudadano/instrucciones', icon: BookOpenCheck },
-  ],
 }
 
-const navItems = computed(() => navByRole[authStore.role])
-const roleOptions = Object.entries(roleLabels) as Array<[UserRole, string]>
+const navItems = computed(() => navByRole[isWebUserRole(authStore.role) ? authStore.role : 'CENTRAL_OPERATOR'])
+const roleOptions = WEB_USER_ROLES.map((role) => [role, roleLabels[role]] as const)
 const currentTitle = computed(() => String(route.meta.title ?? 'ALERTA'))
-const currentInstitution = computed(() => institutionsMock.find((item) => item.id === authStore.user?.institucionId))
-const headerContext = computed(() => ({
-  CENTRAL_OPERATOR: 'Centro de Monitoreo',
-  INSTITUTION_ADMIN: currentInstitution.value?.nombre ?? 'Administración institucional',
-  INSTITUTION_USER: currentInstitution.value?.nombre ?? 'Personal operativo',
-  CITIZEN: 'Ciudadano',
-}[authStore.role]))
+const headerContext = computed(() => authStore.role === 'INSTITUTION_ADMIN'
+  ? 'Administración Institucional'
+  : 'Centro de Monitoreo')
 const initials = computed(() => (authStore.user?.nombre ?? 'AL').split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase())
 
 const notifications = computed(() => {
-  if (authStore.role === 'CITIZEN') return [
-    { text: 'Tu reporte continúa en verificación', to: '/ciudadano/mis-reportes' },
-    { text: 'Consulta recomendaciones de emergencia', to: '/ciudadano/instrucciones' },
-  ]
-  if (authStore.role === 'INSTITUTION_USER') return [
-    { text: 'Tienes una emergencia asignada', to: '/institucion/emergencias' },
-  ]
   if (authStore.role === 'INSTITUTION_ADMIN') return [
     { text: 'Revisa las alertas recibidas por tu institución', to: '/admin-institucion/alertas' },
     { text: 'Hay informes de atención para completar', to: '/admin-institucion/informes' },
@@ -81,13 +56,13 @@ const notifications = computed(() => {
   ]
 })
 
-const switchRole = async (role: UserRole) => {
+const switchRole = async (role: WebUserRole) => {
   await authStore.switchDemoRole(role)
   notificationsOpen.value = false
   await router.push(navByRole[role][0].to)
 }
 const logout = async () => { await authStore.logout(); await router.push('/login') }
-const isActive = (item: NavItem) => route.path === item.to || (item.to.endsWith('/emergencias') && route.path.startsWith('/institucion/emergencias'))
+const isActive = (item: NavItem) => route.path === item.to
 const goNotification = async (to: string) => { notificationsOpen.value = false; await router.push(to) }
 
 watch(() => route.fullPath, () => { sidebarOpen.value = false; notificationsOpen.value = false })
@@ -117,7 +92,7 @@ const formattedTime = computed(() => new Intl.DateTimeFormat('es-BO', { day: '2-
 
         <div class="shrink-0 border-t border-slate-200 p-3">
           <div class="flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm"><UserCircle2 class="h-5 w-5"/></div><div v-if="!collapsed" class="min-w-0 flex-1"><p class="truncate text-sm font-semibold text-slate-900">{{ authStore.user?.nombre }}</p><p class="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.17em] text-emerald-700">{{ roleLabels[authStore.role] }}</p></div></div>
-          <div v-if="!collapsed" class="mt-3 space-y-2"><label class="block text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">Modo demostración</label><select :value="authStore.role" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-orange-300" @change="switchRole(($event.target as HTMLSelectElement).value as UserRole)"><option v-for="[role,label] in roleOptions" :key="role" :value="role">{{ label }}</option></select><button class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 hover:border-orange-200 hover:text-orange-600" @click="logout">Cerrar sesión</button></div>
+          <div v-if="!collapsed" class="mt-3 space-y-2"><label class="block text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">Modo demostración</label><select :value="authStore.role" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-orange-300" @change="switchRole(($event.target as HTMLSelectElement).value as WebUserRole)"><option v-for="[role,label] in roleOptions" :key="role" :value="role">{{ label }}</option></select><button class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 hover:border-orange-200 hover:text-orange-600" @click="logout">Cerrar sesión</button></div>
         </div>
       </aside>
 

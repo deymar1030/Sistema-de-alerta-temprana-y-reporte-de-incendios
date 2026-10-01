@@ -2,7 +2,7 @@ import { auditMock } from '../mocks/audit'
 import type { AuditLog } from '../types'
 
 export const auditService = {
-  async getLogs() { return auditMock },
+  async getLogs(): Promise<AuditLog[]> { return auditMock },
   async addLog(input: Omit<AuditLog, 'id' | 'fecha'> & { fecha?: string }): Promise<AuditLog> {
     const log: AuditLog = {
       ...input,

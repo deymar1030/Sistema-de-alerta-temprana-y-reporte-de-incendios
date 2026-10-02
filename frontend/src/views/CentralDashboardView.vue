@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { AlertTriangle, Building2, Clock3, Flame, MapPinned, RadioTower } from 'lucide-vue-next'
+import { AlertTriangle, Building2, Flame, MapPinned, RadioTower } from 'lucide-vue-next'
 import MetricCard from '../components/common/MetricCard.vue'
 import StatusBadge from '../components/common/StatusBadge.vue'
 import MonitoringMap from '../components/dashboard/MonitoringMap.vue'
@@ -26,7 +26,6 @@ const metrics = computed(() => [
   { title: 'Alertas por revisar', value: String(pending.value.length), detail: 'Requieren decisión humana', trend: 'Centro de monitoreo', tone: 'warning' as const, icon: AlertTriangle },
   { title: 'Incidentes activos', value: String(activeIncidents.value.length), detail: 'Seguimiento operativo', trend: `${critical.value.length} prioritarios`, tone: critical.value.length ? 'danger' as const : 'success' as const, icon: Flame },
   { title: 'Instituciones disponibles', value: String(institutionStore.institutions.filter((item) => item.disponibilidad === 'DISPONIBLE').length), detail: 'Datos de demostración', trend: `${institutionStore.institutions.length} registradas`, tone: 'success' as const, icon: Building2 },
-  { title: 'Tiempo medio de respuesta', value: '08 min', detail: 'Métrica demostrativa', trend: 'No es dato real', tone: 'info' as const, icon: Clock3 },
 ])
 
 const statusTone = (status: IncidentStatus) => {
@@ -56,7 +55,7 @@ onMounted(async () => {
       </RouterLink>
     </section>
 
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <MetricCard v-for="metric in metrics" :key="metric.title" v-bind="metric" />
     </section>
 

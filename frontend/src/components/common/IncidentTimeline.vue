@@ -18,9 +18,6 @@ const fallbackSteps: Array<{ status: IncidentStatus; label: string }> = [
   { status: 'VALIDADA', label: 'Alerta validada' },
   { status: 'DESPACHADA', label: 'Despacho' },
   { status: 'ACEPTADA', label: 'Recepción confirmada' },
-  { status: 'EN_CAMINO', label: 'Unidad en camino' },
-  { status: 'EN_SITIO', label: 'Unidad en sitio' },
-  { status: 'CONTROLADA', label: 'Incendio controlado' },
   { status: 'FINALIZADA', label: 'Intervención finalizada' },
 ]
 

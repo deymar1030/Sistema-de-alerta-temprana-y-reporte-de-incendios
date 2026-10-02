@@ -3,15 +3,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from
 import { useRoute, useRouter } from 'vue-router'
 import {
   Activity, AlertTriangle, Bell, Building2, ChevronRight, ClipboardList,
-  Flame, Gauge, History, Menu, Settings, ShieldCheck, SlidersHorizontal,
-  UserCircle2, Users, X,
+  Flame, Gauge, History, LogOut, Menu, Settings, Users, X,
 } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth.store'
-import { roleLabels } from '../mocks/users'
-import { isWebUserRole, WEB_USER_ROLES, type WebUserRole } from '../types'
+import { isWebUserRole, type WebUserRole } from '../types'
 
 const route = useRoute(); const router = useRouter(); const authStore = useAuthStore()
 const sidebarOpen = ref(false); const collapsed = ref(false); const notificationsOpen = ref(false)
+const profileMenuOpen = ref(false)
+const profileMenuRef = ref<HTMLElement | null>(null)
+const notificationMenuRef = ref<HTMLElement | null>(null)
 const now = ref(new Date()); let timer: ReturnType<typeof setInterval> | undefined
 
 type NavItem = { label: string; to: string; icon: Component }
@@ -20,29 +21,27 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
     { label: 'Dashboard', to: '/central/dashboard', icon: Gauge },
     { label: 'Alertas', to: '/central/alertas', icon: AlertTriangle },
     { label: 'Incidentes', to: '/central/incidentes', icon: Flame },
+    { label: 'Sensores', to: '/central/sensores', icon: Activity },
     { label: 'Instituciones', to: '/central/instituciones', icon: Building2 },
     { label: 'Historial', to: '/central/historial', icon: History },
-    { label: 'Configuración', to: '/central/configuracion', icon: SlidersHorizontal },
   ],
   INSTITUTION_ADMIN: [
     { label: 'Dashboard', to: '/admin-institucion/dashboard', icon: Gauge },
     { label: 'Alertas recibidas', to: '/admin-institucion/alertas', icon: AlertTriangle },
-    { label: 'Sensores', to: '/admin-institucion/sensores', icon: Activity },
-    { label: 'Lecturas', to: '/admin-institucion/lecturas', icon: ShieldCheck },
     { label: 'Usuarios', to: '/admin-institucion/usuarios', icon: Users },
     { label: 'Informes de Atención', to: '/admin-institucion/informes', icon: ClipboardList },
     { label: 'Historial', to: '/admin-institucion/historial', icon: History },
-    { label: 'Configuración', to: '/admin-institucion/configuracion', icon: Settings },
   ],
 }
 
 const navItems = computed(() => navByRole[isWebUserRole(authStore.role) ? authStore.role : 'CENTRAL_OPERATOR'])
-const roleOptions = WEB_USER_ROLES.map((role) => [role, roleLabels[role]] as const)
 const currentTitle = computed(() => String(route.meta.title ?? 'ALERTA'))
 const headerContext = computed(() => authStore.role === 'INSTITUTION_ADMIN'
   ? 'Administración Institucional'
   : 'Centro de Monitoreo')
 const initials = computed(() => (authStore.user?.nombre ?? 'AL').split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase())
+const settingsRoute = computed(() => authStore.role === 'INSTITUTION_ADMIN' ? '/admin-institucion/configuracion' : '/central/configuracion')
+const userRoleBadge = computed(() => authStore.role === 'INSTITUTION_ADMIN' ? 'ADMIN INSTITUCIÓN' : 'ONLINE')
 
 const notifications = computed(() => {
   if (authStore.role === 'INSTITUTION_ADMIN') return [
@@ -56,25 +55,44 @@ const notifications = computed(() => {
   ]
 })
 
-const switchRole = async (role: WebUserRole) => {
-  await authStore.switchDemoRole(role)
-  notificationsOpen.value = false
-  await router.push(navByRole[role][0].to)
-}
-const logout = async () => { await authStore.logout(); await router.push('/login') }
+const logout = async () => { profileMenuOpen.value = false; await authStore.logout(); await router.push('/login') }
 const isActive = (item: NavItem) => route.path === item.to
 const goNotification = async (to: string) => { notificationsOpen.value = false; await router.push(to) }
+const closeMenus = () => { notificationsOpen.value = false; profileMenuOpen.value = false }
 
-watch(() => route.fullPath, () => { sidebarOpen.value = false; notificationsOpen.value = false })
-onMounted(() => { timer = setInterval(() => { now.value = new Date() }, 30_000) })
-onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+watch(() => route.fullPath, () => {
+  sidebarOpen.value = false
+  closeMenus()
+})
+watch(() => [sidebarOpen.value, collapsed.value], () => {
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 300)
+})
+
+const handleDocumentClick = (event: MouseEvent) => {
+  const target = event.target as Node
+  if (profileMenuOpen.value && profileMenuRef.value && !profileMenuRef.value.contains(target)) {
+    profileMenuOpen.value = false
+  }
+  if (notificationsOpen.value && notificationMenuRef.value && !notificationMenuRef.value.contains(target)) {
+    notificationsOpen.value = false
+  }
+}
+
+onMounted(() => {
+  timer = setInterval(() => { now.value = new Date() }, 30_000)
+  window.addEventListener('click', handleDocumentClick)
+})
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer)
+  window.removeEventListener('click', handleDocumentClick)
+})
 const formattedTime = computed(() => new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(now.value))
 </script>
 
 <template>
   <div class="legacy-light min-h-screen bg-[#f3f5f3] text-slate-900">
-    <div class="flex min-h-screen">
-      <aside :class="['fixed inset-y-0 left-0 z-40 flex flex-col overflow-y-auto border-r border-slate-200 bg-white transition-all duration-300 lg:static', collapsed ? 'w-20' : 'w-[280px]', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']">
+    <div class="flex min-h-screen w-full overflow-hidden">
+      <aside :class="['fixed inset-y-0 left-0 z-40 flex flex-col overflow-y-auto border-r border-slate-200 bg-white transition-all duration-300 lg:static lg:sticky lg:top-0 lg:h-screen', collapsed ? 'w-20' : 'w-[280px]', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']">
         <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-5">
           <div class="flex items-center gap-3 overflow-hidden">
             <img src="/logo-alerta-ave.svg" alt="Logo ALERTA" class="h-11 w-11 shrink-0" />
@@ -89,11 +107,6 @@ const formattedTime = computed(() => new Intl.DateTimeFormat('es-BO', { day: '2-
             <component :is="item.icon" :class="['h-5 w-5 shrink-0',isActive(item)?'text-orange-600':'text-slate-500']"/><span v-if="!collapsed" class="truncate">{{ item.label }}</span>
           </RouterLink>
         </nav>
-
-        <div class="shrink-0 border-t border-slate-200 p-3">
-          <div class="flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm"><UserCircle2 class="h-5 w-5"/></div><div v-if="!collapsed" class="min-w-0 flex-1"><p class="truncate text-sm font-semibold text-slate-900">{{ authStore.user?.nombre }}</p><p class="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.17em] text-emerald-700">{{ roleLabels[authStore.role] }}</p></div></div>
-          <div v-if="!collapsed" class="mt-3 space-y-2"><label class="block text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">Modo demostración</label><select :value="authStore.role" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-orange-300" @change="switchRole(($event.target as HTMLSelectElement).value as WebUserRole)"><option v-for="[role,label] in roleOptions" :key="role" :value="role">{{ label }}</option></select><button class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 hover:border-orange-200 hover:text-orange-600" @click="logout">Cerrar sesión</button></div>
-        </div>
       </aside>
 
       <div class="flex min-h-screen min-w-0 flex-1 flex-col">
@@ -103,11 +116,41 @@ const formattedTime = computed(() => new Intl.DateTimeFormat('es-BO', { day: '2-
 
             <div class="hidden items-center gap-3 lg:flex"><div class="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>Sistema conectado</div><div class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600">{{ formattedTime }}</div></div>
 
-            <div class="relative flex items-center gap-2 sm:gap-3"><button class="relative rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm" aria-label="Notificaciones" @click="notificationsOpen=!notificationsOpen"><Bell class="h-4 w-4"/><span class="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{{ notifications.length }}</span></button><div v-if="notificationsOpen" class="absolute right-0 top-14 z-50 w-[min(330px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl"><p class="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Notificaciones</p><button v-for="notification in notifications" :key="notification.text" class="block w-full rounded-xl px-3 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50" @click="goNotification(notification.to)">{{ notification.text }}</button></div><div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm"><div class="flex h-9 w-9 items-center justify-center rounded-full bg-[#f6e8d9] text-sm font-semibold text-orange-600">{{ initials }}</div><div class="hidden text-left md:block"><div class="max-w-32 truncate text-xs font-semibold text-slate-900">{{ authStore.user?.nombre }}</div><div class="text-[9px] uppercase tracking-[0.18em] text-slate-500">online</div></div></div></div>
+            <div class="relative flex items-center gap-2 sm:gap-3">
+              <button class="relative rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm" aria-label="Notificaciones" @click.stop="notificationsOpen=!notificationsOpen">
+                <Bell class="h-4 w-4"/>
+                <span class="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{{ notifications.length }}</span>
+              </button>
+              <div v-if="notificationsOpen" ref="notificationMenuRef" class="absolute right-0 top-14 z-50 w-[min(330px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+                <p class="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Notificaciones</p>
+                <button v-for="notification in notifications" :key="notification.text" class="block w-full rounded-xl px-3 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50" @click="goNotification(notification.to)">{{ notification.text }}</button>
+              </div>
+
+              <div ref="profileMenuRef" class="relative">
+                <button class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm transition hover:border-orange-200" @click.stop="profileMenuOpen = !profileMenuOpen" aria-label="Abrir menú de perfil">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[#f6e8d9] text-sm font-semibold text-orange-600">{{ initials }}</div>
+                  <div class="hidden max-w-[12rem] text-left md:block">
+                    <div class="truncate text-xs font-semibold text-slate-900">{{ authStore.user?.nombre }}</div>
+                    <div class="text-[9px] uppercase tracking-[0.18em] text-slate-500">{{ userRoleBadge }}</div>
+                  </div>
+                </button>
+
+                <div v-if="profileMenuOpen" class="absolute right-0 top-[calc(100%+0.75rem)] z-[60] w-56 rounded-2xl border border-[#D4DAD7] bg-white p-2 shadow-[0_18px_42px_rgba(15,23,42,0.12)]">
+                  <button class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[#17212B] transition hover:bg-slate-50" @click="router.push(settingsRoute); profileMenuOpen=false">
+                    <Settings class="h-4 w-4 text-slate-600" />
+                    <span>Configuración</span>
+                  </button>
+                  <button class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[#17212B] transition hover:bg-slate-50" @click="logout">
+                    <LogOut class="h-4 w-4 text-slate-600" />
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </header>
 
-        <main class="min-w-0 flex-1 p-4 lg:p-6"><router-view /></main>
+        <main class="relative z-0 min-w-0 flex-1 p-4 lg:p-6"><router-view /></main>
       </div>
     </div>
   </div>

@@ -23,6 +23,7 @@ import CentralHistoryView from '../views/CentralHistoryView.vue'
 // Institución
 import InstitutionAdminDashboardView from '../views/InstitutionAdminDashboardView.vue'
 import InstitutionAlertsView from '../views/InstitutionAlertsView.vue'
+import InstitutionAlertDetailView from '../views/InstitutionAlertDetailView.vue'
 import InstitutionHistoryView from '../views/InstitutionHistoryView.vue'
 import InstitutionReportsView from '../views/InstitutionReportsView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
@@ -54,6 +55,7 @@ export const routes: RouteRecordRaw[] = [
       { path: 'dashboard', name: 'central-dashboard', component: CentralDashboardView, meta: { roles: centralRoles, title: 'Dashboard' } },
       { path: 'alertas', name: 'central-alerts', component: CentralAlertsView, meta: { roles: centralRoles, title: 'Alertas por validar' } },
       { path: 'incidentes', name: 'central-incidents', component: CentralIncidentsView, meta: { roles: centralRoles, title: 'Incidentes' } },
+      { path: 'sensores', name: 'central-sensors', component: SensorsView, meta: { roles: centralRoles, title: 'Sensores' } },
       { path: 'instituciones', name: 'central-institutions', component: CentralInstitutionsView, meta: { roles: centralRoles, title: 'Instituciones' } },
       { path: 'historial', name: 'central-history', component: CentralHistoryView, meta: { roles: centralRoles, title: 'Historial' } },
       { path: 'configuracion', name: 'central-settings', component: SettingsView, meta: { roles: centralRoles, title: 'Configuración' } },
@@ -69,9 +71,7 @@ export const routes: RouteRecordRaw[] = [
       { path: '', redirect: '/admin-institucion/dashboard' },
       { path: 'dashboard', name: 'institution-admin-dashboard', component: InstitutionAdminDashboardView, meta: { roles: institutionAdminRoles, title: 'Dashboard institucional' } },
       { path: 'alertas', name: 'institution-admin-alerts', component: InstitutionAlertsView, meta: { roles: institutionAdminRoles, title: 'Alertas recibidas' } },
-      { path: 'sensores', name: 'institution-sensors', component: SensorsView, meta: { roles: institutionAdminRoles, title: 'Sensores' } },
-      { path: 'lecturas', name: 'institution-readings', component: ReadingsView, meta: { roles: institutionAdminRoles, title: 'Lecturas' } },
-      { path: 'motor', name: 'institution-detection', component: DetectionEngineView, meta: { roles: institutionAdminRoles, title: 'Motor de Detección' } },
+      { path: 'alertas/:id', name: 'institution-admin-alert-detail', component: InstitutionAlertDetailView, meta: { roles: institutionAdminRoles, title: 'Detalle de alerta' } },
       { path: 'usuarios', name: 'institution-users', component: AdminUsersView, meta: { roles: institutionAdminRoles, title: 'Personal y usuarios' } },
       { path: 'informes', name: 'institution-reports', component: InstitutionReportsView, meta: { roles: institutionAdminRoles, title: 'Informes de Atención' } },
       { path: 'historial', name: 'institution-history', component: InstitutionHistoryView, meta: { roles: institutionAdminRoles, title: 'Historial' } },

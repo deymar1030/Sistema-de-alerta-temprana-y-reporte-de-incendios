@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import { sensorsMock } from '../../mocks/sensors'
 import { incidentsMock } from '../../mocks/incidents'
@@ -30,6 +30,11 @@ let sensorLayer: L.LayerGroup | null = null
 let incidentLayer: L.LayerGroup | null = null
 let institutionLayer: L.LayerGroup | null = null
 let reportLayer: L.LayerGroup | null = null
+
+const resolvedHeight = computed(() => {
+  const match = props.heightClass.match(/h-\[(\d+)px\]/) ?? props.heightClass.match(/h-(\d+)/)
+  return match ? `${match[1]}px` : '260px'
+})
 
 const sensorColors: Record<string, string> = {
   normal: '#47836b', warning: '#f2c94c', high: '#f4a259', critical: '#e4473d',
@@ -95,6 +100,27 @@ const applyFocus = () => {
   map.setView([props.focusLat, props.focusLng], props.focusZoom)
 }
 
+const handleResize = () => {
+  if (map) {
+    map.invalidateSize()
+  }
+}
+
+const refreshMapLayout = () => {
+  nextTick(() => {
+    if (!mapContainer.value) return
+
+    mapContainer.value.style.height = '100%'
+    mapContainer.value.style.width = '100%'
+
+    if (map) {
+      map.invalidateSize()
+      requestAnimationFrame(() => map?.invalidateSize())
+      setTimeout(() => map?.invalidateSize(), 120)
+    }
+  })
+}
+
 onMounted(() => {
   if (!mapContainer.value) return
   map = L.map(mapContainer.value, { zoomControl: true, scrollWheelZoom: true }).setView([-16.505, -68.12], 13)
@@ -107,18 +133,24 @@ onMounted(() => {
   reportLayer = L.layerGroup().addTo(map)
   rebuildLayers()
   applyFocus()
-  setTimeout(() => map?.invalidateSize(), 80)
+  refreshMapLayout()
+  window.addEventListener('resize', handleResize)
+  setTimeout(() => map?.invalidateSize(), 200)
 })
 
 watch(() => [props.showSensors, props.showIncidents, props.showInstitutions, props.showReports], rebuildLayers)
 watch(() => [props.focusLat, props.focusLng], applyFocus)
+watch(() => props.heightClass, refreshMapLayout)
 
-onBeforeUnmount(() => { map?.remove(); map = null })
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  map?.remove(); map = null
+})
 </script>
 
 <template>
-  <div :class="['relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm', heightClass]">
-    <div ref="mapContainer" class="h-full w-full"></div>
+  <div :class="['relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm', heightClass]" :style="{ minHeight: resolvedHeight }">
+    <div ref="mapContainer" class="h-full w-full" :style="{ height: '100%', width: '100%' }"></div>
     <div class="pointer-events-none absolute bottom-3 left-3 z-[400] rounded-xl border border-white/80 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
       <p class="mb-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">Leyenda</p>
       <div class="grid gap-1.5 text-[11px] text-slate-700 sm:grid-cols-2">

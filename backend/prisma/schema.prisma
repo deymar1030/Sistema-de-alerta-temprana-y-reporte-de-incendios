@@ -124,7 +124,6 @@ model ubicacion_geografica {
   motor_det       motor_det?      @relation(fields: [id_motordet], references: [id_motordet])
   predio          predio[]
   sensor          sensor[]
-  reporte_u       reporte_u[]
 }
 
 // ------------------------------------------------------------
@@ -166,30 +165,31 @@ model sensor {
 // USUARIO
 // ------------------------------------------------------------
 model usuario {
-  id_usuario       Int      @id @default(autoincrement())
-  id_rol           Int?
-  id_institucion   Int?
-  nombre           String?  @db.VarChar(150)
-  telefono         String?  @db.VarChar(30)
-  multiF_S         Boolean?
-  multiF_A         Boolean?
+  id_usuario        Int       @id @default(autoincrement())
+  id_rol            Int?
+  id_institucion    Int?
+  nombre            String?   @db.VarChar(150)
+  telefono          String?   @db.VarChar(30)
+  multiF_S          Boolean?
+  multiF_A          Boolean?
   // "contraseña" normalizado a "contrasena" (Prisma no admite "ñ" en
   // identificadores); ajustar si el equipo prefiere otro nombre de columna.
-  contrasena       String?  @db.VarChar(255)
-  correo           String?  @unique @db.VarChar(150)
-  primer_apellido  String?  @db.VarChar(100)
-  segundo_apellido String?  @db.VarChar(100)
+  contrasena        String?   @db.VarChar(255)
+  correo            String?   @unique @db.VarChar(150)
+  primer_apellido   String?   @db.VarChar(100)
+  segundo_apellido  String?   @db.VarChar(100)
   // Proteccion contra fuerza bruta en el login (ver GuiaAutenticacion.md).
   intentos_fallidos Int       @default(0)
   bloqueado_hasta   DateTime? @db.Timestamp(6)
 
-  institucion  institucion? @relation(fields: [id_institucion], references: [id_institucion])
-  rol_catalogo rol?         @relation(fields: [id_rol], references: [id_rol])
+  institucion  institucion?   @relation(fields: [id_institucion], references: [id_institucion])
+  rol_catalogo rol?           @relation(fields: [id_rol], references: [id_rol])
   sesion       sesion[]
   auditoria    auditoria[]
   auditoriau   auditoriau[]
   reporte_u    reporte_u[]
   recepciona   recepciona[]
+  notificacion notificacion[]
 }
 
 // ------------------------------------------------------------
@@ -228,6 +228,7 @@ model alerta {
   recepciona   recepciona[]
   generaru     generaru[]
   envia        envia[]
+  notificacion notificacion[]
 }
 
 // ------------------------------------------------------------
@@ -287,22 +288,42 @@ model auditoriau {
 }
 
 // ------------------------------------------------------------
-// REPORTE_U (parametros segun la correccion "en base al ER" del PDF)
+// REPORTE_U
 // ------------------------------------------------------------
 model reporte_u {
-  id_reporteu     Int       @id @default(autoincrement())
+  id_reporte_u    Int      @id @default(autoincrement())
   id_usuario      Int
-  id_ubic_geo     Int
-  descripcion     String?
-  tipo            String?   @db.VarChar(100)
-  nivel_prioridad String?   @db.VarChar(50)
-  fecha_envio     DateTime? @db.Timestamp(6)
-  hp              String?
-  ha              String?
+  descripcion     String
+  tipo            String?  @db.VarChar(30)
+  nivel_prioridad String?  @db.VarChar(10)
+  estado          String   @default("RECIBIDO") @db.VarChar(20)
+  fecha_envio     DateTime @default(now()) @db.Timestamp(6)
+  latitud         Decimal? @db.Decimal(8, 6)
+  longitud        Decimal? @db.Decimal(9, 6)
+  indicador       String?
+  foto_url        String?  @db.VarChar(500)
 
-  usuario              usuario              @relation(fields: [id_usuario], references: [id_usuario])
-  ubicacion_geografica ubicacion_geografica @relation(fields: [id_ubic_geo], references: [id_ubic_geo])
-  generaru             generaru[]
+  usuario  usuario    @relation(fields: [id_usuario], references: [id_usuario])
+  generaru generaru[]
+}
+
+// ------------------------------------------------------------
+// NOTIFICACION
+// ------------------------------------------------------------
+model notificacion {
+  id_notificacion Int      @id @default(autoincrement())
+  id_usuario      Int
+  id_alerta       Int?
+  tipo            String   @db.VarChar(20)
+  titulo          String   @db.VarChar(150)
+  mensaje         String
+  fecha_hora      DateTime @default(now()) @db.Timestamp(6)
+  leida           Boolean  @default(false)
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  alerta  alerta? @relation(fields: [id_alerta], references: [id_alerta], onDelete: SetNull)
+
+  @@index([id_usuario, leida])
 }
 
 // ============================================================
@@ -344,7 +365,7 @@ model generaru {
   id_reporte_u Int
 
   alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta])
-  reporte_u reporte_u @relation(fields: [id_reporte_u], references: [id_reporteu])
+  reporte_u reporte_u @relation(fields: [id_reporte_u], references: [id_reporte_u])
 
   @@id([id_alerta, id_reporte_u])
 }

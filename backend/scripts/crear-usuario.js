@@ -2,8 +2,8 @@
 // ya que las rutas estan protegidas y POST /api/usuarios exige sesion.
 // Uso: npm run crear-usuario -- <correo> <contrasena> [nombre]
 import "dotenv/config";
-import prisma from "../src/infrastructure/prismaConfig/prismaClient.js";
-import { Hash } from "../src/config/hash.js";
+import prisma from "../api/infrastructure/prismaConfig/prismaClient.js";
+import { Hash } from "../api/config/hash.js";
 
 const [correo, contrasena, nombre = "Administrador"] = process.argv.slice(2);
 

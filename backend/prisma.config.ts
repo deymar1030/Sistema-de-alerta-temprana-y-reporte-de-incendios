@@ -1,6 +1,6 @@
 // Prisma 7 movio la URL de conexion (para `prisma migrate`/`prisma db push`)
 // fuera de schema.prisma. El PrismaClient en tiempo de ejecucion usa su
-// propio adapter (ver src/infrastructure/prismaConfig/prismaClient.js).
+// propio adapter (ver api/infrastructure/prismaConfig/prismaClient.js).
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 

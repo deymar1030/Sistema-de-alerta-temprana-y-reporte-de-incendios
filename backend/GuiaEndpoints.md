@@ -1,7 +1,7 @@
 # Guía: cómo se implementa un endpoint en este backend
 
 Este documento describe el patrón que ya está aplicado en el feature
-**ZonaGeografica** (`backend/src/**/zonaGeografica*`), para que cualquier
+**ZonaGeografica** (`backend/api/**/zonaGeografica*`), para que cualquier
 endpoint nuevo se construya exactamente de la misma forma y el proyecto no
 termine con tres estilos distintos de "hacer lo mismo".
 
@@ -13,10 +13,10 @@ capas).
 
 | Capa | Carpeta | Contiene | Depende de |
 | ---- | ------- | -------- | ---------- |
-| **Domain** | `backend/src/domain/<feature>/` | Entidad, DTOs, mapper. Reglas puras, sin Express ni Prisma. | Nada |
-| **Application** | `backend/src/application/<feature>/` | Interfaz de repositorio (contrato) + casos de uso | Domain |
-| **Infrastructure** | `backend/src/infrastructure/features/<feature>/` | Implementación concreta del repositorio con Prisma | Application, Domain |
-| **Interfaces** | `backend/src/interfaces/features/<feature>Roter/` | Express: controller, service, dependencies (DI), routes | Application |
+| **Domain** | `backend/api/domain/<feature>/` | Entidad, DTOs, mapper. Reglas puras, sin Express ni Prisma. | Nada |
+| **Application** | `backend/api/application/<feature>/` | Interfaz de repositorio (contrato) + casos de uso | Domain |
+| **Infrastructure** | `backend/api/infrastructure/features/<feature>/` | Implementación concreta del repositorio con Prisma | Application, Domain |
+| **Interfaces** | `backend/api/interfaces/features/<feature>Roter/` | Express: controller, service, dependencies (DI), routes | Application |
 
 Regla de dependencia: `Interfaces → Application → Domain` e
 `Infrastructure → (Application, Domain)`. El dominio nunca importa nada de
@@ -86,7 +86,7 @@ exactamente estos pasos, cambiando el nombre:
 3. **Domain**: crear los 5 DTOs (`create`, `update`, `get`, `delete`,
    `response`) — el DTO de creación/actualización valida los campos
    obligatorios; `get`/`delete` validan el id con
-   `Validators.isValidId` (`backend/src/config/validators.js`).
+   `Validators.isValidId` (`backend/api/config/validators.js`).
 4. **Domain**: crear el `mapper` que traduce la entidad devuelta por Prisma
    al `responseDTO`.
 5. **Application**: crear la interfaz de repositorio (métodos: `create`,
@@ -103,7 +103,7 @@ exactamente estos pasos, cambiando el nombre:
    `controller.js` (5 handlers: create/list/getById/update/remove),
    `dependencies.js` (arma todo el árbol de dependencias) y `routes.js`
    (expone el `Router` de Express).
-9. **Wiring final**: en `backend/src/interfaces/router.js`, importar el
+9. **Wiring final**: en `backend/api/interfaces/router.js`, importar el
    nuevo Router y montarlo:
    `router.use("/<feature-en-plural-kebab>", <Feature>Router.routes);`
 

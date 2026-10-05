@@ -19,7 +19,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/UpdateUbicacionGeografica'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Ubicación geográfica actualizada exitosamente
  *         content:

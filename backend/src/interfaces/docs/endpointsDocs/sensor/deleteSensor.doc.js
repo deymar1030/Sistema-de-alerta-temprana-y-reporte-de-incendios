@@ -13,7 +13,11 @@
  *         schema:
  *           type: integer
  *         example: 1
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Sensor eliminado exitosamente
  *         content:

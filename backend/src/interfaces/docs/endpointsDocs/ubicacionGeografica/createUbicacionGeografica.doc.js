@@ -12,7 +12,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/CreateUbicacionGeografica'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       201:
  *         description: Ubicación geográfica creada exitosamente
  *         content:

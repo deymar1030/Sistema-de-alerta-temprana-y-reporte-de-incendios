@@ -6,7 +6,11 @@
  *       - UbicacionGeografica
  *     summary: Lista todas las ubicaciones geográficas
  *     description: Retorna la lista completa de ubicaciones geográficas registradas.
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Lista de ubicaciones geográficas
  *         content:

@@ -11,7 +11,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/CreateZonaGeografica'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       201:
  *         description: Zona geográfica creada correctamente
  *         content:

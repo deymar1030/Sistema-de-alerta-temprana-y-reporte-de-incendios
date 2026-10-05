@@ -6,7 +6,11 @@
  *       - Sensor
  *     summary: Lista todos los sensores
  *     description: Retorna la lista completa de sensores registrados.
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Lista de sensores
  *         content:

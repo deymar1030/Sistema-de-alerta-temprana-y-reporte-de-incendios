@@ -6,7 +6,11 @@
  *       - Usuario
  *     summary: Lista todos los usuarios
  *     description: Retorna la lista completa de usuarios registrados.
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Lista de usuarios
  *         content:

@@ -12,7 +12,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/CreateUsuario'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       201:
  *         description: Usuario creado exitosamente
  *         content:

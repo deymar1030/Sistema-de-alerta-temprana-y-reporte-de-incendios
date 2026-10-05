@@ -12,7 +12,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/CreateSensor'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       201:
  *         description: Sensor creado exitosamente
  *         content:

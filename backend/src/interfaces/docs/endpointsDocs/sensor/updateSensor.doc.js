@@ -19,7 +19,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/UpdateSensor'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Sensor actualizado exitosamente
  *         content:

@@ -18,7 +18,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/UpdateZonaGeografica'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Zona geográfica actualizada correctamente
  *         content:

@@ -5,7 +5,11 @@
  *     tags:
  *       - ZonaGeografica
  *     summary: Listar todas las zonas geográficas
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Lista de zonas geográficas
  *         content:

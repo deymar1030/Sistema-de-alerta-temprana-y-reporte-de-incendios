@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
+import cookieParser from "cookie-parser";
 
 import { envs } from "./config/envs.js";
 import { AppRouter } from "./interfaces/router.js";
@@ -17,7 +18,12 @@ export default class Server {
   }
 
   middlewares() {
-    this.app.use(cors());
+    if (envs.TRUST_PROXY !== null) this.app.set("trust proxy", envs.TRUST_PROXY);
+
+    // credentials: true permite que el navegador envie la cookie de sesion;
+    // por eso el origen debe ser explicito (no "*").
+    this.app.use(cors({ origin: envs.CORS_ORIGINS, credentials: true }));
+    this.app.use(cookieParser());
     this.app.use(morgan("dev"));
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));

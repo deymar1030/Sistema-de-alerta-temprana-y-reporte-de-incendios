@@ -6,7 +6,11 @@
  *       - Institucion
  *     summary: Lista todas las instituciones
  *     description: Retorna la lista completa de instituciones registradas.
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Lista de instituciones
  *         content:

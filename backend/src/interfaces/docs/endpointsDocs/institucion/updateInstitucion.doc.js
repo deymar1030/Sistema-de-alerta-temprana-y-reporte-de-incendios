@@ -19,7 +19,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/UpdateInstitucion'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Institución actualizada exitosamente
  *         content:

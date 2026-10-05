@@ -21,7 +21,11 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/UpdateUsuario'
+ *     security:
+ *       - cookieAuth: []
  *     responses:
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  *       200:
  *         description: Usuario actualizado exitosamente
  *         content:

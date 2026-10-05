@@ -176,9 +176,12 @@ model usuario {
   // "contraseña" normalizado a "contrasena" (Prisma no admite "ñ" en
   // identificadores); ajustar si el equipo prefiere otro nombre de columna.
   contrasena       String?  @db.VarChar(255)
-  correo           String?  @db.VarChar(150)
+  correo           String?  @unique @db.VarChar(150)
   primer_apellido  String?  @db.VarChar(100)
   segundo_apellido String?  @db.VarChar(100)
+  // Proteccion contra fuerza bruta en el login (ver GuiaAutenticacion.md).
+  intentos_fallidos Int       @default(0)
+  bloqueado_hasta   DateTime? @db.Timestamp(6)
 
   institucion  institucion? @relation(fields: [id_institucion], references: [id_institucion])
   rol_catalogo rol?         @relation(fields: [id_rol], references: [id_rol])
@@ -190,15 +193,23 @@ model usuario {
 }
 
 // ------------------------------------------------------------
-// SESION (NUEVO — gestion de refresh tokens JWT por dispositivo)
+// SESION (sesiones del lado del servidor, identificadas por una cookie)
+// La cookie lleva un identificador aleatorio; aqui solo se guarda su hash.
 // ------------------------------------------------------------
 model sesion {
-  id_sesion     Int     @id @default(autoincrement())
-  id_usuario    Int
-  refresh_token String?
-  dispositivo   String? @db.VarChar(150)
+  id_sesion        Int       @id @default(autoincrement())
+  id_usuario       Int
+  token_hash       String    @unique @db.VarChar(64)
+  dispositivo      String?   @db.VarChar(150)
+  ip_origen        String?   @db.Inet
+  creada_en        DateTime  @default(now()) @db.Timestamp(6)
+  ultima_actividad DateTime  @default(now()) @db.Timestamp(6)
+  expira_en        DateTime  @db.Timestamp(6)
+  revocada_en      DateTime? @db.Timestamp(6)
 
-  usuario usuario @relation(fields: [id_usuario], references: [id_usuario])
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+
+  @@index([id_usuario])
 }
 
 // ------------------------------------------------------------

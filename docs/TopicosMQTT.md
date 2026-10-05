@@ -124,4 +124,6 @@ Al llegar un mensaje, el suscriptor:
    cuando se levante el broker.
 3. Persistir la lectura y correr el motor de detección (pasos 2 a 4 de
    §6): hoy `mqtt/subscriber.js` solo reenvía el mensaje validado por
-   WebSocket, ver `issues/05-lecturas.md` e `issues/06-alertas.md`.
+   WebSocket, ver `issues/05-lecturas.md` e `issues/06-alertas.md`. El
+   entorno del motor (`api/domain/motorDeteccion/`, ver su `README.md`)
+   ya está preparado; la matemática en sí la resuelve otra área.

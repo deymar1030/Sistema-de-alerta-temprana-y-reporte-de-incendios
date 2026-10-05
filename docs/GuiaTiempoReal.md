@@ -184,7 +184,7 @@ backend/
     application/
       realtime/ports/          HECHO — realtimeNotifier.port.js + no-op
     domain/
-      motorDeteccion/          PENDIENTE (issues/06-alertas.md)
+      motorDeteccion/          ENTORNO HECHO — firmas + README, matematica pendiente (otra area)
       lectura/                 PENDIENTE (issues/05-lecturas.md)
     application/
       lectura/                 PENDIENTE (issues/05-lecturas.md)
@@ -219,9 +219,12 @@ esta arquitectura:
    implementar `domain/lectura`, `application/lectura` e
    `infrastructure/features/lectura` (ver `issues/05-lecturas.md`) y
    enchufarlos en `mqtt/dependencies.js` en lugar del reenvío directo.
-2. `domain/motorDeteccion/` (Hampel, CUSUM, Theil-Sen, contraste de
-   vecinos, puntaje, clasificación) y `application/alerta` todavía no
-   existen — es contenido de `issues/06-alertas.md`. Hasta que exista,
+2. `domain/motorDeteccion/` ya tiene el entorno preparado (firmas,
+   `index.js`, contrato documentado en su `README.md`), pero la
+   matemática (Hampel, CUSUM, Theil-Sen, contraste de vecinos, puntaje,
+   clasificación) todavía lanza "pendiente de implementar" a propósito
+   — resolverla es trabajo de otra área. `application/alerta` tampoco
+   existe todavía (`issues/06-alertas.md`). Hasta que ambas existan,
    `emitAlertaConfirmada`/`emitAlertaDescartada` no los llama nadie.
 3. `emitEnvioActualizado` y `emitReporteCiudadano` tampoco los llama nadie
    todavía — dependen de que existan los endpoints de `envia`/`alerta`

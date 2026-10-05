@@ -1,9 +1,6 @@
 import mqtt from "mqtt";
 import { envs } from "../api/config/envs.js";
 
-// Conexion unica al broker Mosquitto (docs/TopicosMQTT.md §1-2). Solo
-// autenticacion por usuario/contrasena -- sin ACL por topico (decision
-// de equipo, ver mosquitto/mosquitto.conf.example).
 export function connectMqttClient() {
   const client = mqtt.connect(envs.MQTT_BROKER_URL, {
     clientId: envs.MQTT_CLIENT_ID,

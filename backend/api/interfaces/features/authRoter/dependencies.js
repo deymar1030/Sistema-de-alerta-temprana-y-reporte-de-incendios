@@ -49,8 +49,6 @@ export class AuthDependencies {
     return createRequireAuth(getUseCases().validateSesionUseCase);
   }
 
-  // Mismo caso de uso de sesion, para websocketManager/auth.js (el
-  // handshake de Socket.IO no pasa por este router HTTP).
   static createValidateSesion() {
     return getUseCases().validateSesionUseCase;
   }

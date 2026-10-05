@@ -1,24 +1,7 @@
-# Ejemplo de configuracion de Mosquitto para desarrollo local.
-# Escenario acordado (ver docs/TopicosMQTT.md §5): solo autenticacion por
-# usuario/contrasena, SIN control de acceso por topico (ACL). Cualquier
-# cliente autenticado puede publicar/suscribirse a cualquier topico; se
-# documenta como limitacion conocida, no como descuido.
-#
-# Uso:
-#   1. cp mqtt/mosquitto.conf.example mqtt/mosquitto.conf
-#   2. mosquitto_passwd -c mqtt/passwd backend        (repetir -b para cada predio-{id})
-#   3. mosquitto -c mqtt/mosquitto.conf
-
 listener 1883
 
-# Sin usuario/contrasena no se puede conectar.
 allow_anonymous false
 password_file passwd
-
-# A proposito NO se configura acl_file: no hay ACL por topico en este
-# escenario (ver nota de seguridad en docs/TopicosMQTT.md §5). Si mas
-# adelante se decide agregar ACL por usuario, es acá donde se sumaria
-# `acl_file acl.conf`, sin cambiar el contrato de topicos/payload.
 
 persistence false
 log_dest stdout

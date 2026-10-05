@@ -1,9 +1,5 @@
 const TOPIC_PATTERN = /^incendios\/(\d+)\/(\d+)$/;
 
-// Separa id_predio/id_sensor del topico y valida la forma cruda del
-// payload (docs/TopicosMQTT.md §3): { "valor": number, "fecha_hora": ISO8601 }.
-// Lanza si el mensaje no tiene una forma valida -- quien llama decide si
-// lo loguea y sigue, o lo deja reventar.
 function parseMensaje(topic, payload) {
   const match = TOPIC_PATTERN.exec(topic);
   if (!match) {
@@ -37,10 +33,6 @@ function parseMensaje(topic, payload) {
   };
 }
 
-// equivalente a un "controller", pero para MQTT (docs/GuiaTiempoReal.md
-// §2): traduce "llego un mensaje" en una llamada al handler de negocio
-// inyectado. Un mensaje invalido se loguea y se descarta -- no debe tirar
-// el proceso ni la conexion al broker.
 export function createMqttMessageHandler(onLectura) {
   return async (topic, payload) => {
     let lectura;

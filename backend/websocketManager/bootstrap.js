@@ -4,9 +4,6 @@ import { registerConnectionManager } from "./connectionManager.js";
 import { SocketIoRealtimeNotifier } from "./notifier.js";
 import { AuthDependencies } from "../api/interfaces/features/authRoter/dependencies.js";
 
-// Arma el servidor de WebSockets completo (server + auth + rooms +
-// connectionManager) y devuelve { io, notifier } para que app.js se lo
-// pase tanto a api/ como a mqtt/ (docs/GuiaTiempoReal.md §3-4).
 export function createWebsocketManager(httpServer) {
   const io = createSocketServer(httpServer);
 

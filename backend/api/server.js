@@ -7,17 +7,11 @@ import { envs } from "./config/envs.js";
 import { AppRouter } from "./interfaces/router.js";
 import { setupSwagger } from "./interfaces/docs/swagger.setup.js";
 
-// Solo construye el app de Express (middlewares + rutas); no escucha el
-// puerto. Quien levanta el servidor es app.js, con http.createServer(app),
-// para poder compartir ese mismo httpServer con Socket.IO
-// (ver docs/GuiaTiempoReal.md §4).
 export function createApiApp() {
   const app = express();
 
   if (envs.TRUST_PROXY !== null) app.set("trust proxy", envs.TRUST_PROXY);
 
-  // credentials: true permite que el navegador envie la cookie de sesion;
-  // por eso el origen debe ser explicito (no "*").
   app.use(cors({ origin: envs.CORS_ORIGINS, credentials: true }));
   app.use(cookieParser());
   app.use(morgan("dev"));

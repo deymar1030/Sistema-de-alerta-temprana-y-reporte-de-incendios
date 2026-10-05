@@ -1,12 +1,18 @@
-# Arquitectura MQTT (backend) — aún no implementado
+# Arquitectura MQTT (backend)
 
-Este documento **no es código**: es el diseño de cómo el backend se
-conecta al broker y recibe las lecturas de los predios. Es la tercera pata
-del tiempo real del sistema, junto con los endpoints REST y los
-WebSockets — ver [`docs/EndpointsWebSockets.md`](./EndpointsWebSockets.md)
-— pero va aparte porque es un protocolo distinto (MQTT, no HTTP ni
-Socket.IO) y lo implementa una pieza distinta (el suscriptor MQTT / motor
-de detección, no el servidor Express).
+Este documento es el diseño de cómo el backend se conecta al broker y
+recibe las lecturas de los predios. Es la tercera pata del tiempo real
+del sistema, junto con los endpoints REST y los WebSockets — ver
+[`docs/EndpointsWebSockets.md`](./EndpointsWebSockets.md) — pero va
+aparte porque es un protocolo distinto (MQTT, no HTTP ni Socket.IO) y lo
+implementa una pieza distinta (`backend/mqtt/`, no el servidor Express).
+
+La plomería (conexión, suscripción, parseo de tópico/payload) ya está
+implementada en `backend/mqtt/`. Lo que **no** está implementado todavía
+es qué se hace con cada lectura una vez que llega: hoy `mqtt/subscriber.js`
+solo valida la forma del mensaje y lo reenvía como `lectura:nueva` por
+WebSocket, sin guardarlo ni correr el motor de detección — ver
+`issues/05-lecturas.md` e `issues/06-alertas.md`.
 
 Para cómo publica un predio (sin entrar en el backend), ver
 [`hardware/TopicosMQTT.md`](../hardware/TopicosMQTT.md).
@@ -116,3 +122,6 @@ Al llegar un mensaje, el suscriptor:
    hoy es manual/local, sin definir con el equipo de hardware.
 2. Configuración concreta de Mosquitto (host, puerto, TLS sí/no) — a definir
    cuando se levante el broker.
+3. Persistir la lectura y correr el motor de detección (pasos 2 a 4 de
+   §6): hoy `mqtt/subscriber.js` solo reenvía el mensaje validado por
+   WebSocket, ver `issues/05-lecturas.md` e `issues/06-alertas.md`.

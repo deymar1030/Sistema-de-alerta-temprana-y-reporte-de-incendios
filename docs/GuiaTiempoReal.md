@@ -179,23 +179,25 @@ Puntos clave de esta integración:
 
 ```
 backend/
-  app.js                      MODIFICADO — arma api + websocketManager + mqtt
-  api/                        RENOMBRADO desde src/
-    domain/
-      motorDeteccion/          NUEVO — matematica pura del motor
-      lectura/                 NUEVO (si no existe)
+  app.js                      HECHO — arma api + websocketManager + mqtt
+  api/                        HECHO — renombrado desde src/
     application/
-      lectura/                 NUEVO
-      realtime/ports/           NUEVO — realtimeNotifier.port.js
+      realtime/ports/          HECHO — realtimeNotifier.port.js + no-op
+    domain/
+      motorDeteccion/          PENDIENTE (issues/06-alertas.md)
+      lectura/                 PENDIENTE (issues/05-lecturas.md)
+    application/
+      lectura/                 PENDIENTE (issues/05-lecturas.md)
     infrastructure/
-      features/lectura/         NUEVO
+      features/lectura/        PENDIENTE (issues/05-lecturas.md)
     interfaces/                 sin cambios de fondo (ya existe)
-  mqtt/                        NUEVO
+  mqtt/                        HECHO
     client.js
-    subscriber.js
-    dependencies.js
+    subscriber.js              hoy solo valida forma y reenvia por WebSocket
+    dependencies.js            punto de extension para el caso de uso real
     bootstrap.js
-  websocketManager/            NUEVO
+    mosquitto.conf.example
+  websocketManager/            HECHO
     server.js
     auth.js
     rooms.js
@@ -206,16 +208,26 @@ backend/
 
 ## 6. Pendientes
 
-1. `mqtt` (cliente Node) y `socket.io` todavía no están en `package.json`.
-2. El rename `src/` → `api/` toca todos los imports internos (son
-   relativos, así que no cambian de contenido, pero sí hay que mover el
-   árbol completo) y el `main`/scripts de `package.json` — es una operación
-   de una sola vez, no algo para hacer a mitad de otra tarea.
-3. ~~`websocketManager/auth.js` depende de que el flujo de login/sesión esté
-   resuelto~~ — **ya no es un pendiente**: el login por sesión/cookie ya
-   está implementado (`GuiaAutenticacion.md`), `auth.js` solo necesita
-   reutilizar `ValidateSesionUseCase` leyendo la cookie `sid` a mano del
-   *handshake*.
-4. Esto es un plan — falta implementarlo. Antes de escribir código, conviene
-   generar los casos de uso de `alerta`/`envia`/`reporte_u` (si no existen)
-   para que el `notifier` tenga de dónde llamarse.
+Lo descrito en este documento ya está implementado (rama
+`feature/arquitectura-tiempo-real`): el rename `src/` → `api/`,
+`websocketManager/`, `mqtt/` y el puerto `realtimeNotifier` + su no-op.
+Lo que queda pendiente es contenido de negocio de cada feature, no de
+esta arquitectura:
+
+1. `mqtt/subscriber.js` hoy solo valida la forma del mensaje y reenvía
+   `lectura:nueva` por WebSocket — no persiste nada todavía. Falta
+   implementar `domain/lectura`, `application/lectura` e
+   `infrastructure/features/lectura` (ver `issues/05-lecturas.md`) y
+   enchufarlos en `mqtt/dependencies.js` en lugar del reenvío directo.
+2. `domain/motorDeteccion/` (Hampel, CUSUM, Theil-Sen, contraste de
+   vecinos, puntaje, clasificación) y `application/alerta` todavía no
+   existen — es contenido de `issues/06-alertas.md`. Hasta que exista,
+   `emitAlertaConfirmada`/`emitAlertaDescartada` no los llama nadie.
+3. `emitEnvioActualizado` y `emitReporteCiudadano` tampoco los llama nadie
+   todavía — dependen de que existan los endpoints de `envia`/`alerta`
+   (`issues/06-alertas.md`) y de `reporte_u` (`issues/08-reportes-usuario.md`).
+4. No hay room ni evento específico para "operadores centrales": los 4
+   eventos que la documentación dirige a central (`alerta:confirmada`,
+   `alerta:descartada`, `notificacion:envio-actualizado`,
+   `notificacion:reporte-ciudadano`) se emiten por *broadcast* a todos los
+   conectados — ajustar esto depende de que exista autorización por rol.

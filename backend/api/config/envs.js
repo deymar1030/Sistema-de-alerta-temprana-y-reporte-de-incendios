@@ -32,4 +32,11 @@ export const envs = {
   LOGIN_MAX_ATTEMPTS: toNumber(process.env.LOGIN_MAX_ATTEMPTS, 5),
   LOGIN_LOCK_MINUTES: toNumber(process.env.LOGIN_LOCK_MINUTES, 15),
   LOGIN_RATE_LIMIT_MAX: toNumber(process.env.LOGIN_RATE_LIMIT_MAX, 20),
+
+  // Broker Mosquitto (ver docs/TopicosMQTT.md). Solo autenticacion por
+  // usuario/contrasena, sin ACL por topico (decision de equipo).
+  MQTT_BROKER_URL: process.env.MQTT_BROKER_URL || "mqtt://localhost:1883",
+  MQTT_CLIENT_ID: process.env.MQTT_CLIENT_ID || "backend",
+  MQTT_USERNAME: process.env.MQTT_USERNAME || "backend",
+  MQTT_PASSWORD: process.env.MQTT_PASSWORD || "",
 };

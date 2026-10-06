@@ -331,10 +331,8 @@ model parametro_variable {
 
 // ------------------------------------------------------------
 // 19. PREDIO
-// bd_extras.sql define el trigger trg_predio_calcular_irp
-// (fn_calcular_irp), que recalcula `irp` automaticamente en INSERT/UPDATE
-// de los campos de diagnostico. No es representable en schema.prisma:
-// vive solo en la BD.
+// `irp` ya no se calcula con un trigger en la BD: el calculo vive en la
+// capa de dominio del backend a partir de los campos de diagnostico.
 // ------------------------------------------------------------
 model predio {
   id_predio             BigInt    @id @default(autoincrement())

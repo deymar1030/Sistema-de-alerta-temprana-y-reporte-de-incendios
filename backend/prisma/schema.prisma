@@ -1,7 +1,3 @@
-// Transcrito desde bd/modelo relacional.pdf (fuente de verdad de entidades
-// y atributos). Los tipos/largos de columna se toman de bd/bd.sql para los
-// campos que coinciden entre ambos documentos.
-
 generator client {
   provider = "prisma-client-js"
 }

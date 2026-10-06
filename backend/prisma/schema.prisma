@@ -214,6 +214,7 @@ model genera_ru {
 model envia {
   id_alerta           BigInt
   id_institucion      BigInt
+  estado              String    @db.VarChar(10)
   fecha_envio         DateTime  @default(now()) @db.Timestamp(6)
   fecha_actualizacion DateTime? @db.Timestamp(6)
 

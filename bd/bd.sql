@@ -69,10 +69,12 @@ CREATE TABLE institucion (
     nombre          VARCHAR(150) NOT NULL,
     razon_social    VARCHAR(150),
     detalle         TEXT,
+    direccion       VARCHAR(200),
     telefono_ins    VARCHAR(20),
     latitud         NUMERIC(8,6),
     longitud        NUMERIC(9,6),
-    estado          BOOLEAN NOT NULL DEFAULT TRUE
+    estado          BOOLEAN NOT NULL DEFAULT TRUE,
+    disponibilidad_operativa VARCHAR(30)
 );
 
 -- ======================
@@ -87,8 +89,6 @@ CREATE TABLE usuario (
     primer_apellido   VARCHAR(50)  NOT NULL,
     segundo_apellido  VARCHAR(50),
     telefono          VARCHAR(20),
-    "multiF_S"        BOOLEAN NOT NULL DEFAULT FALSE,
-    "multiF_A"        BOOLEAN NOT NULL DEFAULT FALSE,
     contrasena        VARCHAR(60)  NOT NULL,
     correo            VARCHAR(254) NOT NULL UNIQUE,
     fecha_eliminacion TIMESTAMP,
@@ -407,6 +407,7 @@ CREATE TABLE informe_atencion (
     hora_control         TIME,
     hora_finalizacion    TIME,
     personal             SMALLINT,
+    vehiculos            SMALLINT,
     personas_afectadas   SMALLINT,
     personas_evacuadas   SMALLINT,
     heridos              SMALLINT,

@@ -1,13 +1,3 @@
-// ============================================================
-// PRISMA SCHEMA
-// Sistema de Alerta Temprana y Reporte de Incendios
-// Transcrito 1:1 desde bd/bd.sql + bd/bd_extras.sql (fuente de verdad
-// de la BD). No incluye columnas ni tablas que no esten en esos scripts.
-//
-// Las validaciones de datos (antes CHECK constraints) ya no viven en la
-// BD: se movieron a la capa de dominio/aplicacion del backend.
-// ============================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -16,9 +6,6 @@ datasource db {
   provider = "postgresql"
 }
 
-// ------------------------------------------------------------
-// 1. ZONA_GEOGRAFICA
-// ------------------------------------------------------------
 model zona_geografica {
   id_zona              BigInt   @id @default(autoincrement())
   nombre               String   @db.VarChar(100)
@@ -32,9 +19,6 @@ model zona_geografica {
   cubre_jurisdiccion cubre_jurisdiccion[]
 }
 
-// ------------------------------------------------------------
-// 2. ROL
-// ------------------------------------------------------------
 model rol {
   id_rol          BigInt  @id @default(autoincrement())
   nombre_rol      String  @unique @db.VarChar(50)
@@ -44,9 +28,6 @@ model rol {
   rol_politica rol_politica[]
 }
 
-// ------------------------------------------------------------
-// 3. POLITICA
-// ------------------------------------------------------------
 model politica {
   id_politica            BigInt    @id @default(autoincrement())
   max_intentos_fallidos  Int       @default(5) @db.SmallInt
@@ -63,33 +44,28 @@ model politica {
   rol_politica rol_politica[]
 }
 
-// ------------------------------------------------------------
-// 4. ROL_POLITICA (N:M)
-// ------------------------------------------------------------
 model rol_politica {
   id_rol      BigInt
   id_politica BigInt
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   rol      rol      @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Cascade)
   politica politica @relation(fields: [id_politica], references: [id_politica], onUpdate: Cascade, onDelete: Cascade)
 
   @@id([id_rol, id_politica], map: "pk_rol_politica")
 }
 
-// ------------------------------------------------------------
-// 5. INSTITUCION
-// ------------------------------------------------------------
 model institucion {
-  id_institucion BigInt   @id @default(autoincrement())
-  categoria      String   @db.VarChar(30)
-  nombre         String   @db.VarChar(150)
-  razon_social   String?  @db.VarChar(150)
-  detalle        String?
-  telefono_ins   String?  @db.VarChar(20)
-  latitud        Decimal? @db.Decimal(8, 6)
-  longitud       Decimal? @db.Decimal(9, 6)
-  estado         Boolean  @default(true)
+  id_institucion           BigInt   @id @default(autoincrement())
+  categoria                String   @db.VarChar(30)
+  nombre                   String   @db.VarChar(150)
+  razon_social             String?  @db.VarChar(150)
+  detalle                  String?
+  direccion                String?  @db.VarChar(200)
+  telefono_ins             String?  @db.VarChar(20)
+  latitud                  Decimal? @db.Decimal(8, 6)
+  longitud                 Decimal? @db.Decimal(9, 6)
+  estado                   Boolean  @default(true)
+  disponibilidad_operativa String?  @db.VarChar(30)
 
   usuario            usuario[]
   cubre_jurisdiccion cubre_jurisdiccion[]
@@ -97,9 +73,6 @@ model institucion {
   informe_atencion   informe_atencion[]
 }
 
-// ------------------------------------------------------------
-// 6. USUARIO
-// ------------------------------------------------------------
 model usuario {
   id_usuario        BigInt    @id @default(autoincrement())
   id_rol            BigInt
@@ -108,16 +81,12 @@ model usuario {
   primer_apellido   String    @db.VarChar(50)
   segundo_apellido  String?   @db.VarChar(50)
   telefono          String?   @db.VarChar(20)
-  multiF_S          Boolean   @default(false) @map("multiF_S")
-  multiF_A          Boolean   @default(false) @map("multiF_A")
   contrasena        String    @db.VarChar(60)
   correo            String    @unique @db.VarChar(254)
   fecha_eliminacion DateTime? @db.Timestamp(6)
   estado            Boolean   @default(true)
 
-  // ON UPDATE CASCADE ON DELETE RESTRICT
   rol         rol          @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Restrict)
-  // ON UPDATE CASCADE ON DELETE SET NULL
   institucion institucion? @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: SetNull)
 
   sesion           sesion[]
@@ -126,43 +95,29 @@ model usuario {
   recepciona       recepciona[]
   informe_atencion informe_atencion[]
   notificacion     notificacion[]
-
-  // bd_extras.sql: CREATE INDEX idx_usuario_activos ON usuario(id_institucion) WHERE fecha_eliminacion IS NULL;
-  @@index([id_institucion], map: "idx_usuario_activos")
 }
 
-// ------------------------------------------------------------
-// 7. SESION
-// ------------------------------------------------------------
 model sesion {
   id_sesion  BigInt   @id @default(autoincrement())
   id_usuario BigInt
   token_hash String   @unique @db.Char(64)
   expira_en  DateTime @db.Timestamp(6)
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
 
   @@index([id_usuario], map: "idx_sesion_usuario")
 }
 
-// ------------------------------------------------------------
-// 8. CUBRE_JURISDICCION (N:M)
-// ------------------------------------------------------------
 model cubre_jurisdiccion {
   id_zona        BigInt
   id_institucion BigInt
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Cascade)
   institucion     institucion     @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
 
   @@id([id_zona, id_institucion], map: "pk_cubre_jurisdiccion")
 }
 
-// ------------------------------------------------------------
-// 9. AUDITORIA
-// ------------------------------------------------------------
 model auditoria {
   id_auditoria BigInt   @id @default(autoincrement())
   evento       String   @db.VarChar(100)
@@ -172,9 +127,6 @@ model auditoria {
   realiza_audi realiza_audi[]
 }
 
-// ------------------------------------------------------------
-// 10. AUDITORIAU
-// ------------------------------------------------------------
 model auditoriau {
   id_auditoriau BigInt   @id @default(autoincrement())
   id_usuario    BigInt
@@ -183,15 +135,11 @@ model auditoriau {
   fecha_hora    DateTime @default(now()) @db.Timestamp(6)
   ip_origen     String?  @db.VarChar(45)
 
-  // ON UPDATE CASCADE ON DELETE RESTRICT
   usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
 
   @@index([id_usuario], map: "idx_auditoriau_usuario")
 }
 
-// ------------------------------------------------------------
-// 11. REPORTE_U
-// ------------------------------------------------------------
 model reporte_u {
   id_reporte_u    BigInt   @id @default(autoincrement())
   id_usuario      BigInt
@@ -205,16 +153,12 @@ model reporte_u {
   indicador       String?
   foto_url        String?  @db.VarChar(500)
 
-  // ON UPDATE CASCADE ON DELETE RESTRICT
   usuario   usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
   genera_ru genera_ru[]
 
   @@index([id_usuario], map: "idx_reporte_usuario")
 }
 
-// ------------------------------------------------------------
-// 12. ALERTA
-// ------------------------------------------------------------
 model alerta {
   id_alerta          BigInt    @id @default(autoincrement())
   fecha              DateTime  @db.Date
@@ -237,51 +181,36 @@ model alerta {
   @@index([estado], map: "idx_alerta_estado")
 }
 
-// ------------------------------------------------------------
-// 13. RECEPCIONA (N:M) — USUARIO recibe ALERTA
-// ------------------------------------------------------------
 model recepciona {
   id_usuario BigInt
   id_alerta  BigInt
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
   alerta  alerta  @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
 
   @@id([id_usuario, id_alerta], map: "pk_recepciona")
 }
 
-// ------------------------------------------------------------
-// 14. REALIZA_AUDI (N:M) — AUDITORIA vinculada a ALERTA
-// ------------------------------------------------------------
 model realiza_audi {
   id_auditoria BigInt
   id_alerta    BigInt
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   auditoria auditoria @relation(fields: [id_auditoria], references: [id_auditoria], onUpdate: Cascade, onDelete: Cascade)
   alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
 
   @@id([id_auditoria, id_alerta], map: "pk_realiza_audi")
 }
 
-// ------------------------------------------------------------
-// 15. GENERA_RU (N:M) — ALERTA genera REPORTE_U
-// ------------------------------------------------------------
 model genera_ru {
   id_alerta    BigInt
   id_reporte_u BigInt
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
   reporte_u reporte_u @relation(fields: [id_reporte_u], references: [id_reporte_u], onUpdate: Cascade, onDelete: Cascade)
 
   @@id([id_alerta, id_reporte_u], map: "pk_genera_ru")
 }
 
-// ------------------------------------------------------------
-// 16. ENVIA (N:M) — ALERTA enviada a INSTITUCION
-// ------------------------------------------------------------
 model envia {
   id_alerta           BigInt
   id_institucion      BigInt
@@ -289,7 +218,6 @@ model envia {
   fecha_envio         DateTime  @default(now()) @db.Timestamp(6)
   fecha_actualizacion DateTime? @db.Timestamp(6)
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
   institucion institucion @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
 
@@ -298,9 +226,6 @@ model envia {
   @@index([id_institucion], map: "idx_envia_institucion")
 }
 
-// ------------------------------------------------------------
-// 17. MOTOR_DET
-// ------------------------------------------------------------
 model motor_det {
   id_motordet               BigInt  @id @default(autoincrement())
   ventana_base_min          Int     @db.SmallInt
@@ -315,26 +240,17 @@ model motor_det {
   predio             predio[]
 }
 
-// ------------------------------------------------------------
-// 18. PARAMETRO_VARIABLE
-// ------------------------------------------------------------
 model parametro_variable {
   id_parametro_variable BigInt   @id @default(autoincrement())
   id_motordet           BigInt
   tipo_variable         String   @db.VarChar(20)
   umbral_critico        Decimal? @db.Decimal(8, 2)
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   motor_det motor_det @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Cascade)
 
   @@unique([id_motordet, tipo_variable], map: "uq_parametro_variable_motor_tipo")
 }
 
-// ------------------------------------------------------------
-// 19. PREDIO
-// `irp` ya no se calcula con un trigger en la BD: el calculo vive en la
-// capa de dominio del backend a partir de los campos de diagnostico.
-// ------------------------------------------------------------
 model predio {
   id_predio             BigInt    @id @default(autoincrement())
   id_zona               BigInt
@@ -354,7 +270,6 @@ model predio {
   ocupacion             Int?      @db.SmallInt
   nivel_proteccion      Int?      @db.SmallInt
 
-  // ON UPDATE CASCADE ON DELETE RESTRICT
   zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Restrict)
   motor_det       motor_det       @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Restrict)
   sensor          sensor[]
@@ -364,9 +279,6 @@ model predio {
   @@index([tipo_predio], map: "idx_predio_tipo")
 }
 
-// ------------------------------------------------------------
-// 20. SENSOR
-// ------------------------------------------------------------
 model sensor {
   id_sensor         BigInt    @id @default(autoincrement())
   id_predio         BigInt
@@ -380,16 +292,12 @@ model sensor {
   rango_min         Decimal   @db.Decimal(8, 2)
   rango_max         Decimal   @db.Decimal(8, 2)
 
-  // ON UPDATE CASCADE ON DELETE RESTRICT
   predio  predio    @relation(fields: [id_predio], references: [id_predio], onUpdate: Cascade, onDelete: Restrict)
   lectura lectura[]
 
   @@index([id_predio], map: "idx_sensor_predio")
 }
 
-// ------------------------------------------------------------
-// 21. LECTURA
-// ------------------------------------------------------------
 model lectura {
   id_lectura     BigInt   @id @default(autoincrement())
   id_sensor      BigInt
@@ -399,18 +307,13 @@ model lectura {
   estado_lectura String   @db.VarChar(10)
   tipo_variable  String   @db.VarChar(20)
 
-  // ON UPDATE CASCADE ON DELETE RESTRICT
   sensor sensor  @relation(fields: [id_sensor], references: [id_sensor], onUpdate: Cascade, onDelete: Restrict)
-  // ON UPDATE CASCADE ON DELETE SET NULL
   alerta alerta? @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: SetNull)
 
   @@index([id_sensor, fecha_hora], map: "idx_lectura_sensor_fecha")
   @@index([id_alerta], map: "idx_lectura_alerta")
 }
 
-// ------------------------------------------------------------
-// 22. INFORME_ATENCION
-// ------------------------------------------------------------
 model informe_atencion {
   id_informe_atencion BigInt @id @default(autoincrement())
   id_alerta           BigInt
@@ -426,6 +329,7 @@ model informe_atencion {
   hora_finalizacion DateTime? @db.Time(6)
 
   personal           Int? @db.SmallInt
+  vehiculos          Int? @db.SmallInt
   personas_afectadas Int? @db.SmallInt
   personas_evacuadas Int? @db.SmallInt
   heridos            Int? @db.SmallInt
@@ -439,7 +343,6 @@ model informe_atencion {
 
   fecha_envio DateTime @default(now()) @db.Timestamp(6)
 
-  // ON UPDATE CASCADE ON DELETE RESTRICT
   alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Restrict)
   institucion institucion @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Restrict)
   usuario     usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
@@ -448,9 +351,6 @@ model informe_atencion {
   @@index([id_institucion], map: "idx_informe_atencion_institucion")
 }
 
-// ------------------------------------------------------------
-// 23. NOTIFICACION
-// ------------------------------------------------------------
 model notificacion {
   id_notificacion BigInt   @id @default(autoincrement())
   id_usuario      BigInt
@@ -461,9 +361,7 @@ model notificacion {
   fecha_hora      DateTime @default(now()) @db.Timestamp(6)
   leida           Boolean  @default(false)
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
   usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
-  // ON UPDATE CASCADE ON DELETE SET NULL
   alerta  alerta? @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: SetNull)
 
   @@index([id_usuario, leida], map: "idx_notificacion_usuario")

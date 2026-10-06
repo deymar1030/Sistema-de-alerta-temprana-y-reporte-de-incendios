@@ -1,8 +1,8 @@
 // ============================================================
 // PRISMA SCHEMA
 // Sistema de Alerta Temprana y Reporte de Incendios
-// Transcrito 1:1 desde bd/modelo relacional.pdf (entidades + relaciones N:M).
-// No incluye columnas que no esten en ese documento.
+// Transcrito 1:1 desde bd/bd.sql (fuente de verdad de la BD).
+// No incluye columnas ni tablas que no esten en ese script.
 // ============================================================
 
 generator client {
@@ -14,357 +14,492 @@ datasource db {
 }
 
 // ------------------------------------------------------------
-// ZONA_GEOGRAFICA
+// 1. ZONA_GEOGRAFICA
 // ------------------------------------------------------------
 model zona_geografica {
-  id_zona              Int      @id @default(autoincrement())
-  nombre               String?  @db.VarChar(150)
-  departamento         String?  @db.VarChar(100)
-  municipio            String?  @db.VarChar(100)
+  id_zona              BigInt   @id @default(autoincrement())
+  nombre               String   @db.VarChar(100)
+  departamento         String   @db.VarChar(40)
+  municipio            String   @db.VarChar(80)
   descripcion          String?
-  estado               String?  @db.VarChar(50)
-  densidad_poblacional Decimal? @db.Decimal
+  estado               Boolean  @default(true)
+  densidad_poblacional Decimal? @db.Decimal(10, 2)
 
-  tipo_entorno         tipo_entorno[]
-  ubicacion_geografica ubicacion_geografica[]
-  cubre_jurisdiccion   cubre_jurisdiccion[]
-}
-
-// ------------------------------------------------------------
-// TIPO_ENTORNO
-// ------------------------------------------------------------
-model tipo_entorno {
-  id_tipo_entorno       Int      @id @default(autoincrement())
-  id_zona               Int
-  clasificacion         String?  @db.VarChar(100)
-  descripcion           String?
-  material_predominante String?  @db.VarChar(150)
-  nivel_riesgo_base     Decimal? @db.Decimal
-
-  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona])
-}
-
-// ------------------------------------------------------------
-// INSTITUCION
-// ------------------------------------------------------------
-model institucion {
-  id_institucion Int     @id @default(autoincrement())
-  categoria      String? @db.VarChar(100)
-  detalle        String?
-  nombre         String? @db.VarChar(150)
-  razon_social   String? @db.VarChar(150)
-  telefono_ins   String? @db.VarChar(30)
-
-  usuario            usuario[]
-  envia              envia[]
+  predio             predio[]
   cubre_jurisdiccion cubre_jurisdiccion[]
 }
 
 // ------------------------------------------------------------
-// ROL
+// 2. ROL
 // ------------------------------------------------------------
 model rol {
-  id_rol Int     @id @default(autoincrement())
-  nombre String? @db.VarChar(100)
+  id_rol          BigInt  @id @default(autoincrement())
+  nombre_rol      String  @unique @db.VarChar(50)
+  mfa_obligatorio Boolean @default(false)
 
-  usuario      usuario[]
-  rol_politica rol_politica[]
+  politica politica?
+  usuario  usuario[]
 }
 
 // ------------------------------------------------------------
-// MOTOR_DET
-// ------------------------------------------------------------
-model motor_det {
-  id_motordet         Int       @id @default(autoincrement())
-  fecha_actualizacion DateTime? @db.Timestamp(6)
-  tipo_analisis       String?   @db.VarChar(100)
-  rango_min           Decimal?  @db.Decimal
-  rango_max           Decimal?  @db.Decimal
-  porcentaje_riesgo   Decimal?  @db.Decimal
-  nombre              String?   @db.VarChar(150)
-  version             String?   @db.VarChar(50)
-  estado              String?   @db.VarChar(50)
-  nivel_sensibilidad  String?   @db.VarChar(50)
-
-  ubicacion_geografica ubicacion_geografica[]
-  lectura              lectura[]
-}
-
-// ------------------------------------------------------------
-// POLITICA
+// 3. POLITICA
 // ------------------------------------------------------------
 model politica {
-  id_politica     Int       @id @default(autoincrement())
-  intentos        Int?
-  bloqueo         Int?
-  tiempo          DateTime? @db.Timestamp(6)
-  ip_origen       String?   @db.Inet
-  modo_emergencia Boolean?
-  horario_inicio  DateTime? @db.Time(6)
-  horario_fin     DateTime? @db.Time(6)
-  ip_bloqueado    String?   @db.Inet
-  mfa             Boolean?
+  id_politica            BigInt    @id @default(autoincrement())
+  id_rol                 BigInt    @unique
+  // CHECK: max_intentos_fallidos > 0
+  max_intentos_fallidos  Int       @default(5) @db.SmallInt
+  // CHECK: tiempo_bloqueo_minutos > 0
+  tiempo_bloqueo_minutos Int       @default(15) @db.SmallInt
+  horario_inicio         DateTime? @db.Time(6)
+  horario_fin            DateTime? @db.Time(6)
+  ip_permitida           String?
+  ip_bloqueado           String?
+  activar_emergencia     Boolean   @default(false)
+  ver_auditoria          Boolean   @default(false)
+  gestionar_usuarios     Boolean   @default(false)
+  crear_admin            Boolean   @default(false)
 
-  rol_politica rol_politica[]
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  rol rol @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Cascade)
 }
 
 // ------------------------------------------------------------
-// UBICACION_GEOGRAFICA
+// 4. INSTITUCION
 // ------------------------------------------------------------
-model ubicacion_geografica {
-  id_ubic_geo         Int      @id @default(autoincrement())
-  id_zona             Int
-  id_motordet         Int?
-  latitud             Decimal? @db.Decimal(10, 7)
-  longitud            Decimal? @db.Decimal(10, 7)
-  altitud             Decimal? @db.Decimal
-  poligono_geografico Json?    @db.JsonB
+model institucion {
+  id_institucion           BigInt   @id @default(autoincrement())
+  // CHECK: categoria IN ('BOMBEROS','POLICIA','DEFENSA_CIVIL','RESCATE','OTRA')
+  categoria                String   @db.VarChar(30)
+  nombre                   String   @db.VarChar(150)
+  razon_social             String?  @db.VarChar(150)
+  detalle                  String?
+  direccion                String?  @db.VarChar(200)
+  telefono_ins             String?  @db.VarChar(20)
+  // CHECK: latitud BETWEEN -90 AND 90
+  latitud                  Decimal? @db.Decimal(8, 6)
+  // CHECK: longitud BETWEEN -180 AND 180
+  longitud                 Decimal? @db.Decimal(9, 6)
+  estado                   Boolean  @default(true)
+  disponibilidad_operativa String?  @db.VarChar(30)
 
-  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona])
-  motor_det       motor_det?      @relation(fields: [id_motordet], references: [id_motordet])
-  predio          predio[]
-  sensor          sensor[]
-  reporte_u       reporte_u[]
+  usuario            usuario[]
+  cubre_jurisdiccion cubre_jurisdiccion[]
+  envia              envia[]
+  informe_atencion   informe_atencion[]
 }
 
 // ------------------------------------------------------------
-// PREDIO (NUEVO — propuesto en el PDF, pendiente de aceptacion por el
-// equipo; SENSOR.id_predio queda opcional mientras tanto)
-// ------------------------------------------------------------
-model predio {
-  id_predio   Int     @id @default(autoincrement())
-  id_ubic_geo Int
-  nombre      String? @db.VarChar(150)
-  direccion   String? @db.VarChar(255)
-
-  ubicacion_geografica ubicacion_geografica @relation(fields: [id_ubic_geo], references: [id_ubic_geo])
-  sensor               sensor[]
-}
-
-// ------------------------------------------------------------
-// SENSOR
-// ------------------------------------------------------------
-model sensor {
-  id_sensor         Int       @id @default(autoincrement())
-  id_ubic_geo       Int
-  id_predio         Int?
-  fecha_instalacion DateTime? @db.Date
-  estado            String?   @db.VarChar(50)
-  tipo_sensor       String?   @db.VarChar(100)
-  unidad_medida     String?   @db.VarChar(50)
-  nombre            String?   @db.VarChar(150)
-  modelo            String?   @db.VarChar(100)
-  fabricante        String?   @db.VarChar(150)
-
-  ubicacion_geografica ubicacion_geografica @relation(fields: [id_ubic_geo], references: [id_ubic_geo])
-  predio               predio?              @relation(fields: [id_predio], references: [id_predio])
-  lectura              lectura[]
-  auditoria            auditoria[]
-}
-
-// ------------------------------------------------------------
-// USUARIO
+// 5. USUARIO
 // ------------------------------------------------------------
 model usuario {
-  id_usuario       Int      @id @default(autoincrement())
-  id_rol           Int?
-  id_institucion   Int?
-  nombre           String?  @db.VarChar(150)
-  telefono         String?  @db.VarChar(30)
-  multiF_S         Boolean?
-  multiF_A         Boolean?
-  // "contraseña" normalizado a "contrasena" (Prisma no admite "ñ" en
-  // identificadores); ajustar si el equipo prefiere otro nombre de columna.
-  contrasena       String?  @db.VarChar(255)
-  correo           String?  @unique @db.VarChar(150)
-  primer_apellido  String?  @db.VarChar(100)
-  segundo_apellido String?  @db.VarChar(100)
-  // Proteccion contra fuerza bruta en el login (ver GuiaAutenticacion.md).
-  intentos_fallidos Int       @default(0)
+  id_usuario        BigInt    @id @default(autoincrement())
+  id_rol            BigInt
+  id_institucion    BigInt?
+  nombre            String    @db.VarChar(100)
+  primer_apellido   String    @db.VarChar(50)
+  segundo_apellido  String?   @db.VarChar(50)
+  telefono          String?   @db.VarChar(20)
+  correo            String    @unique @db.VarChar(254)
+  contrasena        String    @db.VarChar(60)
+  multiF_S          Boolean   @default(false) @map("multiF_S")
+  multiF_A          Boolean   @default(false) @map("multiF_A")
+  fecha_eliminacion DateTime? @db.Timestamp(6)
+  // CHECK: intentos_fallidos >= 0
+  intentos_fallidos Int       @default(0) @db.SmallInt
   bloqueado_hasta   DateTime? @db.Timestamp(6)
 
-  institucion  institucion? @relation(fields: [id_institucion], references: [id_institucion])
-  rol_catalogo rol?         @relation(fields: [id_rol], references: [id_rol])
-  sesion       sesion[]
-  auditoria    auditoria[]
-  auditoriau   auditoriau[]
-  reporte_u    reporte_u[]
-  recepciona   recepciona[]
+  // ON UPDATE CASCADE ON DELETE RESTRICT
+  rol         rol          @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Restrict)
+  // ON UPDATE CASCADE ON DELETE SET NULL
+  institucion institucion? @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: SetNull)
+
+  sesion           sesion[]
+  auditoriau       auditoriau[]
+  reporte_u        reporte_u[]
+  recepciona       recepciona[]
+  informe_atencion informe_atencion[]
+  notificacion     notificacion[]
+
+  // CREATE INDEX idx_usuario_activos ON usuario(id_institucion) WHERE fecha_eliminacion IS NULL;
+  @@index([id_institucion], map: "idx_usuario_activos")
 }
 
 // ------------------------------------------------------------
-// SESION (sesiones del lado del servidor, identificadas por una cookie)
-// La cookie lleva un identificador aleatorio; aqui solo se guarda su hash.
+// 6. SESION
 // ------------------------------------------------------------
 model sesion {
-  id_sesion        Int       @id @default(autoincrement())
-  id_usuario       Int
-  token_hash       String    @unique @db.VarChar(64)
-  dispositivo      String?   @db.VarChar(150)
-  ip_origen        String?   @db.Inet
-  creada_en        DateTime  @default(now()) @db.Timestamp(6)
-  ultima_actividad DateTime  @default(now()) @db.Timestamp(6)
-  expira_en        DateTime  @db.Timestamp(6)
-  revocada_en      DateTime? @db.Timestamp(6)
+  id_sesion  BigInt   @id @default(autoincrement())
+  id_usuario BigInt
+  token_hash String   @unique @db.Char(64)
+  expira_en  DateTime @db.Timestamp(6)
 
-  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
 
-  @@index([id_usuario])
+  @@index([id_usuario], map: "idx_sesion_usuario")
 }
 
 // ------------------------------------------------------------
-// ALERTA
+// 7. CUBRE_JURISDICCION (N:M)
 // ------------------------------------------------------------
-model alerta {
-  id_alerta       Int       @id @default(autoincrement())
-  fecha           DateTime? @db.Date
-  hora            DateTime? @db.Time(6)
-  estado          String?   @db.VarChar(100)
-  tipo_superficie String?   @db.VarChar(100)
-  nivel_riesgo    String?   @db.VarChar(100)
+model cubre_jurisdiccion {
+  id_zona        BigInt
+  id_institucion BigInt
 
-  lectura      lectura[]
-  realiza_audi realiza_audi[]
-  recepciona   recepciona[]
-  generaru     generaru[]
-  envia        envia[]
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Cascade)
+  institucion     institucion     @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([id_zona, id_institucion], map: "pk_cubre_jurisdiccion")
 }
 
 // ------------------------------------------------------------
-// LECTURA
-// ------------------------------------------------------------
-model lectura {
-  id_lectura     Int       @id @default(autoincrement())
-  id_sensor      Int
-  id_alerta      Int?
-  id_motordet    Int?
-  valor          Decimal?  @db.Decimal
-  fecha_hora     DateTime? @db.Timestamp(6)
-  estado_lectura String?   @db.VarChar(100)
-  tipo_variable  String?   @db.VarChar(100)
-
-  sensor    sensor     @relation(fields: [id_sensor], references: [id_sensor])
-  alerta    alerta?    @relation(fields: [id_alerta], references: [id_alerta])
-  motor_det motor_det? @relation(fields: [id_motordet], references: [id_motordet])
-}
-
-// ------------------------------------------------------------
-// AUDITORIA
+// 8. AUDITORIA
 // ------------------------------------------------------------
 model auditoria {
-  id_auditoria   Int       @id @default(autoincrement())
-  id_usuario     Int
-  valor          Decimal?  @db.Decimal
-  firma_recibida String?
-  firma_valida   Boolean?
-  tiempo         DateTime? @db.Timestamp(6)
-  id_sensor      Int?
-  // Nombre tal cual aparece en el PDF; su proposito no esta documentado
-  // (revisar con el grupo de seguridad antes de usarlo).
-  id_long        Int?
-  hp             String?
-  ha             String?
+  id_auditoria BigInt   @id @default(autoincrement())
+  evento       String   @db.VarChar(100)
+  fecha_hora   DateTime @default(now()) @db.Timestamp(6)
+  detalle      String?
 
-  usuario      usuario        @relation(fields: [id_usuario], references: [id_usuario])
-  sensor       sensor?        @relation(fields: [id_sensor], references: [id_sensor])
   realiza_audi realiza_audi[]
 }
 
 // ------------------------------------------------------------
-// AUDITORIAU
+// 9. AUDITORIAU
 // ------------------------------------------------------------
 model auditoriau {
-  id_auditoriau Int       @id @default(autoincrement())
-  id_usuario    Int
-  ip_origen     String?   @db.Inet
-  accion        String?   @db.VarChar(100)
-  detalle       Json?     @db.JsonB
-  tiempo        DateTime? @db.Timestamp(6)
-  hash_previo   String?
-  hash_actual   String?
+  id_auditoriau BigInt   @id @default(autoincrement())
+  id_usuario    BigInt
+  accion        String   @db.VarChar(100)
+  detalle       String?
+  fecha_hora    DateTime @default(now()) @db.Timestamp(6)
+  ip_origen     String?  @db.VarChar(45)
 
-  usuario usuario @relation(fields: [id_usuario], references: [id_usuario])
+  // ON UPDATE CASCADE ON DELETE RESTRICT
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([id_usuario], map: "idx_auditoriau_usuario")
 }
 
 // ------------------------------------------------------------
-// REPORTE_U (parametros segun la correccion "en base al ER" del PDF)
+// 10. REPORTE_U
 // ------------------------------------------------------------
 model reporte_u {
-  id_reporteu     Int       @id @default(autoincrement())
-  id_usuario      Int
-  id_ubic_geo     Int
-  descripcion     String?
-  tipo            String?   @db.VarChar(100)
-  nivel_prioridad String?   @db.VarChar(50)
-  fecha_envio     DateTime? @db.Timestamp(6)
-  hp              String?
-  ha              String?
+  id_reporte_u    BigInt   @id @default(autoincrement())
+  id_usuario      BigInt
+  descripcion     String
+  tipo            String?  @db.VarChar(30)
+  // CHECK: nivel_prioridad IN ('BAJA','MEDIA','ALTA')
+  nivel_prioridad String?  @db.VarChar(10)
+  // CHECK: estado IN ('RECIBIDO','EN_REVISION','VALIDADO','DESCARTADO','ATENDIDO')
+  estado          String   @default("RECIBIDO") @db.VarChar(20)
+  fecha_envio     DateTime @default(now()) @db.Timestamp(6)
+  // CHECK: latitud IS NULL OR latitud BETWEEN -90 AND 90
+  latitud         Decimal? @db.Decimal(8, 6)
+  // CHECK: longitud IS NULL OR longitud BETWEEN -180 AND 180
+  longitud        Decimal? @db.Decimal(9, 6)
+  indicador       String?
+  foto_url        String?  @db.VarChar(500)
 
-  usuario              usuario              @relation(fields: [id_usuario], references: [id_usuario])
-  ubicacion_geografica ubicacion_geografica @relation(fields: [id_ubic_geo], references: [id_ubic_geo])
-  generaru             generaru[]
+  // ON UPDATE CASCADE ON DELETE RESTRICT
+  usuario   usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
+  genera_ru genera_ru[]
+
+  @@index([id_usuario], map: "idx_reporte_usuario")
 }
 
-// ============================================================
-// RELACIONES N:M
-// ============================================================
+// ------------------------------------------------------------
+// 11. ALERTA
+// ------------------------------------------------------------
+model alerta {
+  id_alerta          BigInt    @id @default(autoincrement())
+  fecha              DateTime  @db.Date
+  hora               DateTime  @db.Time(6)
+  // CHECK: estado IN ('EN_EVALUACION','CONFIRMADA','DESCARTADA','ATENDIDA','CERRADA')
+  estado             String    @db.VarChar(20)
+  // CHECK: puntaje IS NULL OR puntaje BETWEEN 0 AND 1
+  puntaje            Decimal?  @db.Decimal(4, 3)
+  // CHECK: clasificacion IS NULL OR clasificacion IN ('INCENDIO','CLIMA','FALLA_SENSOR','SIN_EVIDENCIA')
+  clasificacion      String?   @db.VarChar(20)
+  fecha_confirmacion DateTime? @db.Timestamp(6)
+  fecha_cierre       DateTime? @db.Timestamp(6)
 
-model realiza_audi {
-  id_auditoria Int
-  id_alerta    Int
+  recepciona       recepciona[]
+  realiza_audi     realiza_audi[]
+  genera_ru        genera_ru[]
+  envia            envia[]
+  lectura          lectura[]
+  informe_atencion informe_atencion[]
+  notificacion     notificacion[]
 
-  auditoria auditoria @relation(fields: [id_auditoria], references: [id_auditoria])
-  alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta])
-
-  @@id([id_auditoria, id_alerta])
+  @@index([fecha], map: "idx_alerta_fecha")
+  @@index([estado], map: "idx_alerta_estado")
 }
 
+// ------------------------------------------------------------
+// 12. RECEPCIONA (N:M) — USUARIO recibe ALERTA
+// ------------------------------------------------------------
 model recepciona {
-  id_usuario Int
-  id_alerta  Int
+  id_usuario BigInt
+  id_alerta  BigInt
 
-  usuario usuario @relation(fields: [id_usuario], references: [id_usuario])
-  alerta  alerta  @relation(fields: [id_alerta], references: [id_alerta])
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
+  alerta  alerta  @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
 
-  @@id([id_usuario, id_alerta])
+  @@id([id_usuario, id_alerta], map: "pk_recepciona")
 }
 
-model rol_politica {
-  id_rol      Int
-  id_politica Int
+// ------------------------------------------------------------
+// 13. REALIZA_AUDI (N:M) — AUDITORIA vinculada a ALERTA
+// ------------------------------------------------------------
+model realiza_audi {
+  id_auditoria BigInt
+  id_alerta    BigInt
 
-  rol      rol      @relation(fields: [id_rol], references: [id_rol])
-  politica politica @relation(fields: [id_politica], references: [id_politica])
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  auditoria auditoria @relation(fields: [id_auditoria], references: [id_auditoria], onUpdate: Cascade, onDelete: Cascade)
+  alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
 
-  @@id([id_rol, id_politica])
+  @@id([id_auditoria, id_alerta], map: "pk_realiza_audi")
 }
 
-model generaru {
-  id_alerta    Int
-  id_reporte_u Int
+// ------------------------------------------------------------
+// 14. GENERA_RU (N:M) — ALERTA genera REPORTE_U
+// ------------------------------------------------------------
+model genera_ru {
+  id_alerta    BigInt
+  id_reporte_u BigInt
 
-  alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta])
-  reporte_u reporte_u @relation(fields: [id_reporte_u], references: [id_reporteu])
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
+  reporte_u reporte_u @relation(fields: [id_reporte_u], references: [id_reporte_u], onUpdate: Cascade, onDelete: Cascade)
 
-  @@id([id_alerta, id_reporte_u])
+  @@id([id_alerta, id_reporte_u], map: "pk_genera_ru")
 }
 
+// ------------------------------------------------------------
+// 15. ENVIA (N:M) — ALERTA enviada a INSTITUCION
+// ------------------------------------------------------------
 model envia {
-  id_alerta      Int
-  id_institucion Int
+  id_alerta           BigInt
+  id_institucion      BigInt
+  // CHECK: estado IN ('ENVIADA','RECIBIDA','ATENDIDA','CERRADA')
+  estado              String    @db.VarChar(10)
+  fecha_envio         DateTime  @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @db.Timestamp(6)
 
-  alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta])
-  institucion institucion @relation(fields: [id_institucion], references: [id_institucion])
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
+  institucion institucion @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
 
-  @@id([id_alerta, id_institucion])
+  @@id([id_alerta, id_institucion], map: "pk_envia")
+  @@index([id_alerta], map: "idx_envia_alerta")
+  @@index([id_institucion], map: "idx_envia_institucion")
 }
 
-model cubre_jurisdiccion {
-  id_zona        Int
-  id_institucion Int
+// ------------------------------------------------------------
+// 16. MOTOR_DET
+// ------------------------------------------------------------
+model motor_det {
+  id_motordet               BigInt  @id @default(autoincrement())
+  ventana_base_min          Int     @db.SmallInt
+  umbral_z                  Decimal @db.Decimal(3, 1)
+  cusum_h                   Decimal @db.Decimal(3, 1)
+  // CHECK: umbral_confirmacion BETWEEN 0 AND 1
+  umbral_confirmacion       Decimal @db.Decimal(3, 2)
+  // CHECK: umbral_descarte BETWEEN 0 AND 1
+  umbral_descarte           Decimal @db.Decimal(3, 2)
+  tiempo_max_evaluacion_min Int     @db.SmallInt
+  // CHECK: radio_vecindad_m > 0
+  radio_vecindad_m          Int
 
-  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona])
-  institucion     institucion     @relation(fields: [id_institucion], references: [id_institucion])
+  parametro_variable parametro_variable[]
+  predio             predio[]
+}
 
-  @@id([id_zona, id_institucion])
+// ------------------------------------------------------------
+// 17. PARAMETRO_VARIABLE
+// ------------------------------------------------------------
+model parametro_variable {
+  id_parametro_variable BigInt   @id @default(autoincrement())
+  id_motordet           BigInt
+  // CHECK: tipo_variable IN ('TEMPERATURA','HUMO','CO','HUMEDAD')
+  tipo_variable         String   @db.VarChar(20)
+  umbral_critico        Decimal? @db.Decimal(8, 2)
+
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  motor_det motor_det @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Cascade)
+
+  // UNIQUE (id_motordet, tipo_variable)
+  @@unique([id_motordet, tipo_variable], map: "uq_parametro_variable_motor_tipo")
+}
+
+// ------------------------------------------------------------
+// 18. PREDIO
+// Incluye trigger trg_predio_calcular_irp (fn_calcular_irp) definido en
+// bd/bd.sql, que recalcula `irp` automaticamente en INSERT/UPDATE de los
+// campos de diagnostico. No es representable en schema.prisma: vive solo
+// en la BD.
+// ------------------------------------------------------------
+model predio {
+  id_predio             BigInt    @id @default(autoincrement())
+  id_zona               BigInt
+  id_motordet           BigInt
+  // CHECK: tipo_predio IN ('VIVIENDA','EDIFICIO','MERCADO')
+  tipo_predio           String    @db.VarChar(20)
+  nombre                String    @db.VarChar(100)
+  direccion             String    @db.VarChar(200)
+  // CHECK: latitud BETWEEN -90 AND 90
+  latitud               Decimal   @db.Decimal(8, 6)
+  // CHECK: longitud BETWEEN -180 AND 180
+  longitud              Decimal   @db.Decimal(9, 6)
+  fecha_evaluacion      DateTime? @db.Date
+  // CHECK: irp IS NULL OR irp BETWEEN 0.06 AND 1 (calculado por trigger)
+  irp                   Decimal?  @db.Decimal(4, 3)
+  // CHECK: estado_electrico IS NULL OR estado_electrico IN (1,2,3)
+  estado_electrico      Int?      @db.SmallInt
+  // CHECK: estado_gas IS NULL OR estado_gas IN (0,1,2)
+  estado_gas            Int?      @db.SmallInt
+  // CHECK: fuentes_calor IS NULL OR fuentes_calor IN (0,1,2)
+  fuentes_calor         Int?      @db.SmallInt
+  // CHECK: carga_combustible IS NULL OR carga_combustible IN (1,2,3)
+  carga_combustible     Int?      @db.SmallInt
+  // CHECK: material_construccion IS NULL OR material_construccion IN (1,2,3)
+  material_construccion Int?      @db.SmallInt
+  // CHECK: ocupacion IS NULL OR ocupacion IN (1,2,3)
+  ocupacion             Int?      @db.SmallInt
+  // CHECK: nivel_proteccion IS NULL OR nivel_proteccion IN (0,1,2,3)
+  nivel_proteccion      Int?      @db.SmallInt
+
+  // ON UPDATE CASCADE ON DELETE RESTRICT
+  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Restrict)
+  motor_det       motor_det       @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Restrict)
+  sensor          sensor[]
+
+  @@index([id_zona], map: "idx_predio_zona")
+  @@index([id_motordet], map: "idx_predio_motor")
+  @@index([tipo_predio], map: "idx_predio_tipo")
+}
+
+// ------------------------------------------------------------
+// 19. SENSOR
+// ------------------------------------------------------------
+model sensor {
+  id_sensor         BigInt    @id @default(autoincrement())
+  id_predio         BigInt
+  nombre            String    @db.VarChar(100)
+  // CHECK: tipo_sensor IN ('TEMPERATURA','HUMO','CO','HUMEDAD')
+  tipo_sensor       String    @db.VarChar(20)
+  unidad_medida     String?   @db.VarChar(15)
+  modelo            String?   @db.VarChar(50)
+  fabricante        String?   @db.VarChar(100)
+  fecha_instalacion DateTime? @db.Date
+  // CHECK: estado IN ('ACTIVO','INACTIVO','MANTENIMIENTO','ERROR')
+  estado            String    @default("ACTIVO") @db.VarChar(20)
+  // CHECK: rango_min < rango_max
+  rango_min         Decimal   @db.Decimal(8, 2)
+  rango_max         Decimal   @db.Decimal(8, 2)
+
+  // ON UPDATE CASCADE ON DELETE RESTRICT
+  predio  predio    @relation(fields: [id_predio], references: [id_predio], onUpdate: Cascade, onDelete: Restrict)
+  lectura lectura[]
+
+  @@index([id_predio], map: "idx_sensor_predio")
+}
+
+// ------------------------------------------------------------
+// 20. LECTURA
+// ------------------------------------------------------------
+model lectura {
+  id_lectura     BigInt   @id @default(autoincrement())
+  id_sensor      BigInt
+  id_alerta      BigInt?
+  valor          Decimal  @db.Decimal(10, 4)
+  fecha_hora     DateTime @db.Timestamp(6)
+  // CHECK: estado_lectura IN ('VALIDA','ANOMALA','INVALIDA')
+  estado_lectura String   @db.VarChar(10)
+  // CHECK: tipo_variable IN ('TEMPERATURA','HUMO','CO','HUMEDAD')
+  tipo_variable  String   @db.VarChar(20)
+
+  // ON UPDATE CASCADE ON DELETE RESTRICT
+  sensor sensor  @relation(fields: [id_sensor], references: [id_sensor], onUpdate: Cascade, onDelete: Restrict)
+  // ON UPDATE CASCADE ON DELETE SET NULL
+  alerta alerta? @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([id_sensor, fecha_hora], map: "idx_lectura_sensor_fecha")
+  @@index([id_alerta], map: "idx_lectura_alerta")
+}
+
+// ------------------------------------------------------------
+// 21. INFORME_ATENCION
+// ------------------------------------------------------------
+model informe_atencion {
+  id_informe_atencion BigInt @id @default(autoincrement())
+  id_alerta           BigInt
+  id_institucion      BigInt
+  id_usuario          BigInt
+  // CHECK: estado IN ('BORRADOR','PENDIENTE','COMPLETADO','REVISADO')
+  estado              String @default("BORRADOR") @db.VarChar(20)
+
+  fecha_incidente   DateTime? @db.Date
+  hora_recepcion    DateTime? @db.Time(6)
+  hora_salida       DateTime? @db.Time(6)
+  hora_llegada      DateTime? @db.Time(6)
+  hora_control      DateTime? @db.Time(6)
+  hora_finalizacion DateTime? @db.Time(6)
+
+  // CHECK: personal IS NULL OR personal >= 0
+  personal           Int? @db.SmallInt
+  // CHECK: vehiculos IS NULL OR vehiculos >= 0
+  vehiculos          Int? @db.SmallInt
+  // CHECK: personas_afectadas IS NULL OR personas_afectadas >= 0
+  personas_afectadas Int? @db.SmallInt
+  // CHECK: personas_evacuadas IS NULL OR personas_evacuadas >= 0
+  personas_evacuadas Int? @db.SmallInt
+  // CHECK: heridos IS NULL OR heridos >= 0
+  heridos            Int? @db.SmallInt
+  // CHECK: fallecidos IS NULL OR fallecidos >= 0
+  fallecidos         Int? @db.SmallInt
+
+  danos_materiales String?
+  causa            String?
+  acciones         String?
+  observaciones    String?
+  recomendaciones  String?
+
+  fecha_envio DateTime @default(now()) @db.Timestamp(6)
+
+  // ON UPDATE CASCADE ON DELETE RESTRICT
+  alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Restrict)
+  institucion institucion @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Restrict)
+  usuario     usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([id_alerta], map: "idx_informe_atencion_alerta")
+  @@index([id_institucion], map: "idx_informe_atencion_institucion")
+}
+
+// ------------------------------------------------------------
+// 22. NOTIFICACION
+// ------------------------------------------------------------
+model notificacion {
+  id_notificacion BigInt   @id @default(autoincrement())
+  id_usuario      BigInt
+  id_alerta       BigInt?
+  // CHECK: tipo IN ('ALERTA','ENVIO','REPORTE','SISTEMA')
+  tipo            String   @db.VarChar(20)
+  titulo          String   @db.VarChar(150)
+  mensaje         String
+  fecha_hora      DateTime @default(now()) @db.Timestamp(6)
+  leida           Boolean  @default(false)
+
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
+  // ON UPDATE CASCADE ON DELETE SET NULL
+  alerta  alerta? @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([id_usuario, leida], map: "idx_notificacion_usuario")
+  @@index([id_alerta], map: "idx_notificacion_alerta")
 }

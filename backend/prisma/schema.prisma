@@ -1,8 +1,11 @@
 // ============================================================
 // PRISMA SCHEMA
 // Sistema de Alerta Temprana y Reporte de Incendios
-// Transcrito 1:1 desde bd/bd.sql (fuente de verdad de la BD).
-// No incluye columnas ni tablas que no esten en ese script.
+// Transcrito 1:1 desde bd/bd.sql + bd/bd_extras.sql (fuente de verdad
+// de la BD). No incluye columnas ni tablas que no esten en esos scripts.
+//
+// Las validaciones de datos (antes CHECK constraints) ya no viven en la
+// BD: se movieron a la capa de dominio/aplicacion del backend.
 // ============================================================
 
 generator client {
@@ -37,8 +40,8 @@ model rol {
   nombre_rol      String  @unique @db.VarChar(50)
   mfa_obligatorio Boolean @default(false)
 
-  politica politica?
-  usuario  usuario[]
+  usuario      usuario[]
+  rol_politica rol_politica[]
 }
 
 // ------------------------------------------------------------
@@ -46,10 +49,7 @@ model rol {
 // ------------------------------------------------------------
 model politica {
   id_politica            BigInt    @id @default(autoincrement())
-  id_rol                 BigInt    @unique
-  // CHECK: max_intentos_fallidos > 0
   max_intentos_fallidos  Int       @default(5) @db.SmallInt
-  // CHECK: tiempo_bloqueo_minutos > 0
   tiempo_bloqueo_minutos Int       @default(15) @db.SmallInt
   horario_inicio         DateTime? @db.Time(6)
   horario_fin            DateTime? @db.Time(6)
@@ -60,28 +60,36 @@ model politica {
   gestionar_usuarios     Boolean   @default(false)
   crear_admin            Boolean   @default(false)
 
-  // ON UPDATE CASCADE ON DELETE CASCADE
-  rol rol @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Cascade)
+  rol_politica rol_politica[]
 }
 
 // ------------------------------------------------------------
-// 4. INSTITUCION
+// 4. ROL_POLITICA (N:M)
+// ------------------------------------------------------------
+model rol_politica {
+  id_rol      BigInt
+  id_politica BigInt
+
+  // ON UPDATE CASCADE ON DELETE CASCADE
+  rol      rol      @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Cascade)
+  politica politica @relation(fields: [id_politica], references: [id_politica], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([id_rol, id_politica], map: "pk_rol_politica")
+}
+
+// ------------------------------------------------------------
+// 5. INSTITUCION
 // ------------------------------------------------------------
 model institucion {
-  id_institucion           BigInt   @id @default(autoincrement())
-  // CHECK: categoria IN ('BOMBEROS','POLICIA','DEFENSA_CIVIL','RESCATE','OTRA')
-  categoria                String   @db.VarChar(30)
-  nombre                   String   @db.VarChar(150)
-  razon_social             String?  @db.VarChar(150)
-  detalle                  String?
-  direccion                String?  @db.VarChar(200)
-  telefono_ins             String?  @db.VarChar(20)
-  // CHECK: latitud BETWEEN -90 AND 90
-  latitud                  Decimal? @db.Decimal(8, 6)
-  // CHECK: longitud BETWEEN -180 AND 180
-  longitud                 Decimal? @db.Decimal(9, 6)
-  estado                   Boolean  @default(true)
-  disponibilidad_operativa String?  @db.VarChar(30)
+  id_institucion BigInt   @id @default(autoincrement())
+  categoria      String   @db.VarChar(30)
+  nombre         String   @db.VarChar(150)
+  razon_social   String?  @db.VarChar(150)
+  detalle        String?
+  telefono_ins   String?  @db.VarChar(20)
+  latitud        Decimal? @db.Decimal(8, 6)
+  longitud       Decimal? @db.Decimal(9, 6)
+  estado         Boolean  @default(true)
 
   usuario            usuario[]
   cubre_jurisdiccion cubre_jurisdiccion[]
@@ -90,7 +98,7 @@ model institucion {
 }
 
 // ------------------------------------------------------------
-// 5. USUARIO
+// 6. USUARIO
 // ------------------------------------------------------------
 model usuario {
   id_usuario        BigInt    @id @default(autoincrement())
@@ -100,14 +108,12 @@ model usuario {
   primer_apellido   String    @db.VarChar(50)
   segundo_apellido  String?   @db.VarChar(50)
   telefono          String?   @db.VarChar(20)
-  correo            String    @unique @db.VarChar(254)
-  contrasena        String    @db.VarChar(60)
   multiF_S          Boolean   @default(false) @map("multiF_S")
   multiF_A          Boolean   @default(false) @map("multiF_A")
+  contrasena        String    @db.VarChar(60)
+  correo            String    @unique @db.VarChar(254)
   fecha_eliminacion DateTime? @db.Timestamp(6)
-  // CHECK: intentos_fallidos >= 0
-  intentos_fallidos Int       @default(0) @db.SmallInt
-  bloqueado_hasta   DateTime? @db.Timestamp(6)
+  estado            Boolean   @default(true)
 
   // ON UPDATE CASCADE ON DELETE RESTRICT
   rol         rol          @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Restrict)
@@ -121,12 +127,12 @@ model usuario {
   informe_atencion informe_atencion[]
   notificacion     notificacion[]
 
-  // CREATE INDEX idx_usuario_activos ON usuario(id_institucion) WHERE fecha_eliminacion IS NULL;
+  // bd_extras.sql: CREATE INDEX idx_usuario_activos ON usuario(id_institucion) WHERE fecha_eliminacion IS NULL;
   @@index([id_institucion], map: "idx_usuario_activos")
 }
 
 // ------------------------------------------------------------
-// 6. SESION
+// 7. SESION
 // ------------------------------------------------------------
 model sesion {
   id_sesion  BigInt   @id @default(autoincrement())
@@ -141,7 +147,7 @@ model sesion {
 }
 
 // ------------------------------------------------------------
-// 7. CUBRE_JURISDICCION (N:M)
+// 8. CUBRE_JURISDICCION (N:M)
 // ------------------------------------------------------------
 model cubre_jurisdiccion {
   id_zona        BigInt
@@ -155,7 +161,7 @@ model cubre_jurisdiccion {
 }
 
 // ------------------------------------------------------------
-// 8. AUDITORIA
+// 9. AUDITORIA
 // ------------------------------------------------------------
 model auditoria {
   id_auditoria BigInt   @id @default(autoincrement())
@@ -167,7 +173,7 @@ model auditoria {
 }
 
 // ------------------------------------------------------------
-// 9. AUDITORIAU
+// 10. AUDITORIAU
 // ------------------------------------------------------------
 model auditoriau {
   id_auditoriau BigInt   @id @default(autoincrement())
@@ -184,21 +190,17 @@ model auditoriau {
 }
 
 // ------------------------------------------------------------
-// 10. REPORTE_U
+// 11. REPORTE_U
 // ------------------------------------------------------------
 model reporte_u {
   id_reporte_u    BigInt   @id @default(autoincrement())
   id_usuario      BigInt
   descripcion     String
   tipo            String?  @db.VarChar(30)
-  // CHECK: nivel_prioridad IN ('BAJA','MEDIA','ALTA')
   nivel_prioridad String?  @db.VarChar(10)
-  // CHECK: estado IN ('RECIBIDO','EN_REVISION','VALIDADO','DESCARTADO','ATENDIDO')
   estado          String   @default("RECIBIDO") @db.VarChar(20)
   fecha_envio     DateTime @default(now()) @db.Timestamp(6)
-  // CHECK: latitud IS NULL OR latitud BETWEEN -90 AND 90
   latitud         Decimal? @db.Decimal(8, 6)
-  // CHECK: longitud IS NULL OR longitud BETWEEN -180 AND 180
   longitud        Decimal? @db.Decimal(9, 6)
   indicador       String?
   foto_url        String?  @db.VarChar(500)
@@ -211,17 +213,14 @@ model reporte_u {
 }
 
 // ------------------------------------------------------------
-// 11. ALERTA
+// 12. ALERTA
 // ------------------------------------------------------------
 model alerta {
   id_alerta          BigInt    @id @default(autoincrement())
   fecha              DateTime  @db.Date
   hora               DateTime  @db.Time(6)
-  // CHECK: estado IN ('EN_EVALUACION','CONFIRMADA','DESCARTADA','ATENDIDA','CERRADA')
   estado             String    @db.VarChar(20)
-  // CHECK: puntaje IS NULL OR puntaje BETWEEN 0 AND 1
   puntaje            Decimal?  @db.Decimal(4, 3)
-  // CHECK: clasificacion IS NULL OR clasificacion IN ('INCENDIO','CLIMA','FALLA_SENSOR','SIN_EVIDENCIA')
   clasificacion      String?   @db.VarChar(20)
   fecha_confirmacion DateTime? @db.Timestamp(6)
   fecha_cierre       DateTime? @db.Timestamp(6)
@@ -239,7 +238,7 @@ model alerta {
 }
 
 // ------------------------------------------------------------
-// 12. RECEPCIONA (N:M) — USUARIO recibe ALERTA
+// 13. RECEPCIONA (N:M) — USUARIO recibe ALERTA
 // ------------------------------------------------------------
 model recepciona {
   id_usuario BigInt
@@ -253,7 +252,7 @@ model recepciona {
 }
 
 // ------------------------------------------------------------
-// 13. REALIZA_AUDI (N:M) — AUDITORIA vinculada a ALERTA
+// 14. REALIZA_AUDI (N:M) — AUDITORIA vinculada a ALERTA
 // ------------------------------------------------------------
 model realiza_audi {
   id_auditoria BigInt
@@ -267,7 +266,7 @@ model realiza_audi {
 }
 
 // ------------------------------------------------------------
-// 14. GENERA_RU (N:M) — ALERTA genera REPORTE_U
+// 15. GENERA_RU (N:M) — ALERTA genera REPORTE_U
 // ------------------------------------------------------------
 model genera_ru {
   id_alerta    BigInt
@@ -281,13 +280,11 @@ model genera_ru {
 }
 
 // ------------------------------------------------------------
-// 15. ENVIA (N:M) — ALERTA enviada a INSTITUCION
+// 16. ENVIA (N:M) — ALERTA enviada a INSTITUCION
 // ------------------------------------------------------------
 model envia {
   id_alerta           BigInt
   id_institucion      BigInt
-  // CHECK: estado IN ('ENVIADA','RECIBIDA','ATENDIDA','CERRADA')
-  estado              String    @db.VarChar(10)
   fecha_envio         DateTime  @default(now()) @db.Timestamp(6)
   fecha_actualizacion DateTime? @db.Timestamp(6)
 
@@ -301,19 +298,16 @@ model envia {
 }
 
 // ------------------------------------------------------------
-// 16. MOTOR_DET
+// 17. MOTOR_DET
 // ------------------------------------------------------------
 model motor_det {
   id_motordet               BigInt  @id @default(autoincrement())
   ventana_base_min          Int     @db.SmallInt
   umbral_z                  Decimal @db.Decimal(3, 1)
   cusum_h                   Decimal @db.Decimal(3, 1)
-  // CHECK: umbral_confirmacion BETWEEN 0 AND 1
   umbral_confirmacion       Decimal @db.Decimal(3, 2)
-  // CHECK: umbral_descarte BETWEEN 0 AND 1
   umbral_descarte           Decimal @db.Decimal(3, 2)
   tiempo_max_evaluacion_min Int     @db.SmallInt
-  // CHECK: radio_vecindad_m > 0
   radio_vecindad_m          Int
 
   parametro_variable parametro_variable[]
@@ -321,57 +315,44 @@ model motor_det {
 }
 
 // ------------------------------------------------------------
-// 17. PARAMETRO_VARIABLE
+// 18. PARAMETRO_VARIABLE
 // ------------------------------------------------------------
 model parametro_variable {
   id_parametro_variable BigInt   @id @default(autoincrement())
   id_motordet           BigInt
-  // CHECK: tipo_variable IN ('TEMPERATURA','HUMO','CO','HUMEDAD')
   tipo_variable         String   @db.VarChar(20)
   umbral_critico        Decimal? @db.Decimal(8, 2)
 
   // ON UPDATE CASCADE ON DELETE CASCADE
   motor_det motor_det @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Cascade)
 
-  // UNIQUE (id_motordet, tipo_variable)
   @@unique([id_motordet, tipo_variable], map: "uq_parametro_variable_motor_tipo")
 }
 
 // ------------------------------------------------------------
-// 18. PREDIO
-// Incluye trigger trg_predio_calcular_irp (fn_calcular_irp) definido en
-// bd/bd.sql, que recalcula `irp` automaticamente en INSERT/UPDATE de los
-// campos de diagnostico. No es representable en schema.prisma: vive solo
-// en la BD.
+// 19. PREDIO
+// bd_extras.sql define el trigger trg_predio_calcular_irp
+// (fn_calcular_irp), que recalcula `irp` automaticamente en INSERT/UPDATE
+// de los campos de diagnostico. No es representable en schema.prisma:
+// vive solo en la BD.
 // ------------------------------------------------------------
 model predio {
   id_predio             BigInt    @id @default(autoincrement())
   id_zona               BigInt
   id_motordet           BigInt
-  // CHECK: tipo_predio IN ('VIVIENDA','EDIFICIO','MERCADO')
   tipo_predio           String    @db.VarChar(20)
   nombre                String    @db.VarChar(100)
   direccion             String    @db.VarChar(200)
-  // CHECK: latitud BETWEEN -90 AND 90
   latitud               Decimal   @db.Decimal(8, 6)
-  // CHECK: longitud BETWEEN -180 AND 180
   longitud              Decimal   @db.Decimal(9, 6)
   fecha_evaluacion      DateTime? @db.Date
-  // CHECK: irp IS NULL OR irp BETWEEN 0.06 AND 1 (calculado por trigger)
   irp                   Decimal?  @db.Decimal(4, 3)
-  // CHECK: estado_electrico IS NULL OR estado_electrico IN (1,2,3)
   estado_electrico      Int?      @db.SmallInt
-  // CHECK: estado_gas IS NULL OR estado_gas IN (0,1,2)
   estado_gas            Int?      @db.SmallInt
-  // CHECK: fuentes_calor IS NULL OR fuentes_calor IN (0,1,2)
   fuentes_calor         Int?      @db.SmallInt
-  // CHECK: carga_combustible IS NULL OR carga_combustible IN (1,2,3)
   carga_combustible     Int?      @db.SmallInt
-  // CHECK: material_construccion IS NULL OR material_construccion IN (1,2,3)
   material_construccion Int?      @db.SmallInt
-  // CHECK: ocupacion IS NULL OR ocupacion IN (1,2,3)
   ocupacion             Int?      @db.SmallInt
-  // CHECK: nivel_proteccion IS NULL OR nivel_proteccion IN (0,1,2,3)
   nivel_proteccion      Int?      @db.SmallInt
 
   // ON UPDATE CASCADE ON DELETE RESTRICT
@@ -385,21 +366,18 @@ model predio {
 }
 
 // ------------------------------------------------------------
-// 19. SENSOR
+// 20. SENSOR
 // ------------------------------------------------------------
 model sensor {
   id_sensor         BigInt    @id @default(autoincrement())
   id_predio         BigInt
   nombre            String    @db.VarChar(100)
-  // CHECK: tipo_sensor IN ('TEMPERATURA','HUMO','CO','HUMEDAD')
   tipo_sensor       String    @db.VarChar(20)
   unidad_medida     String?   @db.VarChar(15)
   modelo            String?   @db.VarChar(50)
   fabricante        String?   @db.VarChar(100)
   fecha_instalacion DateTime? @db.Date
-  // CHECK: estado IN ('ACTIVO','INACTIVO','MANTENIMIENTO','ERROR')
   estado            String    @default("ACTIVO") @db.VarChar(20)
-  // CHECK: rango_min < rango_max
   rango_min         Decimal   @db.Decimal(8, 2)
   rango_max         Decimal   @db.Decimal(8, 2)
 
@@ -411,7 +389,7 @@ model sensor {
 }
 
 // ------------------------------------------------------------
-// 20. LECTURA
+// 21. LECTURA
 // ------------------------------------------------------------
 model lectura {
   id_lectura     BigInt   @id @default(autoincrement())
@@ -419,9 +397,7 @@ model lectura {
   id_alerta      BigInt?
   valor          Decimal  @db.Decimal(10, 4)
   fecha_hora     DateTime @db.Timestamp(6)
-  // CHECK: estado_lectura IN ('VALIDA','ANOMALA','INVALIDA')
   estado_lectura String   @db.VarChar(10)
-  // CHECK: tipo_variable IN ('TEMPERATURA','HUMO','CO','HUMEDAD')
   tipo_variable  String   @db.VarChar(20)
 
   // ON UPDATE CASCADE ON DELETE RESTRICT
@@ -434,14 +410,13 @@ model lectura {
 }
 
 // ------------------------------------------------------------
-// 21. INFORME_ATENCION
+// 22. INFORME_ATENCION
 // ------------------------------------------------------------
 model informe_atencion {
   id_informe_atencion BigInt @id @default(autoincrement())
   id_alerta           BigInt
   id_institucion      BigInt
   id_usuario          BigInt
-  // CHECK: estado IN ('BORRADOR','PENDIENTE','COMPLETADO','REVISADO')
   estado              String @default("BORRADOR") @db.VarChar(20)
 
   fecha_incidente   DateTime? @db.Date
@@ -451,17 +426,10 @@ model informe_atencion {
   hora_control      DateTime? @db.Time(6)
   hora_finalizacion DateTime? @db.Time(6)
 
-  // CHECK: personal IS NULL OR personal >= 0
   personal           Int? @db.SmallInt
-  // CHECK: vehiculos IS NULL OR vehiculos >= 0
-  vehiculos          Int? @db.SmallInt
-  // CHECK: personas_afectadas IS NULL OR personas_afectadas >= 0
   personas_afectadas Int? @db.SmallInt
-  // CHECK: personas_evacuadas IS NULL OR personas_evacuadas >= 0
   personas_evacuadas Int? @db.SmallInt
-  // CHECK: heridos IS NULL OR heridos >= 0
   heridos            Int? @db.SmallInt
-  // CHECK: fallecidos IS NULL OR fallecidos >= 0
   fallecidos         Int? @db.SmallInt
 
   danos_materiales String?
@@ -482,13 +450,12 @@ model informe_atencion {
 }
 
 // ------------------------------------------------------------
-// 22. NOTIFICACION
+// 23. NOTIFICACION
 // ------------------------------------------------------------
 model notificacion {
   id_notificacion BigInt   @id @default(autoincrement())
   id_usuario      BigInt
   id_alerta       BigInt?
-  // CHECK: tipo IN ('ALERTA','ENVIO','REPORTE','SISTEMA')
   tipo            String   @db.VarChar(20)
   titulo          String   @db.VarChar(150)
   mensaje         String

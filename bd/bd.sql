@@ -266,6 +266,7 @@ CREATE TABLE genera_ru (
 CREATE TABLE envia (
     id_alerta             BIGINT NOT NULL,
     id_institucion        BIGINT NOT NULL,
+    estado                VARCHAR(10) NOT NULL,
     fecha_envio           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion   TIMESTAMP,
 

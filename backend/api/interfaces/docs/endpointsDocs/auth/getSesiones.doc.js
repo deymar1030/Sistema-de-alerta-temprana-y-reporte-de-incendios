@@ -6,8 +6,7 @@
  *       - Auth
  *     summary: Lista las sesiones activas del usuario autenticado
  *     description: >
- *       Retorna todas las sesiones vigentes del usuario dueño de la sesión
- *       actual, incluyendo desde qué dispositivos/IPs quedó autenticado.
+ *       Retorna todas las sesiones vigentes del usuario dueño de la sesión actual.
  *     security:
  *       - cookieAuth: []
  *     responses:

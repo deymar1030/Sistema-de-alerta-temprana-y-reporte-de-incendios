@@ -56,20 +56,11 @@
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  *       429:
- *         description: >
- *           Demasiados intentos fallidos, ya sea por cuenta bloqueada
- *           temporalmente o por límite de peticiones desde la IP.
+ *         description: Demasiados intentos de inicio de sesión desde la IP.
  *         content:
  *           application/json:
- *             examples:
- *               cuentaBloqueada:
- *                 value:
- *                   success: false
- *                   error: "Demasiados intentos fallidos. Intenta más tarde"
- *                   code: "ACCOUNT_LOCKED"
- *               limitePorIp:
- *                 value:
- *                   success: false
- *                   error: "Demasiados intentos. Intenta más tarde"
- *                   code: "TOO_MANY_REQUESTS"
+ *             example:
+ *               success: false
+ *               error: "Demasiados intentos. Intenta más tarde"
+ *               code: "TOO_MANY_REQUESTS"
  */

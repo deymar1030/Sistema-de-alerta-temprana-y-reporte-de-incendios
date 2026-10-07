@@ -13,16 +13,13 @@ export class AuthService {
     this.getSesionesActivasUseCase = getSesionesActivasUseCase;
   }
 
-  // Autenticacion (quien es) y luego sesion (mantenerlo autenticado).
-  async login(credenciales, { dispositivo, ip_origen }, tokenAnterior) {
+  async login(credenciales, tokenAnterior) {
     const usuario = await this.authenticateUseCase.execute(credenciales);
 
     await this.#descartarSesionAnterior(tokenAnterior);
 
     const { token } = await this.createSesionUseCase.execute({
       id_usuario: usuario.id_usuario,
-      dispositivo,
-      ip_origen,
     });
 
     return { usuario, token };
@@ -43,8 +40,6 @@ export class AuthService {
     await this.revokeSesionUseCase.execute({ id_sesion, id_usuario });
   }
 
-  // Evita fijacion de sesion: al iniciar sesion se descarta cualquier sesion
-  // que el navegador ya tuviera, y se emite un identificador nuevo.
   async #descartarSesionAnterior(tokenAnterior) {
     if (!tokenAnterior) return;
 
@@ -54,8 +49,6 @@ export class AuthService {
         id_sesion: sesion.id_sesion,
         id_usuario: sesion.id_usuario,
       });
-    } catch {
-      // Cookie invalida o vencida: no hay nada que descartar.
-    }
+    } catch {}
   }
 }

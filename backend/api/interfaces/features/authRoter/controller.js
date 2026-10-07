@@ -26,7 +26,6 @@ export class AuthController {
     try {
       const { usuario, token } = await this.authService.login(
         { correo: req.body?.correo, contrasena: req.body?.contrasena },
-        { dispositivo: req.get("user-agent") ?? null, ip_origen: req.ip ?? null },
         SessionCookie.read(req)
       );
 

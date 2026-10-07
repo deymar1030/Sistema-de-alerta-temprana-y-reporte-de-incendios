@@ -20,20 +20,13 @@ function getUseCases() {
   const sesionRepository = new PrismaSesionRepository(prisma);
 
   useCases = {
-    authenticateUseCase: new AuthenticateUseCase(authRepository, {
-      maxIntentos: envs.LOGIN_MAX_ATTEMPTS,
-      bloqueoMinutos: envs.LOGIN_LOCK_MINUTES,
-    }),
+    authenticateUseCase: new AuthenticateUseCase(authRepository),
     createSesionUseCase: new CreateSesionUseCase(sesionRepository, {
       ttlHoras: envs.SESSION_TTL_HOURS,
     }),
-    validateSesionUseCase: new ValidateSesionUseCase(sesionRepository, {
-      inactividadMinutos: envs.SESSION_IDLE_MINUTES,
-    }),
+    validateSesionUseCase: new ValidateSesionUseCase(sesionRepository),
     revokeSesionUseCase: new RevokeSesionUseCase(sesionRepository),
-    getSesionesActivasUseCase: new GetSesionesActivasUseCase(sesionRepository, {
-      inactividadMinutos: envs.SESSION_IDLE_MINUTES,
-    }),
+    getSesionesActivasUseCase: new GetSesionesActivasUseCase(sesionRepository),
   };
 
   return useCases;

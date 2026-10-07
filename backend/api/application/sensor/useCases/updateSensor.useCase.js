@@ -1,12 +1,23 @@
 import { UpdateSensorDTO } from "../../../domain/sensor/dtos/updateSensor.dto.js";
 
-export class UpdateSensorUseCase {
+export default class UpdateSensorUseCase {
   constructor(sensorRepository) {
     this.sensorRepository = sensorRepository;
   }
 
-  async execute(id, data) {
-    const validatedData = UpdateSensorDTO.validate(id, data);
-    return await this.sensorRepository.update(id, validatedData);
+  async execute(id, sensorData) {
+    const errors = UpdateSensorDTO.validate(id, sensorData);
+    if (errors.length > 0) {
+      throw new Error(`Validation errors: ${errors.join(", ")}`);
+    }
+
+    const existente = await this.sensorRepository.findById(id);
+    if (!existente) {
+      throw new Error("Sensor not found");
+    }
+
+    const sensorDTO = new UpdateSensorDTO(sensorData);
+
+    return await this.sensorRepository.update(id, sensorDTO);
   }
 }

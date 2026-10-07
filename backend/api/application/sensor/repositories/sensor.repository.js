@@ -1,9 +1,5 @@
-export class SensorRepository {
-  async create(createSensorDTO) {
-    throw new Error("Method not implemented");
-  }
-
-  async findAll() {
+export default class SensorRepository {
+  async create(sensorData) {
     throw new Error("Method not implemented");
   }
 
@@ -11,7 +7,23 @@ export class SensorRepository {
     throw new Error("Method not implemented");
   }
 
-  async update(id, updateSensorDTO) {
+  async findUltimaLectura(id_sensor) {
+    throw new Error("Method not implemented");
+  }
+
+  async findPredio(id_predio) {
+    throw new Error("Method not implemented");
+  }
+
+  async findAll(filters) {
+    throw new Error("Method not implemented");
+  }
+
+  async findLecturas(id_sensor, filters) {
+    throw new Error("Method not implemented");
+  }
+
+  async update(id, sensorData) {
     throw new Error("Method not implemented");
   }
 

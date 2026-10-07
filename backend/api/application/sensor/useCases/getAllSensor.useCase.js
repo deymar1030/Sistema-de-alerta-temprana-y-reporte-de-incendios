@@ -1,9 +1,9 @@
-export class GetAllSensorUseCase {
+export default class GetAllSensorUseCase {
   constructor(sensorRepository) {
     this.sensorRepository = sensorRepository;
   }
 
-  async execute() {
-    return await this.sensorRepository.findAll();
+  async execute(filters) {
+    return await this.sensorRepository.findAll(filters);
   }
 }

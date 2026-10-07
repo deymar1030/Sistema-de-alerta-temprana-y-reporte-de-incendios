@@ -1,13 +1,11 @@
 /**
  * @openapi
- * /usuarios/{id}:
- *   put:
+ * /usuarios/{id}/reactivar:
+ *   patch:
  *     tags:
  *       - Usuario
- *     summary: Actualiza un usuario
- *     description: >
- *       Actualiza los datos de un usuario existente. Acepta actualizaciones
- *       parciales; no permite cambiar la contraseña.
+ *     summary: Reactiva a un usuario dado de baja
+ *     description: Limpia la fecha de baja del usuario.
  *     parameters:
  *       - in: path
  *         name: id
@@ -15,19 +13,13 @@
  *         schema:
  *           type: integer
  *         example: 1
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UpdateUsuario'
  *     security:
  *       - cookieAuth: []
  *     responses:
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       200:
- *         description: Usuario actualizado exitosamente
+ *         description: Usuario reactivado exitosamente
  *         content:
  *           application/json:
  *             schema:
@@ -42,13 +34,7 @@
  *         description: Error de validación o usuario no encontrado
  *         content:
  *           application/json:
- *             examples:
- *               validacion:
- *                 value:
- *                   success: false
- *                   error: "Validation errors: ID not valid"
- *               noEncontrado:
- *                 value:
- *                   success: false
- *                   error: "Usuario not found"
+ *             example:
+ *               success: false
+ *               error: "Usuario not found"
  */

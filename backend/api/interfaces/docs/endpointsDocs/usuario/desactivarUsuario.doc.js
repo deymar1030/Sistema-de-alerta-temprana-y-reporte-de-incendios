@@ -1,11 +1,11 @@
 /**
  * @openapi
- * /usuarios/{id}:
- *   delete:
+ * /usuarios/{id}/desactivar:
+ *   patch:
  *     tags:
  *       - Usuario
- *     summary: Elimina un usuario
- *     description: Elimina un usuario existente por su id_usuario.
+ *     summary: Da de baja a un usuario
+ *     description: Marca al usuario como eliminado (soft delete) registrando la fecha de baja.
  *     parameters:
  *       - in: path
  *         name: id
@@ -19,7 +19,7 @@
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       200:
- *         description: Usuario eliminado exitosamente
+ *         description: Usuario dado de baja exitosamente
  *         content:
  *           application/json:
  *             schema:
@@ -34,13 +34,7 @@
  *         description: Error de validación o usuario no encontrado
  *         content:
  *           application/json:
- *             examples:
- *               validacion:
- *                 value:
- *                   success: false
- *                   error: "Validation errors: ID not valid"
- *               noEncontrado:
- *                 value:
- *                   success: false
- *                   error: "Usuario not found"
+ *             example:
+ *               success: false
+ *               error: "Usuario not found"
  */

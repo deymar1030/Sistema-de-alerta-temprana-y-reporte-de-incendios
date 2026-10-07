@@ -4,21 +4,23 @@ export class UsuarioService {
     getAllUsuarioUseCase,
     getUsuarioUseCase,
     updateUsuarioUseCase,
-    deleteUsuarioUseCase,
+    desactivarUsuarioUseCase,
+    reactivarUsuarioUseCase,
   }) {
     this.createUsuarioUseCase = createUsuarioUseCase;
     this.getAllUsuarioUseCase = getAllUsuarioUseCase;
     this.getUsuarioUseCase = getUsuarioUseCase;
     this.updateUsuarioUseCase = updateUsuarioUseCase;
-    this.deleteUsuarioUseCase = deleteUsuarioUseCase;
+    this.desactivarUsuarioUseCase = desactivarUsuarioUseCase;
+    this.reactivarUsuarioUseCase = reactivarUsuarioUseCase;
   }
 
   async create(usuarioData) {
     return await this.createUsuarioUseCase.execute(usuarioData);
   }
 
-  async getAll() {
-    return await this.getAllUsuarioUseCase.execute();
+  async getAll(filters) {
+    return await this.getAllUsuarioUseCase.execute(filters);
   }
 
   async getById(id) {
@@ -29,7 +31,11 @@ export class UsuarioService {
     return await this.updateUsuarioUseCase.execute(id, usuarioData);
   }
 
-  async delete(id) {
-    return await this.deleteUsuarioUseCase.execute(id);
+  async desactivar(id) {
+    return await this.desactivarUsuarioUseCase.execute(id);
+  }
+
+  async reactivar(id) {
+    return await this.reactivarUsuarioUseCase.execute(id);
   }
 }

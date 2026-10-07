@@ -1,18 +1,27 @@
 import { UsuarioMapper } from "../../../domain/usuario/mappers/usuario.mapper.js";
 
-function mapUsuarioRequest(body) {
+function mapUsuarioCreateRequest(body) {
   return {
     id_rol: body.id_rol ?? null,
     id_institucion: body.id_institucion ?? null,
     nombre: body.nombre,
     telefono: body.telefono ?? null,
-    multiF_S: body.multiF_S ?? null,
-    multiF_A: body.multiF_A ?? null,
     contrasena: body.contrasena,
     correo: body.correo,
     primer_apellido: body.primer_apellido ?? null,
     segundo_apellido: body.segundo_apellido ?? null,
   };
+}
+
+function mapUsuarioUpdateRequest(body) {
+  const campos = ["id_rol", "id_institucion", "nombre", "telefono", "primer_apellido", "segundo_apellido"];
+
+  const data = {};
+  for (const campo of campos) {
+    if (body[campo] !== undefined) data[campo] = body[campo];
+  }
+
+  return data;
 }
 
 export class UsuarioController {
@@ -22,7 +31,7 @@ export class UsuarioController {
 
   create = async (req, res) => {
     try {
-      const usuarioData = mapUsuarioRequest(req.body);
+      const usuarioData = mapUsuarioCreateRequest(req.body);
 
       const result = await this.usuarioService.create(usuarioData);
 
@@ -40,7 +49,10 @@ export class UsuarioController {
 
   list = async (req, res) => {
     try {
-      const usuarios = await this.usuarioService.getAll();
+      const usuarios = await this.usuarioService.getAll({
+        id_institucion: req.query.id_institucion,
+        incluirEliminados: req.query.incluirEliminados,
+      });
 
       res.json({
         success: true,
@@ -72,12 +84,9 @@ export class UsuarioController {
 
   update = async (req, res) => {
     try {
-      const usuarioData = mapUsuarioRequest(req.body);
+      const usuarioData = mapUsuarioUpdateRequest(req.body);
 
-      const result = await this.usuarioService.update(
-        req.params.id,
-        usuarioData
-      );
+      const result = await this.usuarioService.update(req.params.id, usuarioData);
 
       res.json({
         success: true,
@@ -91,13 +100,29 @@ export class UsuarioController {
     }
   };
 
-  remove = async (req, res) => {
+  desactivar = async (req, res) => {
     try {
-      const usuario = await this.usuarioService.delete(req.params.id);
+      const result = await this.usuarioService.desactivar(req.params.id);
 
       res.json({
         success: true,
-        data: UsuarioMapper.toResponseDTO(usuario),
+        data: UsuarioMapper.toResponseDTO(result),
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  };
+
+  reactivar = async (req, res) => {
+    try {
+      const result = await this.usuarioService.reactivar(req.params.id);
+
+      res.json({
+        success: true,
+        data: UsuarioMapper.toResponseDTO(result),
       });
     } catch (error) {
       res.status(400).json({

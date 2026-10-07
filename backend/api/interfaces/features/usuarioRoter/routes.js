@@ -11,7 +11,8 @@ export class UsuarioRouter {
     router.get("/:id", usuarioController.getById);
     router.post("/", usuarioController.create);
     router.put("/:id", usuarioController.update);
-    router.delete("/:id", usuarioController.remove);
+    router.patch("/:id/desactivar", usuarioController.desactivar);
+    router.patch("/:id/reactivar", usuarioController.reactivar);
 
     return router;
   }

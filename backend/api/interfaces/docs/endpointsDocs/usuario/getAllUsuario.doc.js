@@ -5,7 +5,19 @@
  *     tags:
  *       - Usuario
  *     summary: Lista todos los usuarios
- *     description: Retorna la lista completa de usuarios registrados.
+ *     description: Retorna la lista completa de usuarios registrados. Por defecto excluye a los usuarios dados de baja.
+ *     parameters:
+ *       - in: query
+ *         name: id_institucion
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: incluirEliminados
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           default: false
  *     security:
  *       - cookieAuth: []
  *     responses:

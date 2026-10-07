@@ -13,7 +13,6 @@
  *           example: 1
  *         id_rol:
  *           type: integer
- *           nullable: true
  *           example: 1
  *         id_institucion:
  *           type: integer
@@ -26,36 +25,36 @@
  *           type: string
  *           nullable: true
  *           example: "+591 70011223"
- *         multiF_S:
- *           type: boolean
- *           nullable: true
- *           example: true
- *         multiF_A:
- *           type: boolean
- *           nullable: true
- *           example: false
  *         correo:
  *           type: string
  *           example: "juan.perez@example.com"
  *         primer_apellido:
  *           type: string
- *           nullable: true
  *           example: "Perez"
  *         segundo_apellido:
  *           type: string
  *           nullable: true
  *           example: "Gomez"
+ *         fecha_eliminacion:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: Fecha en la que se dio de baja al usuario; null si está activo.
+ *         estado:
+ *           type: boolean
+ *           example: true
  *
  *     CreateUsuario:
  *       type: object
  *       required:
+ *         - id_rol
  *         - nombre
+ *         - primer_apellido
  *         - correo
  *         - contrasena
  *       properties:
  *         id_rol:
  *           type: integer
- *           nullable: true
  *           example: 1
  *         id_institucion:
  *           type: integer
@@ -68,14 +67,6 @@
  *           type: string
  *           nullable: true
  *           example: "+591 70011223"
- *         multiF_S:
- *           type: boolean
- *           nullable: true
- *           example: true
- *         multiF_A:
- *           type: boolean
- *           nullable: true
- *           example: false
  *         contrasena:
  *           type: string
  *           format: password
@@ -86,7 +77,6 @@
  *           example: "juan.perez@example.com"
  *         primer_apellido:
  *           type: string
- *           nullable: true
  *           example: "Perez"
  *         segundo_apellido:
  *           type: string
@@ -95,52 +85,28 @@
  *
  *     UpdateUsuario:
  *       type: object
- *       required:
- *         - nombre
- *         - correo
+ *       description: >
+ *         Todos los campos son opcionales; solo se actualizan los que se
+ *         envíen. No permite cambiar la contraseña (eso no forma parte de
+ *         este endpoint).
  *       properties:
  *         id_rol:
  *           type: integer
- *           nullable: true
- *           example: 1
  *         id_institucion:
  *           type: integer
  *           nullable: true
- *           example: 1
  *         nombre:
  *           type: string
- *           example: "Juan"
  *         telefono:
  *           type: string
  *           nullable: true
- *           example: "+591 70011223"
- *         multiF_S:
- *           type: boolean
- *           nullable: true
- *           example: true
- *         multiF_A:
- *           type: boolean
- *           nullable: true
- *           example: false
- *         contrasena:
- *           type: string
- *           format: password
- *           nullable: true
- *           description: >
- *             Opcional; si se omite se conserva la contraseña actual.
- *             Se almacena hasheada con bcrypt; nunca en texto plano.
- *           example: "NuevaClave456!"
  *         correo:
  *           type: string
- *           example: "juan.perez@example.com"
  *         primer_apellido:
  *           type: string
- *           nullable: true
- *           example: "Perez"
  *         segundo_apellido:
  *           type: string
  *           nullable: true
- *           example: "Gomez"
  *
  *     UsuarioListResponse:
  *       type: array

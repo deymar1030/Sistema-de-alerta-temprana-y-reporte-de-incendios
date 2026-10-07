@@ -3,7 +3,7 @@ export default class GetAllInstitucionUseCase {
     this.institucionRepository = institucionRepository;
   }
 
-  async execute() {
-    return await this.institucionRepository.findAll();
+  async execute(filters) {
+    return await this.institucionRepository.findAll(filters);
   }
 }

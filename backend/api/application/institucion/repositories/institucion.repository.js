@@ -7,7 +7,7 @@ export default class InstitucionRepository {
     throw new Error("Method not implemented");
   }
 
-  async findAll() {
+  async findAll(filters) {
     throw new Error("Method not implemented");
   }
 
@@ -16,6 +16,18 @@ export default class InstitucionRepository {
   }
 
   async delete(id) {
+    throw new Error("Method not implemented");
+  }
+
+  async findJurisdicciones(id_institucion) {
+    throw new Error("Method not implemented");
+  }
+
+  async addJurisdiccion(id_institucion, id_zona) {
+    throw new Error("Method not implemented");
+  }
+
+  async removeJurisdiccion(id_institucion, id_zona) {
     throw new Error("Method not implemented");
   }
 }

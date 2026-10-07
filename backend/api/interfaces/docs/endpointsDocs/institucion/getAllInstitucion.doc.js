@@ -6,6 +6,13 @@
  *       - Institucion
  *     summary: Lista todas las instituciones
  *     description: Retorna la lista completa de instituciones registradas.
+ *     parameters:
+ *       - in: query
+ *         name: categoria
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [BOMBEROS, POLICIA, DEFENSA_CIVIL, RESCATE, OTRA]
  *     security:
  *       - cookieAuth: []
  *     responses:

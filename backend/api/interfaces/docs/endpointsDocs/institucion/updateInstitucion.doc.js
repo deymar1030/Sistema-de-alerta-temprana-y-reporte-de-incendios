@@ -5,7 +5,7 @@
  *     tags:
  *       - Institucion
  *     summary: Actualiza una institución
- *     description: Actualiza los datos de una institución existente.
+ *     description: Actualiza los datos de una institución existente. Acepta actualizaciones parciales.
  *     parameters:
  *       - in: path
  *         name: id
@@ -44,7 +44,7 @@
  *               validacion:
  *                 value:
  *                   success: false
- *                   error: "Validation errors: Missing categoria, Missing nombre"
+ *                   error: "Validation errors: categoria must be one of: BOMBEROS, POLICIA, DEFENSA_CIVIL, RESCATE, OTRA"
  *               noEncontrada:
  *                 value:
  *                   success: false

@@ -4,7 +4,7 @@ export class CreateZonaGeograficaDTO {
     departamento,
     municipio,
     descripcion = null,
-    estado = null,
+    estado = undefined,
     densidad_poblacional = null,
   }) {
     this.nombre = nombre;

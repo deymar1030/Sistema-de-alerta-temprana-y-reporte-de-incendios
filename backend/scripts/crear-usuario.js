@@ -5,10 +5,10 @@ import "dotenv/config";
 import prisma from "../api/infrastructure/prismaConfig/prismaClient.js";
 import { Hash } from "../api/config/hash.js";
 
-const [correo, contrasena, nombre = "Administrador"] = process.argv.slice(2);
+const [correo, contrasena, nombre = "Administrador", primer_apellido = "Sistema"] = process.argv.slice(2);
 
 if (!correo || !contrasena) {
-  console.error("Uso: npm run crear-usuario -- <correo> <contrasena> [nombre]");
+  console.error("Uso: npm run crear-usuario -- <correo> <contrasena> [nombre] [primer_apellido]");
   process.exit(1);
 }
 
@@ -27,8 +27,12 @@ try {
     process.exit(1);
   }
 
+  const rol =
+    (await prisma.rol.findUnique({ where: { nombre_rol: "ADMIN" } })) ??
+    (await prisma.rol.create({ data: { nombre_rol: "ADMIN" } }));
+
   const usuario = await prisma.usuario.create({
-    data: { correo, nombre, contrasena: await Hash.hash(contrasena) },
+    data: { correo, nombre, primer_apellido, id_rol: rol.id_rol, contrasena: await Hash.hash(contrasena) },
   });
 
   console.log(`Usuario creado: id ${usuario.id_usuario} (${usuario.correo})`);

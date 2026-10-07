@@ -4,8 +4,6 @@ export class CreateUsuarioDTO {
     id_institucion = null,
     nombre,
     telefono = null,
-    multiF_S = null,
-    multiF_A = null,
     contrasena,
     correo,
     primer_apellido = null,
@@ -15,8 +13,6 @@ export class CreateUsuarioDTO {
     this.id_institucion = id_institucion;
     this.nombre = nombre;
     this.telefono = telefono;
-    this.multiF_S = multiF_S;
-    this.multiF_A = multiF_A;
     this.contrasena = contrasena;
     this.correo = correo;
     this.primer_apellido = primer_apellido;

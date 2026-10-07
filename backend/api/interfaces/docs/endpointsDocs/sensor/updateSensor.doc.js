@@ -5,7 +5,7 @@
  *     tags:
  *       - Sensor
  *     summary: Actualiza un sensor
- *     description: Actualiza los datos de un sensor existente.
+ *     description: Actualiza los datos de un sensor existente. Acepta actualizaciones parciales.
  *     parameters:
  *       - in: path
  *         name: id
@@ -29,11 +29,24 @@
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Sensor'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Sensor'
  *       400:
- *         description: Error de validación
+ *         description: Error de validación o sensor no encontrado
  *         content:
  *           application/json:
- *             example:
- *               error: "El id del sensor es obligatorio para actualizar"
+ *             examples:
+ *               validacion:
+ *                 value:
+ *                   success: false
+ *                   error: "Validation errors: estado must be one of: ACTIVO, INACTIVO, MANTENIMIENTO, ERROR"
+ *               noEncontrado:
+ *                 value:
+ *                   success: false
+ *                   error: "Sensor not found"
  */

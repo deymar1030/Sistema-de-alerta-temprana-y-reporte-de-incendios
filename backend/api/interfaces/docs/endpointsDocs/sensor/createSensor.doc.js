@@ -5,7 +5,6 @@
  *     tags:
  *       - Sensor
  *     summary: Crea un nuevo sensor
- *     description: Registra un nuevo sensor asociado a una ubicación geográfica.
  *     requestBody:
  *       required: true
  *       content:
@@ -22,11 +21,18 @@
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Sensor'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Sensor'
  *       400:
  *         description: Error de validación
  *         content:
  *           application/json:
  *             example:
- *               error: "Todos los campos del sensor son obligatorios"
+ *               success: false
+ *               error: "Validation errors: Missing id_predio, Missing nombre"
  */

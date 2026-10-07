@@ -5,7 +5,24 @@
  *     tags:
  *       - Sensor
  *     summary: Lista todos los sensores
- *     description: Retorna la lista completa de sensores registrados.
+ *     parameters:
+ *       - in: query
+ *         name: id_predio
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: tipo_sensor
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [TEMPERATURA, HUMO, CO, HUMEDAD]
+ *       - in: query
+ *         name: estado
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [ACTIVO, INACTIVO, MANTENIMIENTO, ERROR]
  *     security:
  *       - cookieAuth: []
  *     responses:
@@ -16,11 +33,11 @@
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SensorListResponse'
- *       500:
- *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             example:
- *               error: "Error al obtener los sensores"
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/SensorListResponse'
  */

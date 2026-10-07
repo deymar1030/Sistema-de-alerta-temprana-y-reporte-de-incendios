@@ -5,7 +5,6 @@
  *     tags:
  *       - Sensor
  *     summary: Elimina un sensor
- *     description: Elimina un sensor existente por su id_sensor.
  *     parameters:
  *       - in: path
  *         name: id
@@ -22,12 +21,14 @@
  *         description: Sensor eliminado exitosamente
  *         content:
  *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Sensor'
- *       404:
+ *             example:
+ *               success: true
+ *               data: null
+ *       400:
  *         description: Sensor no encontrado
  *         content:
  *           application/json:
  *             example:
- *               error: "El id del sensor es obligatorio para eliminar"
+ *               success: false
+ *               error: "Sensor not found"
  */

@@ -1,8 +1,14 @@
+import { Validators } from "../../../config/validators.js";
+
 export class GetSensorDTO {
+  constructor(id) {
+    this.id = id;
+  }
+
   static validate(id) {
-    if (!id) {
-      throw new Error("El id del sensor es obligatorio");
-    }
-    return id;
+    const errors = [];
+    if (!id || String(id).trim() === "") errors.push("Missing id");
+    if (!Validators.isValidId(id)) errors.push("ID not valid");
+    return errors;
   }
 }

@@ -6,6 +6,7 @@ import { UbicacionGeograficaRouter } from "./features/ubicacionGeograficaRoter/r
 import { UsuarioRouter } from "./features/usuarioRoter/routes.js";
 import { AuthRouter } from "./features/authRoter/routes.js";
 import { AuthDependencies } from "./features/authRoter/dependencies.js";
+import { AlertaRouter } from "./features/alertaRoter/routes.js";
 
 export class AppRouter {
   static get routes() {
@@ -26,6 +27,7 @@ export class AppRouter {
     router.use("/instituciones", requireAuth, InstitucionRouter.routes);
     router.use("/ubicaciones-geograficas", requireAuth, UbicacionGeograficaRouter.routes);
     router.use("/usuarios", requireAuth, UsuarioRouter.routes);
+    router.use("/alertas", requireAuth, AlertaRouter.routes);
 
     return router;
   }

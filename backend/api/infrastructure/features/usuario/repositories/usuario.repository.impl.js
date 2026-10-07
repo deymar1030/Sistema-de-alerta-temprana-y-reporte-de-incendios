@@ -1,5 +1,9 @@
 import UsuarioRepository from "../../../../application/usuario/repositories/usuario.repository.js";
 
+function limpiar(data) {
+  return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+}
+
 export default class PrismaUsuarioRepository extends UsuarioRepository {
   constructor(prisma) {
     super();
@@ -13,8 +17,6 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
         id_institucion: usuarioData.id_institucion,
         nombre: usuarioData.nombre,
         telefono: usuarioData.telefono,
-        multiF_S: usuarioData.multiF_S,
-        multiF_A: usuarioData.multiF_A,
         contrasena: usuarioData.contrasena,
         correo: usuarioData.correo,
         primer_apellido: usuarioData.primer_apellido,
@@ -23,8 +25,15 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     });
   }
 
-  async findAll() {
+  async findAll(filters = {}) {
+    const where = {};
+    if (filters.id_institucion) where.id_institucion = Number(filters.id_institucion);
+    if (!filters.incluirEliminados || filters.incluirEliminados === "false") {
+      where.fecha_eliminacion = null;
+    }
+
     return await this.prisma.usuario.findMany({
+      where,
       orderBy: { id_usuario: "asc" },
     });
   }
@@ -38,24 +47,29 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
   async update(id, usuarioData) {
     return await this.prisma.usuario.update({
       where: { id_usuario: Number(id) },
-      data: {
+      data: limpiar({
         id_rol: usuarioData.id_rol,
         id_institucion: usuarioData.id_institucion,
         nombre: usuarioData.nombre,
         telefono: usuarioData.telefono,
-        multiF_S: usuarioData.multiF_S,
-        multiF_A: usuarioData.multiF_A,
-        contrasena: usuarioData.contrasena,
         correo: usuarioData.correo,
         primer_apellido: usuarioData.primer_apellido,
         segundo_apellido: usuarioData.segundo_apellido,
-      },
+      }),
     });
   }
 
-  async delete(id) {
-    return await this.prisma.usuario.delete({
+  async desactivar(id) {
+    return await this.prisma.usuario.update({
       where: { id_usuario: Number(id) },
+      data: { fecha_eliminacion: new Date() },
+    });
+  }
+
+  async reactivar(id) {
+    return await this.prisma.usuario.update({
+      where: { id_usuario: Number(id) },
+      data: { fecha_eliminacion: null },
     });
   }
 }

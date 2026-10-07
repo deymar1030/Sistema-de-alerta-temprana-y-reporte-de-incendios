@@ -55,15 +55,17 @@ model rol_politica {
 }
 
 model institucion {
-  id_institucion BigInt   @id @default(autoincrement())
-  categoria      String   @db.VarChar(30)
-  nombre         String   @db.VarChar(150)
-  razon_social   String?  @db.VarChar(150)
-  detalle        String?
-  telefono_ins   String?  @db.VarChar(20)
-  latitud        Decimal? @db.Decimal(8, 6)
-  longitud       Decimal? @db.Decimal(9, 6)
-  estado         Boolean  @default(true)
+  id_institucion           BigInt   @id @default(autoincrement())
+  categoria                String   @db.VarChar(30)
+  nombre                   String   @db.VarChar(150)
+  razon_social             String?  @db.VarChar(150)
+  detalle                  String?
+  direccion                String?  @db.VarChar(200)
+  telefono_ins             String?  @db.VarChar(20)
+  latitud                  Decimal? @db.Decimal(8, 6)
+  longitud                 Decimal? @db.Decimal(9, 6)
+  estado                   Boolean  @default(true)
+  disponibilidad_operativa String?  @db.VarChar(30)
 
   usuario            usuario[]
   cubre_jurisdiccion cubre_jurisdiccion[]
@@ -79,8 +81,6 @@ model usuario {
   primer_apellido   String    @db.VarChar(50)
   segundo_apellido  String?   @db.VarChar(50)
   telefono          String?   @db.VarChar(20)
-  multiF_S          Boolean   @default(false)
-  multiF_A          Boolean   @default(false)
   contrasena        String    @db.VarChar(60)
   correo            String    @unique @db.VarChar(254)
   fecha_eliminacion DateTime? @db.Timestamp(6)
@@ -329,6 +329,7 @@ model informe_atencion {
   hora_finalizacion DateTime? @db.Time(6)
 
   personal           Int? @db.SmallInt
+  vehiculos          Int? @db.SmallInt
   personas_afectadas Int? @db.SmallInt
   personas_evacuadas Int? @db.SmallInt
   heridos            Int? @db.SmallInt

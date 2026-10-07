@@ -20,7 +20,6 @@ export const envs = {
   TRUST_PROXY: process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : null,
 
   SESSION_TTL_HOURS: toNumber(process.env.SESSION_TTL_HOURS, 8),
-  SESSION_IDLE_MINUTES: toNumber(process.env.SESSION_IDLE_MINUTES, 30),
 
   COOKIE_SAMESITE: sameSite,
   // SameSite=None exige Secure; en produccion Secure siempre esta activo.
@@ -29,8 +28,6 @@ export const envs = {
       ? process.env.COOKIE_SECURE === "true"
       : NODE_ENV === "production" || sameSite === "none",
 
-  LOGIN_MAX_ATTEMPTS: toNumber(process.env.LOGIN_MAX_ATTEMPTS, 5),
-  LOGIN_LOCK_MINUTES: toNumber(process.env.LOGIN_LOCK_MINUTES, 15),
   LOGIN_RATE_LIMIT_MAX: toNumber(process.env.LOGIN_RATE_LIMIT_MAX, 20),
 
   MQTT_BROKER_URL: process.env.MQTT_BROKER_URL || "mqtt://localhost:1883",

@@ -1,5 +1,4 @@
 import { UpdateUsuarioDTO } from "../../../domain/usuario/dtos/updateUsuario.dto.js";
-import { Hash } from "../../../config/hash.js";
 
 export default class UpdateUsuarioUseCase {
   constructor(usuarioRepository) {
@@ -7,7 +6,7 @@ export default class UpdateUsuarioUseCase {
   }
 
   async execute(id, usuarioData) {
-    const errors = UpdateUsuarioDTO.validate(id, usuarioData);
+    const errors = UpdateUsuarioDTO.validate(id);
 
     if (errors.length > 0) {
       throw new Error(`Validation errors: ${errors.join(", ")}`);
@@ -19,14 +18,7 @@ export default class UpdateUsuarioUseCase {
       throw new Error("Usuario not found");
     }
 
-    const contrasena = usuarioData.contrasena
-      ? await Hash.hash(usuarioData.contrasena)
-      : existingUsuario.contrasena;
-
-    const usuarioDTO = new UpdateUsuarioDTO({
-      ...usuarioData,
-      contrasena,
-    });
+    const usuarioDTO = new UpdateUsuarioDTO(usuarioData);
 
     return await this.usuarioRepository.update(id, usuarioDTO);
   }

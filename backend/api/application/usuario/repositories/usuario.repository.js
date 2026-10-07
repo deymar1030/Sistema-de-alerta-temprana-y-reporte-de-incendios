@@ -7,7 +7,7 @@ export default class UsuarioRepository {
     throw new Error("Method not implemented");
   }
 
-  async findAll() {
+  async findAll(filters) {
     throw new Error("Method not implemented");
   }
 
@@ -15,7 +15,11 @@ export default class UsuarioRepository {
     throw new Error("Method not implemented");
   }
 
-  async delete(id) {
+  async desactivar(id) {
+    throw new Error("Method not implemented");
+  }
+
+  async reactivar(id) {
     throw new Error("Method not implemented");
   }
 }

@@ -3,7 +3,7 @@ export default class GetAllUsuarioUseCase {
     this.usuarioRepository = usuarioRepository;
   }
 
-  async execute() {
-    return await this.usuarioRepository.findAll();
+  async execute(filters) {
+    return await this.usuarioRepository.findAll(filters);
   }
 }

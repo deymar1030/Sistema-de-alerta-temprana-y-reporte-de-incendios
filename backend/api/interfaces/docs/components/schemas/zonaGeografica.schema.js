@@ -22,9 +22,8 @@
  *           nullable: true
  *           example: Zona residencial de alta densidad
  *         estado:
- *           type: string
- *           nullable: true
- *           example: activa
+ *           type: boolean
+ *           example: true
  *         densidad_poblacional:
  *           type: number
  *           nullable: true
@@ -50,8 +49,7 @@
  *           type: string
  *           nullable: true
  *         estado:
- *           type: string
- *           nullable: true
+ *           type: boolean
  *         densidad_poblacional:
  *           type: number
  *           nullable: true
@@ -73,8 +71,7 @@
  *           type: string
  *           nullable: true
  *         estado:
- *           type: string
- *           nullable: true
+ *           type: boolean
  *         densidad_poblacional:
  *           type: number
  *           nullable: true

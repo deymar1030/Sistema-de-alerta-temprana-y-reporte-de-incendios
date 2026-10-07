@@ -6,7 +6,7 @@ function mapZonaGeograficaRequest(body) {
     departamento: body.departamento,
     municipio: body.municipio,
     descripcion: body.descripcion ?? null,
-    estado: body.estado ?? null,
+    estado: body.estado,
     densidad_poblacional: body.densidad_poblacional ?? null,
   };
 }

@@ -1,34 +1,21 @@
 import { Validators } from "../../../config/validators.js";
 
+const CATEGORIAS = ["BOMBEROS", "POLICIA", "DEFENSA_CIVIL", "RESCATE", "OTRA"];
+
 export class UpdateInstitucionDTO {
-  constructor({
-    categoria,
-    detalle = null,
-    nombre,
-    razon_social = null,
-    telefono_ins = null,
-  }) {
-    this.categoria = categoria;
-    this.detalle = detalle;
-    this.nombre = nombre;
-    this.razon_social = razon_social;
-    this.telefono_ins = telefono_ins;
+  constructor(data) {
+    Object.assign(this, data);
   }
 
-  static validate(id, { categoria, nombre }) {
+  static validate(id, { categoria, latitud, longitud }) {
     const errors = [];
 
-    if (!Validators.isValidId(id)) {
-      errors.push("ID not valid");
+    if (!Validators.isValidId(id)) errors.push("ID not valid");
+    if (categoria !== undefined && !CATEGORIAS.includes(categoria)) {
+      errors.push(`categoria must be one of: ${CATEGORIAS.join(", ")}`);
     }
-
-    if (!categoria) {
-      errors.push("Missing categoria");
-    }
-
-    if (!nombre) {
-      errors.push("Missing nombre");
-    }
+    if (latitud != null && (latitud < -90 || latitud > 90)) errors.push("latitud must be between -90 and 90");
+    if (longitud != null && (longitud < -180 || longitud > 180)) errors.push("longitud must be between -180 and 180");
 
     return errors;
   }

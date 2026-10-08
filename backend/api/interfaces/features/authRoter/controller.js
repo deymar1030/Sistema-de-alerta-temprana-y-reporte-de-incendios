@@ -37,6 +37,23 @@ export class AuthController {
     }
   };
 
+  register = async (req, res) => {
+    try {
+      const usuario = await this.authService.register({
+        nombre: req.body?.nombre,
+        primer_apellido: req.body?.primer_apellido,
+        segundo_apellido: req.body?.segundo_apellido,
+        telefono: req.body?.telefono,
+        correo: req.body?.correo,
+        contrasena: req.body?.contrasena,
+      });
+
+      res.status(201).json({ success: true, data: UsuarioMapper.toResponseDTO(usuario) });
+    } catch (error) {
+      handleError(res, error);
+    }
+  };
+
   logout = async (req, res) => {
     try {
       await this.authService.logout(req.auth);

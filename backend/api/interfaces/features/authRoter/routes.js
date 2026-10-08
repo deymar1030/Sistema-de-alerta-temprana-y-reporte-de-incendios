@@ -15,6 +15,7 @@ export class AuthRouter {
       next();
     });
 
+    router.post("/register", originGuard, authController.register);
     router.post("/login", originGuard, loginRateLimit, authController.login);
     router.post("/logout", requireAuth, authController.logout);
     router.get("/me", requireAuth, authController.me);

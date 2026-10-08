@@ -2,7 +2,10 @@ import prisma from "../../../infrastructure/prismaConfig/prismaClient.js";
 import { envs } from "../../../config/envs.js";
 import PrismaAuthRepository from "../../../infrastructure/features/auth/repositories/auth.repository.impl.js";
 import PrismaSesionRepository from "../../../infrastructure/features/sesion/repositories/sesion.repository.impl.js";
+import PrismaUsuarioRepository from "../../../infrastructure/features/usuario/repositories/usuario.repository.impl.js";
+import PrismaRolRepository from "../../../infrastructure/features/rol/repositories/rol.repository.impl.js";
 import AuthenticateUseCase from "../../../application/auth/useCases/authenticate.useCase.js";
+import RegisterUseCase from "../../../application/auth/useCases/register.useCase.js";
 import CreateSesionUseCase from "../../../application/sesion/useCases/createSesion.useCase.js";
 import ValidateSesionUseCase from "../../../application/sesion/useCases/validateSesion.useCase.js";
 import RevokeSesionUseCase from "../../../application/sesion/useCases/revokeSesion.useCase.js";
@@ -18,9 +21,12 @@ function getUseCases() {
 
   const authRepository = new PrismaAuthRepository(prisma);
   const sesionRepository = new PrismaSesionRepository(prisma);
+  const usuarioRepository = new PrismaUsuarioRepository(prisma);
+  const rolRepository = new PrismaRolRepository(prisma);
 
   useCases = {
     authenticateUseCase: new AuthenticateUseCase(authRepository),
+    registerUseCase: new RegisterUseCase({ authRepository, usuarioRepository, rolRepository }),
     createSesionUseCase: new CreateSesionUseCase(sesionRepository, {
       ttlHoras: envs.SESSION_TTL_HOURS,
     }),

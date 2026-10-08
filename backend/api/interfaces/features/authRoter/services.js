@@ -1,16 +1,22 @@
 export class AuthService {
   constructor({
     authenticateUseCase,
+    registerUseCase,
     createSesionUseCase,
     validateSesionUseCase,
     revokeSesionUseCase,
     getSesionesActivasUseCase,
   }) {
     this.authenticateUseCase = authenticateUseCase;
+    this.registerUseCase = registerUseCase;
     this.createSesionUseCase = createSesionUseCase;
     this.validateSesionUseCase = validateSesionUseCase;
     this.revokeSesionUseCase = revokeSesionUseCase;
     this.getSesionesActivasUseCase = getSesionesActivasUseCase;
+  }
+
+  async register(data) {
+    return await this.registerUseCase.execute(data);
   }
 
   async login(credenciales, tokenAnterior) {

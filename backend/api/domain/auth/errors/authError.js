@@ -16,4 +16,7 @@ export const AuthErrors = {
     new AuthError("La sesión expiró", { status: 401, code: "SESSION_EXPIRED" }),
   sessionNotFound: () =>
     new AuthError("Sesión no encontrada", { status: 404, code: "SESSION_NOT_FOUND" }),
+  validationError: (message) => new AuthError(message, { status: 400, code: "VALIDATION_ERROR" }),
+  correoYaRegistrado: () =>
+    new AuthError("El correo ya está registrado", { status: 409, code: "CORREO_YA_REGISTRADO" }),
 };

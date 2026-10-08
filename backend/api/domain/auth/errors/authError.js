@@ -10,6 +10,8 @@ export const AuthErrors = {
   invalidCredentials: () =>
     new AuthError("Credenciales inválidas", { status: 401, code: "INVALID_CREDENTIALS" }),
   unauthenticated: () => new AuthError("No autenticado", { status: 401, code: "UNAUTHENTICATED" }),
+  forbidden: () =>
+    new AuthError("No tiene permisos para esta acción", { status: 403, code: "FORBIDDEN" }),
   sessionExpired: () =>
     new AuthError("La sesión expiró", { status: 401, code: "SESSION_EXPIRED" }),
   sessionNotFound: () =>

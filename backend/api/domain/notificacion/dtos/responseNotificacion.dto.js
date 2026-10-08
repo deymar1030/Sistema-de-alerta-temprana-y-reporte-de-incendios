@@ -1,6 +1,7 @@
 export class ResponseNotificacionDTO {
-  constructor({ id_notificacion, id_alerta, tipo, titulo, mensaje, fecha_hora, leida }) {
+  constructor({ id_notificacion, id_usuario_emisor, id_alerta, tipo, titulo, mensaje, fecha_hora, leida }) {
     this.id_notificacion = id_notificacion;
+    this.id_usuario_emisor = id_usuario_emisor;
     this.id_alerta = id_alerta;
     this.tipo = tipo;
     this.titulo = titulo;
@@ -12,6 +13,7 @@ export class ResponseNotificacionDTO {
   static fromEntity(notificacion) {
     return new ResponseNotificacionDTO({
       id_notificacion: notificacion.id_notificacion,
+      id_usuario_emisor: notificacion.id_usuario_emisor,
       id_alerta: notificacion.id_alerta,
       tipo: notificacion.tipo,
       titulo: notificacion.titulo,

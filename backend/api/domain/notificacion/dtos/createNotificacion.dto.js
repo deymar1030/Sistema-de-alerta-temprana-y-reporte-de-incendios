@@ -1,8 +1,9 @@
 const TIPOS = ["ALERTA", "ENVIO", "REPORTE", "SISTEMA"];
 
 export class CreateNotificacionDTO {
-  constructor({ id_usuario, id_alerta = null, tipo, titulo, mensaje }) {
+  constructor({ id_usuario, id_usuario_emisor = null, id_alerta = null, tipo, titulo, mensaje }) {
     this.id_usuario = id_usuario;
+    this.id_usuario_emisor = id_usuario_emisor;
     this.id_alerta = id_alerta;
     this.tipo = tipo;
     this.titulo = titulo;

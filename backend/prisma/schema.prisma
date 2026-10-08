@@ -89,12 +89,13 @@ model usuario {
   rol         rol          @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Restrict)
   institucion institucion? @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: SetNull)
 
-  sesion           sesion[]
-  auditoriau       auditoriau[]
-  reporte_u        reporte_u[]
-  recepciona       recepciona[]
-  informe_atencion informe_atencion[]
-  notificacion     notificacion[]
+  sesion               sesion[]
+  auditoriau           auditoriau[]
+  reporte_u            reporte_u[]
+  recepciona           recepciona[]
+  informe_atencion     informe_atencion[]
+  notificacion         notificacion[]     @relation("NotificacionDestinatario")
+  notificacion_enviada notificacion[]     @relation("NotificacionEmisor")
 }
 
 model sesion {
@@ -352,18 +353,21 @@ model informe_atencion {
 }
 
 model notificacion {
-  id_notificacion BigInt   @id @default(autoincrement())
-  id_usuario      BigInt
-  id_alerta       BigInt?
-  tipo            String   @db.VarChar(20)
-  titulo          String   @db.VarChar(150)
-  mensaje         String
-  fecha_hora      DateTime @default(now()) @db.Timestamp(6)
-  leida           Boolean  @default(false)
+  id_notificacion   BigInt   @id @default(autoincrement())
+  id_usuario        BigInt
+  id_usuario_emisor BigInt?
+  id_alerta         BigInt?
+  tipo              String   @db.VarChar(20)
+  titulo            String   @db.VarChar(150)
+  mensaje           String
+  fecha_hora        DateTime @default(now()) @db.Timestamp(6)
+  leida             Boolean  @default(false)
 
-  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
-  alerta  alerta? @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: SetNull)
+  usuario       usuario  @relation("NotificacionDestinatario", fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
+  usuarioEmisor usuario? @relation("NotificacionEmisor", fields: [id_usuario_emisor], references: [id_usuario], onUpdate: Cascade, onDelete: SetNull)
+  alerta        alerta?  @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: SetNull)
 
   @@index([id_usuario, leida], map: "idx_notificacion_usuario")
   @@index([id_alerta], map: "idx_notificacion_alerta")
+  @@index([id_usuario_emisor], map: "idx_notificacion_emisor")
 }

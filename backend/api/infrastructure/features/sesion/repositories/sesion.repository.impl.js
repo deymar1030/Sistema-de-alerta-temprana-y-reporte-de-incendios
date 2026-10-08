@@ -1,5 +1,7 @@
 import SesionRepository from "../../../../application/sesion/repositories/sesion.repository.js";
 
+// rol.nombre_rol viaja junto a id_rol para que requireRole() pueda
+// autorizar sin una consulta aparte (ver requireAuth.middleware.js).
 const USUARIO_PUBLICO = {
   id_usuario: true,
   id_rol: true,
@@ -9,6 +11,7 @@ const USUARIO_PUBLICO = {
   correo: true,
   primer_apellido: true,
   segundo_apellido: true,
+  rol: { select: { nombre_rol: true } },
 };
 
 export default class PrismaSesionRepository extends SesionRepository {

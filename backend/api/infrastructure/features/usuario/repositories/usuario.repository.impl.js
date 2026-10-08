@@ -44,6 +44,18 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     });
   }
 
+  async findByInstitucionAndRol(id_institucion, nombre_rol) {
+    return await this.prisma.usuario.findMany({
+      where: {
+        id_institucion: Number(id_institucion),
+        fecha_eliminacion: null,
+        estado: true,
+        rol: { nombre_rol },
+      },
+      orderBy: { id_usuario: "asc" },
+    });
+  }
+
   async update(id, usuarioData) {
     return await this.prisma.usuario.update({
       where: { id_usuario: Number(id) },

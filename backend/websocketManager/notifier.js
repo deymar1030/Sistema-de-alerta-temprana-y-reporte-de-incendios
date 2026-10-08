@@ -27,4 +27,8 @@ export class SocketIoRealtimeNotifier extends RealtimeNotifierPort {
     if (lectura.id_sensor) this.io.to(rooms.sensor(lectura.id_sensor)).emit("lectura:nueva", lectura);
     if (lectura.id_predio) this.io.to(rooms.predio(lectura.id_predio)).emit("lectura:nueva", lectura);
   }
+
+  async emitNotificacion(notificacion) {
+    this.io.to(rooms.usuario(notificacion.id_usuario)).emit("notificacion:nueva", notificacion);
+  }
 }

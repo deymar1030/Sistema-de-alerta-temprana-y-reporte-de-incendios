@@ -6,16 +6,25 @@ export default class PrismaNotificacionRepository extends NotificacionRepository
     this.prisma = prisma;
   }
 
+  _toData(notificacionData) {
+    return {
+      id_usuario: Number(notificacionData.id_usuario),
+      id_usuario_emisor: notificacionData.id_usuario_emisor ? Number(notificacionData.id_usuario_emisor) : null,
+      id_alerta: notificacionData.id_alerta ? Number(notificacionData.id_alerta) : null,
+      tipo: notificacionData.tipo,
+      titulo: notificacionData.titulo,
+      mensaje: notificacionData.mensaje,
+    };
+  }
+
   async create(notificacionData) {
-    return await this.prisma.notificacion.create({
-      data: {
-        id_usuario: Number(notificacionData.id_usuario),
-        id_alerta: notificacionData.id_alerta ? Number(notificacionData.id_alerta) : null,
-        tipo: notificacionData.tipo,
-        titulo: notificacionData.titulo,
-        mensaje: notificacionData.mensaje,
-      },
-    });
+    return await this.prisma.notificacion.create({ data: this._toData(notificacionData) });
+  }
+
+  async createMany(notificacionesData) {
+    return await this.prisma.$transaction(
+      notificacionesData.map((data) => this.prisma.notificacion.create({ data: this._toData(data) }))
+    );
   }
 
   async findAllByUsuario(id_usuario, filters = {}) {

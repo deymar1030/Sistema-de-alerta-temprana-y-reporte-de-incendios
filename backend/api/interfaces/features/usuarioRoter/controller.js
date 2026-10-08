@@ -66,6 +66,22 @@ export class UsuarioController {
     }
   };
 
+  listOperativos = async (req, res) => {
+    try {
+      const operativos = await this.usuarioService.getOperativosInstitucion(req.auth.usuario.id_institucion);
+
+      res.json({
+        success: true,
+        data: UsuarioMapper.toResponseDTOArray(operativos),
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  };
+
   getById = async (req, res) => {
     try {
       const usuario = await this.usuarioService.getById(req.params.id);

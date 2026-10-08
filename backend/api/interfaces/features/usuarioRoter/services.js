@@ -6,6 +6,7 @@ export class UsuarioService {
     updateUsuarioUseCase,
     desactivarUsuarioUseCase,
     reactivarUsuarioUseCase,
+    getOperativosInstitucionUseCase,
   }) {
     this.createUsuarioUseCase = createUsuarioUseCase;
     this.getAllUsuarioUseCase = getAllUsuarioUseCase;
@@ -13,6 +14,7 @@ export class UsuarioService {
     this.updateUsuarioUseCase = updateUsuarioUseCase;
     this.desactivarUsuarioUseCase = desactivarUsuarioUseCase;
     this.reactivarUsuarioUseCase = reactivarUsuarioUseCase;
+    this.getOperativosInstitucionUseCase = getOperativosInstitucionUseCase;
   }
 
   async create(usuarioData) {
@@ -37,5 +39,9 @@ export class UsuarioService {
 
   async reactivar(id) {
     return await this.reactivarUsuarioUseCase.execute(id);
+  }
+
+  async getOperativosInstitucion(id_institucion) {
+    return await this.getOperativosInstitucionUseCase.execute(id_institucion);
   }
 }

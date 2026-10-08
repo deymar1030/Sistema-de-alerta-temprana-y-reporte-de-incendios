@@ -8,6 +8,7 @@ import GetUsuarioUseCase from "../../../application/usuario/useCases/getUsuario.
 import UpdateUsuarioUseCase from "../../../application/usuario/useCases/updateUsuario.useCase.js";
 import DesactivarUsuarioUseCase from "../../../application/usuario/useCases/desactivarUsuario.useCase.js";
 import ReactivarUsuarioUseCase from "../../../application/usuario/useCases/reactivarUsuario.useCase.js";
+import GetOperativosInstitucionUseCase from "../../../application/usuario/useCases/getOperativosInstitucion.useCase.js";
 
 export class UsuarioDependencies {
   static createController() {
@@ -20,6 +21,7 @@ export class UsuarioDependencies {
       updateUsuarioUseCase: new UpdateUsuarioUseCase(usuarioRepository),
       desactivarUsuarioUseCase: new DesactivarUsuarioUseCase(usuarioRepository),
       reactivarUsuarioUseCase: new ReactivarUsuarioUseCase(usuarioRepository),
+      getOperativosInstitucionUseCase: new GetOperativosInstitucionUseCase(usuarioRepository),
     };
 
     const usuarioService = new UsuarioService(useCases);

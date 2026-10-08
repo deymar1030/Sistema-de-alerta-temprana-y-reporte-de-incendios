@@ -8,6 +8,11 @@
  *         id_notificacion:
  *           type: integer
  *           example: 101
+ *         id_usuario_emisor:
+ *           type: integer
+ *           nullable: true
+ *           description: Quien la genero (ej. el JEFE_INSTITUCION que asigno la alerta). Null si la genero el sistema.
+ *           example: 5
  *         id_alerta:
  *           type: integer
  *           nullable: true
@@ -58,4 +63,20 @@
  *         actualizadas:
  *           type: integer
  *           example: 4
+ *
+ *     AsignarAlertaOperativosRequest:
+ *       type: object
+ *       required:
+ *         - id_alerta
+ *         - id_usuarios
+ *       properties:
+ *         id_alerta:
+ *           type: integer
+ *           example: 7
+ *         id_usuarios:
+ *           type: array
+ *           description: IDs de usuarios OPERATIVO de la misma institucion que el JEFE_INSTITUCION.
+ *           items:
+ *             type: integer
+ *           example: [12, 15]
  */

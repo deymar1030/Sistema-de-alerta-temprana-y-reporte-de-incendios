@@ -41,4 +41,18 @@ export class NotificacionController {
       res.status(500).json({ success: false, error: error.message });
     }
   };
+
+  asignarAlerta = async (req, res) => {
+    try {
+      const notificaciones = await this.notificacionService.asignarAlerta({
+        id_alerta: req.body?.id_alerta,
+        id_usuarios: req.body?.id_usuarios,
+        jefe: req.auth.usuario,
+      });
+
+      res.status(201).json({ success: true, data: NotificacionMapper.toResponseDTOArray(notificaciones) });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  };
 }

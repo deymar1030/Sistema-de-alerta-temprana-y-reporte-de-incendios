@@ -4,11 +4,13 @@ export class NotificacionService {
     countNoLeidasNotificacionUseCase,
     marcarLeidaNotificacionUseCase,
     marcarTodasLeidasNotificacionUseCase,
+    asignarAlertaOperativosUseCase,
   }) {
     this.getAllNotificacionUseCase = getAllNotificacionUseCase;
     this.countNoLeidasNotificacionUseCase = countNoLeidasNotificacionUseCase;
     this.marcarLeidaNotificacionUseCase = marcarLeidaNotificacionUseCase;
     this.marcarTodasLeidasNotificacionUseCase = marcarTodasLeidasNotificacionUseCase;
+    this.asignarAlertaOperativosUseCase = asignarAlertaOperativosUseCase;
   }
 
   async getAll(id_usuario, filters) {
@@ -25,5 +27,9 @@ export class NotificacionService {
 
   async marcarTodasLeidas(id_usuario) {
     return await this.marcarTodasLeidasNotificacionUseCase.execute(id_usuario);
+  }
+
+  async asignarAlerta({ id_alerta, id_usuarios, jefe }) {
+    return await this.asignarAlertaOperativosUseCase.execute({ id_alerta, id_usuarios, jefe });
   }
 }

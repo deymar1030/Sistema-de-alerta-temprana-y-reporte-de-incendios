@@ -6,4 +6,5 @@ export class NoopRealtimeNotifier extends RealtimeNotifierPort {
   async emitEnvioActualizado() {}
   async emitReporteCiudadano() {}
   async emitLecturaNueva() {}
+  async emitNotificacion() {}
 }

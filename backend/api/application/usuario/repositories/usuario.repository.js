@@ -11,6 +11,10 @@ export default class UsuarioRepository {
     throw new Error("Method not implemented");
   }
 
+  async findByInstitucionAndRol(id_institucion, nombre_rol) {
+    throw new Error("Method not implemented");
+  }
+
   async update(id, usuarioData) {
     throw new Error("Method not implemented");
   }

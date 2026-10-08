@@ -3,6 +3,10 @@ export default class NotificacionRepository {
     throw new Error("Method not implemented");
   }
 
+  async createMany(notificacionesData) {
+    throw new Error("Method not implemented");
+  }
+
   async findAllByUsuario(id_usuario, filters) {
     throw new Error("Method not implemented");
   }

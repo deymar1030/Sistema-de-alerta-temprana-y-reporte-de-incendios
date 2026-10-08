@@ -18,4 +18,8 @@ export class RealtimeNotifierPort {
   async emitLecturaNueva(lectura) {
     throw new Error("Method not implemented");
   }
+
+  async emitNotificacion(notificacion) {
+    throw new Error("Method not implemented");
+  }
 }

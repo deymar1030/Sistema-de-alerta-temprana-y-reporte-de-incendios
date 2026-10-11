@@ -35,40 +35,125 @@ de la base):
 
 ## Funciones
 
-### `filtroHampel(ventana, valorActual)`
+### `filtroHampel(ventana, valorActual, madMin, umbralZ)`
 PDF, ecuaciones 1-2. Detecta si `valorActual` es un outlier respecto a la
 mediana/MAD de `ventana` (array de valores numéricos recientes del mismo
 sensor, tamaño según `ventana_base_min`).
-Devuelve `{ esAnomalo: boolean, zScore: number }`.
 
-### `cusum(ventana, valorActual, h)`
+- Entrada: `ventana` (valores `VALIDA` sin alerta del mismo sensor),
+  `valorActual`, `madMin` de la variable y `umbralZ` del motor.
+- Fórmulas: `mediana` y `MAD = mediana(|xᵢ − x̃|)`; luego
+  `z = 0.6745 · (valorActual − x̃) / max(MAD, madMin)`.
+- Salida: `{ mediana, mad, z, esAnomala }` con `esAnomala = |z| ≥ umbralZ`.
+- Convención de signo: la humedad llega con el signo ya invertido desde la
+  preparación de entradas (positivo = más riesgo); esta función no invierte.
+- Si `ventana` viene vacía no hay mediana/MAD: devuelve valores nulos y
+  `esAnomala = false` (la aplicación no debe evaluar sin historial).
+
+### `cusum(zRecientes, cusumH, k = 0.5)`
 PDF, ecuación 3. Suma acumulada de desviaciones para detectar un cambio
-sostenido de nivel (no solo un pico puntual). `h` es `motor_det.cusum_h`.
-Devuelve `{ disparado: boolean, acumulado: number }`.
+sostenido de nivel (no solo un pico puntual).
 
-### `theilSen(ventana)`
-PDF, ecuación 4. Pendiente robusta de la tendencia reciente. `ventana` es
-un array de `{ valor: number, fecha_hora: Date }`.
-Devuelve la pendiente estimada (`number`).
+- Entrada: `zRecientes` (los `z` de las últimas lecturas del sensor, en orden
+  temporal antiguo → nuevo, máximo 20), `cusumH` (`motor_det.cusum_h`) y la
+  tolerancia `k = 0.5`.
+- Recurrencia: `Sₜ = max(0, Sₜ₋₁ + zₜ − k)`.
+- Decisión provisional (documentada): el acumulado se **recalcula desde
+  `S₀ = 0`** con los `z` recibidos en cada llamada; no se persiste.
+- Salida: `{ acumulado, disparado }` con `disparado = acumulado > cusumH`.
+- Convención de signo: la humedad llega con el signo ya invertido desde la
+  preparación de entradas (positivo = más riesgo); esta función no invierte.
 
-### `contrasteVecinos(valorActual, valoresVecinos)`
-PDF, ecuación 5 (`zrob`). Compara `valorActual` contra las lecturas más
-recientes de la misma variable en los sensores dentro de
-`motor_det.radio_vecindad_m`.
-Devuelve `zrob` (`number`).
+### `theilSen(lecturas)`
+PDF, ecuación 4. Pendiente robusta de la tendencia reciente (estimador de
+Theil–Sen).
 
-### `puntajeAlerta(senales)`
-PDF, ecuaciones 6-7. Combina las 4 señales anteriores
-(`{ zScore, cusum: acumulado, pendiente, zrob }`) en el puntaje R del
-episodio.
-Devuelve un número entre `0` y `1` (este es el valor que termina en
-`alerta.puntaje`).
+- Entrada: lista de `{ valor, fecha_hora }` (la `fecha_hora` se acepta como
+  `Date` o cadena convertible a fecha).
+- Calcula la pendiente de cada par de lecturas con **timestamps distintos**:
+  `b = (vⱼ − vᵢ) / (tⱼ − tᵢ)`, expresada en unidades **por minuto**; se omiten
+  los pares con tiempo igual.
+- Salida: `{ pendiente, calculable }`. `pendiente` es la **mediana** de los
+  pares y **no se redondea** internamente; `calculable = false` y
+  `pendiente = null` cuando no hay ningún par válido.
+- Convención de signo: la humedad llega con el signo ya invertido desde la
+  preparación de entradas (positivo = más riesgo); esta función no invierte.
 
-### `clasificarAlerta(puntaje, motor)`
-PDF, Tabla 10. Decide el estado según `puntaje` contra
-`motor.umbral_confirmacion`/`motor.umbral_descarte` (el objeto `motor` es
-la fila de `motor_det` asignada al predio).
-Devuelve `"CONFIRMADA" | "DESCARTADA" | "EN_EVALUACION"`.
+### `contrasteVecinos(valorActual, valoresVecinos, madMin)`
+PDF, ecuación 5 (`zrob`). Compara `valorActual` con el grupo formado por el
+propio sensor evaluado y sus vecinos.
+
+- Entrada: `valorActual`, `valoresVecinos` (lecturas recientes de la misma
+  variable en los sensores vecinos) y `madMin` de la variable. La selección de
+  vecinos ya llega hecha (no hay consultas ni cálculo de distancia aquí).
+- Grupo de comparación: `[valorActual, ...valoresVecinos]`.
+- Fórmula: `zrob = 0.6745 · (valorActual − x̃) / max(MAD, madMin)`, con `x̃` y
+  `MAD` calculados sobre el grupo.
+- Salida: `{ zrob, calculable }`, sin redondear. `calculable = false` y
+  `zrob = null` si el grupo tiene menos de 3 sensores.
+- Convención de signo: la humedad llega con el signo ya invertido desde la
+  preparación de entradas (positivo = más riesgo); esta función no invierte.
+
+### `puntajeAlerta(senales, parametros)`
+PDF, ecuaciones 6-7. Combina las señales de cada sensor en un puntaje, toma el
+sensor más anómalo de cada variable y pondera las variables para obtener el
+puntaje del episodio `R`.
+
+- Entrada:
+  - `senales`: objeto `variable -> [{ z, b, zrob }]` con las señales ya
+    calculadas y con la convención de humedad aplicada; `zrob` nulo o ausente
+    cuando el contraste no fue calculable. Solo las variables con sensores.
+  - `parametros`: objeto `variable -> { peso, bmax }` del motor
+    (`PARAMETRO_VARIABLE`); solo las variables configuradas aquí entran al
+    análisis.
+- Puntaje por sensor (ec. 6):
+  `s = 0.4·min(1, z/5) + 0.3·min(1, b/bmax) + 0.3·min(1, zrob/7)`, con cada
+  término recortado a `[0, 1]` (los negativos valen 0). Si no hay contraste se
+  omite el término `zrob` y los pesos `0.4` y `0.3` se renormalizan entre los
+  dos restantes (dividiendo por `0.7`).
+- Puntaje por variable: el mayor `s` entre los sensores de esa variable.
+- Puntaje del episodio (ec. 7): `R = Σ (pesoᵥ / Σpesos) · sᵥ` sobre las
+  variables presentes; las variables ausentes se excluyen y sus pesos se
+  redistribuyen de forma proporcional.
+- Salida: `{ porSensor, porVariable, R }`, sin redondear.
+- **No calculable:** si no hay ninguna variable presente (el objeto de señales
+  llega vacío), el puntaje no puede calcularse y se devuelve `R = null` con
+  `porSensor` y `porVariable` vacíos. No se convierte en `0` ni en `NaN`, para
+  no confundir "sin evidencia" con "no hay nada que puntuar" (la alerta se
+  abre por una lectura anómala, así que en la práctica sí hay variables).
+
+### `clasificarAlerta(entrada)`
+PDF, Tabla 10. Aplica las reglas **en orden** (gana la primera que se cumple) y
+devuelve `{ estado, clasificacion }`. No calcula estadística ni fija umbrales:
+recibe `R`, los umbrales del motor y los indicadores ya calculados.
+
+- Entrada (objeto):
+  - `R` (puede ser `null`), `umbralConfirmacion`, `umbralDescarte`.
+  - `algunSensorCusumDisparado`, `humoAnomalo`, `coAnomalo`.
+  - Indicadores de contexto: `unicoSensorAnomalo`, `saltoFisicoImposible`,
+    `otrasVariablesSinCambios`, `valorCriticoActual`, `respaldoCritico`,
+    `otraVariableAnomala`, `mayoriaVecinosAfectados`, `todosZrobBajoUmbral`,
+    `tiempoEvaluacionVencido`.
+- Reglas, en orden:
+  1. `unicoSensorAnomalo && saltoFisicoImposible && otrasVariablesSinCambios`
+     → `DESCARTADA` / `FALLA_SENSOR`.
+  2. `valorCriticoActual && (respaldoCritico || otraVariableAnomala)`
+     → `CONFIRMADA` / `INCENDIO` (inmediata). `otraVariableAnomala` la aporta
+     quien llama y debe corresponder a una variable distinta de la crítica.
+  3. `R >= umbralConfirmacion && algunSensorCusumDisparado &&
+     (humoAnomalo || coAnomalo)` → `CONFIRMADA` / `INCENDIO`.
+  4. `mayoriaVecinosAfectados && todosZrobBajoUmbral && !humoAnomalo &&
+     !coAnomalo` → `DESCARTADA` / `CLIMA` (humo y CO normales se derivan de
+     "no anómalos").
+  5. `tiempoEvaluacionVencido || R < umbralDescarte` → `DESCARTADA` /
+     `SIN_EVIDENCIA`.
+  6. Ninguna → `EN_EVALUACION` / `clasificacion: null`.
+- `R = null` (no calculable, ver `puntajeAlerta`) **no** satisface por sí solo
+  `R < umbralDescarte` ni `R >= umbralConfirmacion`: las comparaciones
+  numéricas solo se evalúan cuando `R` es un número.
+- Salida: `{ estado, clasificacion }` con
+  `estado ∈ { EN_EVALUACION, CONFIRMADA, DESCARTADA }` y
+  `clasificacion ∈ { INCENDIO, CLIMA, FALLA_SENSOR, SIN_EVIDENCIA, null }`.
 
 ## Quién las va a llamar
 

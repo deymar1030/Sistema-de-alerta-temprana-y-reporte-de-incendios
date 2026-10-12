@@ -17,6 +17,12 @@
  *         schema:
  *           type: string
  *           enum: [VIVIENDA, EDIFICIO, MERCADO]
+ *       - in: query
+ *         name: activo
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *         description: Filtra por predios activos (true) o retirados (false). Sin filtro, devuelve todos.
  *     security:
  *       - cookieAuth: []
  *     responses:

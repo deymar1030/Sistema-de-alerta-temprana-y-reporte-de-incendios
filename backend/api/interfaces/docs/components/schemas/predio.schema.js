@@ -60,6 +60,10 @@
  *         nivel_proteccion:
  *           type: integer
  *           nullable: true
+ *         activo:
+ *           type: boolean
+ *           description: Si es false, el predio esta retirado del monitoreo (baja logica).
+ *           example: true
  *         sensores:
  *           type: array
  *           description: Solo presente en el detalle de un predio.
@@ -76,6 +80,7 @@
  *         - direccion
  *         - latitud
  *         - longitud
+ *         - contrasena_mqtt
  *       properties:
  *         id_zona:
  *           type: integer
@@ -99,6 +104,11 @@
  *         longitud:
  *           type: number
  *           example: -68.133333
+ *         contrasena_mqtt:
+ *           type: string
+ *           minLength: 8
+ *           maxLength: 128
+ *           description: Contrasena MQTT del predio (se hashea; nunca se devuelve en las respuestas).
  *         fecha_evaluacion:
  *           type: string
  *           format: date
@@ -149,6 +159,11 @@
  *           type: number
  *         longitud:
  *           type: number
+ *         contrasena_mqtt:
+ *           type: string
+ *           minLength: 8
+ *           maxLength: 128
+ *           description: Si se envia, rota la contrasena MQTT del predio.
  *         fecha_evaluacion:
  *           type: string
  *           format: date
@@ -174,6 +189,9 @@
  *         nivel_proteccion:
  *           type: integer
  *           nullable: true
+ *         activo:
+ *           type: boolean
+ *           description: false retira el predio del monitoreo (baja logica) sin eliminarlo.
  *
  *     PredioListResponse:
  *       type: array

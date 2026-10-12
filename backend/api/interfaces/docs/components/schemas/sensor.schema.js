@@ -16,7 +16,7 @@
  *           example: "Sensor Humo Patio"
  *         tipo_sensor:
  *           type: string
- *           enum: [TEMPERATURA, HUMO, CO, HUMEDAD]
+ *           enum: [TEMPERATURA, HUMEDAD, CO2, GAS_LEL, HUMO, CO]
  *           example: "HUMO"
  *         unidad_medida:
  *           type: string
@@ -81,7 +81,7 @@
  *           example: "Sensor Humo Patio"
  *         tipo_sensor:
  *           type: string
- *           enum: [TEMPERATURA, HUMO, CO, HUMEDAD]
+ *           enum: [TEMPERATURA, HUMEDAD, CO2, GAS_LEL, HUMO, CO]
  *           example: "HUMO"
  *         unidad_medida:
  *           type: string
@@ -117,7 +117,7 @@
  *           type: string
  *         tipo_sensor:
  *           type: string
- *           enum: [TEMPERATURA, HUMO, CO, HUMEDAD]
+ *           enum: [TEMPERATURA, HUMEDAD, CO2, GAS_LEL, HUMO, CO]
  *         unidad_medida:
  *           type: string
  *           nullable: true

@@ -1,81 +1,62 @@
-# `domain/motorDeteccion` — contrato pendiente de implementar
+# Motor de detección
 
-Esta carpeta es el entorno preparado para el motor de detección de
-incendios. **La matemática no está implementada todavía** — cada función
-lanza `"pendiente de implementar"` a propósito. Resolverla es trabajo de
-otra área (no de esta rama de arquitectura), a partir de
-[`bd/DM-OPE-01727092026_Motor_Deteccion_Predio.pdf`](../../../../bd/DM-OPE-01727092026_Motor_Deteccion_Predio.pdf).
+Dominio puro: recibe datos, parámetros, configuración y reloj; no importa Prisma, MQTT, Socket.IO ni variables de entorno.
 
-## Regla de la carpeta
+El enfoque permite detectar anomalías y gestionar episodios. La confirmación física de incendio depende de sensores y criterios validados. Se conservan temperatura, humedad, CO₂ y %LEL originales. No se confunden con humo/CO ni confirman incendios automáticamente bajo la política conservadora acordada.
 
-Todo lo que viva acá debe ser **puro**: sin `import` de Prisma, Express,
-Socket.IO ni el cliente MQTT, sin `await`, sin leer el reloj ni el
-entorno. Recibe datos ya cargados (ventanas de lecturas, parámetros del
-motor) y devuelve un resultado — nada más. Eso es lo que permite
-testearlo con casos fijos, sin DB ni broker, y es lo que hace que
-`application/lectura/useCases/evaluarLectura.useCase.js` (quien va a
-llamar a estas funciones) pueda orquestar sin preocuparse de cómo se
-calcula cada cosa.
+## Entrada y parámetros
 
-## Parámetros del motor (`bd.sql`, tabla `motor_det`)
+`evaluarPredio({ sensores, vecinos, motor, config, ahora, alerta })` devuelve estado, clasificación, puntaje, señales, suficiencia de datos y disponibilidad de confirmación. `resolverConfiguracion` combina parámetros persistidos con ajustes JSON.
 
-Cada predio tiene asignado un motor con estos 7 parámetros, que las
-funciones de abajo reciben como entrada (no los recalculan ni los leen
-de la base):
+| Parámetro de BD | Uso |
+| --- | --- |
+| `ventana_base_min` | Ventana de referencia |
+| `umbral_z`, `cusum_h` | Umbrales Hampel/CUSUM |
+| `umbral_confirmacion`, `umbral_descarte` | Umbrales de R |
+| `tiempo_max_evaluacion_min` | Plazo del episodio |
+| `radio_vecindad_m` | Selección espacial |
+| `parametro_variable.tipo_variable` | Variables habilitadas |
+| `parametro_variable.umbral_critico` | Límite crítico opcional |
 
-| Columna | Lo que es |
-|---|---|
-| `ventana_base_min` | minutos de historial que entran en cada `ventana` |
-| `umbral_z` | umbral del z-score de `filtroHampel` |
-| `cusum_h` | umbral `h` de `cusum` |
-| `umbral_confirmacion` | puntaje R a partir del cual `clasificarAlerta` confirma |
-| `umbral_descarte` | puntaje R por debajo del cual `clasificarAlerta` descarta |
-| `tiempo_max_evaluacion_min` | tiempo máximo que una alerta puede quedar `EN_EVALUACION` |
-| `radio_vecindad_m` | radio para elegir los sensores vecinos de `contrasteVecinos` |
+Complementos por defecto: seis lecturas mínimas de referencia, frescura 120 segundos, tendencia y evaluación de puntaje a los dos minutos, contexto previo cinco minutos y espera de 15 minutos tras descarte. La carga de simulación usa referencia 30 minutos, plazo 10 minutos y radio 500 metros.
 
-## Funciones
+`MOTOR_CONFIG_PATH` carga ajustes al arrancar: pesos, `bmax`, `madMin`, `maxSaltoPorMinuto`, ventanas y evidencia. `motores` admite excepciones por ID. Ver [ejemplo](../../../mqtt/motor.config.example.json). Variables habilitadas y límites críticos siguen procediendo de la BD.
 
-### `filtroHampel(ventana, valorActual)`
-PDF, ecuaciones 1-2. Detecta si `valorActual` es un outlier respecto a la
-mediana/MAD de `ventana` (array de valores numéricos recientes del mismo
-sensor, tamaño según `ventana_base_min`).
-Devuelve `{ esAnomalo: boolean, zScore: number }`.
+## Cálculo
 
-### `cusum(ventana, valorActual, h)`
-PDF, ecuación 3. Suma acumulada de desviaciones para detectar un cambio
-sostenido de nivel (no solo un pico puntual). `h` es `motor_det.cusum_h`.
-Devuelve `{ disparado: boolean, acumulado: number }`.
+1. Excluir inválidas/futuras; una lectura antigua deja señales desconocidas, no ceros.
+2. Referencia: lecturas anteriores `VALIDA`, no asociadas a alertas, dentro de la ventana. Exigir el mínimo configurado. Invertir signo de humedad para evaluar disminuciones.
+3. Hampel: mediana/MAD, factor 0.6745 y piso `madMin` para series constantes.
+4. CUSUM: últimos 20 z robustos, ordenados, acumulación desde cero y k = 0.5. Reconstruido desde el historial tras reiniciar.
+5. Theil–Sen: mediana de pendientes entre pares con tiempo diferente, en unidades/minuto. Ventana de dos minutos; se muestrea uniformemente si supera 120 lecturas.
+6. Vecinos: misma variable, mínimo tres sensores incluido el actual. Predios del mismo tipo dentro del radio Haversine y sin alerta activa externa. Sin suficientes sensores, contraste desconocido.
+7. Puntaje por sensor: 0.4 × z/5 + 0.3 × pendiente/bmax + 0.3 × zrob/7, limitando cada componente a [0,1]. Sin contraste se redistribuye su peso entre z y pendiente. Por variable se toma el máximo de sus sensores.
+8. R pondera variables instaladas y habilitadas. Si una variable instalada no tiene señal calculable, R es `null`. Se usa al cumplirse dos minutos del episodio.
 
-### `theilSen(ventana)`
-PDF, ecuación 4. Pendiente robusta de la tendencia reciente. `ventana` es
-un array de `{ valor: number, fecha_hora: Date }`.
-Devuelve la pendiente estimada (`number`).
+`bmax` normaliza la pendiente: no es umbral de incendio. Las escalas de CO₂/%LEL son valores de simulación, no límites de exposición ni criterios físicos validados.
 
-### `contrasteVecinos(valorActual, valoresVecinos)`
-PDF, ecuación 5 (`zrob`). Compara `valorActual` contra las lecturas más
-recientes de la misma variable en los sensores dentro de
-`motor_det.radio_vecindad_m`.
-Devuelve `zrob` (`number`).
+Al asociar cinco minutos previos a la alerta, esas lecturas salen de la referencia. Para simular con R calculable conviene acumular más de cinco minutos de historial antes del evento; los clientes usan siete minutos.
 
-### `puntajeAlerta(senales)`
-PDF, ecuaciones 6-7. Combina las 4 señales anteriores
-(`{ zScore, cusum: acumulado, pendiente, zrob }`) en el puntaje R del
-episodio.
-Devuelve un número entre `0` y `1` (este es el valor que termina en
-`alerta.puntaje`).
+## Decisión
 
-### `clasificarAlerta(puntaje, motor)`
-PDF, Tabla 10. Decide el estado según `puntaje` contra
-`motor.umbral_confirmacion`/`motor.umbral_descarte` (el objeto `motor` es
-la fila de `motor_det` asignada al predio).
-Devuelve `"CONFIRMADA" | "DESCARTADA" | "EN_EVALUACION"`.
+En orden:
 
-## Quién las va a llamar
+1. `FALLA_SENSOR`: sensor anómalo único, salto físicamente imposible configurado y otras variables conocidas normales. Sin máximo físico definido, la regla no se activa.
+2. `INCENDIO`: evidencia habilitada más valor crítico respaldado por repetición reciente u otra variable anómala; o R suficiente con CUSUM. Temperatura crítica repetida por sí sola no confirma.
+3. `CLIMA`: mayoría de al menos tres sensores de temperatura/humedad afectados, contraste bajo y gases conocidos normales; tras el período inicial.
+4. `SIN_EVIDENCIA`: R calculable bajo el umbral de descarte o plazo vencido.
+5. En otro caso, `EN_EVALUACION`.
 
-`application/lectura/useCases/evaluarLectura.useCase.js` (pendiente, ver
-`issues/06-alertas.md`): trae la ventana histórica del sensor y los
-vecinos vía repositorio, llama estas funciones en orden
-(`filtroHampel`/`cusum`/`theilSen`/`contrasteVecinos` → `puntajeAlerta` →
-`clasificarAlerta`), y según el resultado abre/reevalúa/confirma/descarta
-la alerta y avisa por `realtimeNotifier`. Nada de esa orquestación vive
-acá adentro.
+La evidencia predeterminada admite HUMO/CO. CO₂/%LEL originales sí abren episodios y generan diagnósticos, pero no satisfacen evidencia de incendio. Habilitarlos exige `variablesEvidencia` y `permitirGasesSimulados: true`, además de validación externa de la política. La opción no valida un criterio físico.
+
+`SIN_EVIDENCIA` no demuestra ausencia de riesgo. `confirmacion_disponible: false` indica que no hay variables admitidas para confirmar. R es un índice de las señales, no una probabilidad.
+
+## Orquestación y pruebas
+
+[EvaluarLecturaUseCase](../../application/lectura/useCases/evaluarLectura.useCase.js) valida, evalúa y prepara eventos. El [repositorio Prisma](../../infrastructure/features/lectura/repositories/deteccion.repository.impl.js) serializa por predio y persiste lectura, episodio y distribución institucional de forma atómica.
+
+Una confirmada/atendida no se descarta por nuevas lecturas normales. El cierre de todos sus envíos cierra el episodio y permite uno posterior. El monitor recupera evaluaciones de la BD tras reiniciar y descarta vencidas sin inventar confirmaciones con lecturas antiguas.
+
+Sin cambios de esquema, índices, migraciones ni depuración automática de lecturas.
+
+Desde `backend`: `npm test`. Para pruebas reales de broker, persistencia, concurrencia y rollback, ver [guía de integración](../../../mqtt/README.md).

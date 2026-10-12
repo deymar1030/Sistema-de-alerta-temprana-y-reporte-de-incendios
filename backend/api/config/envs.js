@@ -35,6 +35,9 @@ export const envs = {
   MQTT_USERNAME: process.env.MQTT_USERNAME || "backend",
   MQTT_PASSWORD: process.env.MQTT_PASSWORD || "",
   MQTT_CA_FILE: process.env.MQTT_CA_FILE || "",
+  // Alternativa sin archivo: certificado CA en base64 (una sola linea, util para
+  // paneles como Coolify donde pegar un PEM multilinea es incomodo/propenso a errores).
+  MQTT_CA: process.env.MQTT_CA_BASE64 ? Buffer.from(process.env.MQTT_CA_BASE64, "base64") : undefined,
 
   // Secreto compartido con Mosquitto para /internal/mqtt/* (va en auth_opt_http_user_agent).
   MQTT_AUTH_SECRET: process.env.MQTT_AUTH_SECRET || "",

@@ -19,4 +19,14 @@ export const AuthErrors = {
   validationError: (message) => new AuthError(message, { status: 400, code: "VALIDATION_ERROR" }),
   correoYaRegistrado: () =>
     new AuthError("El correo ya está registrado", { status: 409, code: "CORREO_YA_REGISTRADO" }),
+  correoDesactivado: () =>
+    new AuthError("Este correo pertenece a una cuenta desactivada. Contacta a un administrador para reactivarla", {
+      status: 409,
+      code: "CORREO_DESACTIVADO",
+    }),
+  cuentaDesactivada: () =>
+    new AuthError("Esta cuenta fue desactivada. Contacta a un administrador para reactivarla", {
+      status: 403,
+      code: "CUENTA_DESACTIVADA",
+    }),
 };

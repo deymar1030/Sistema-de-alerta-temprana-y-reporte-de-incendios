@@ -23,6 +23,9 @@ export default class RegisterUseCase {
 
     const existente = await this.authRepository.findByCorreo(registroDTO.correo);
     if (existente) {
+      if (existente.fecha_eliminacion || !existente.estado) {
+        throw AuthErrors.correoDesactivado();
+      }
       throw AuthErrors.correoYaRegistrado();
     }
 

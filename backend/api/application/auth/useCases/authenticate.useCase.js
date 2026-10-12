@@ -33,6 +33,10 @@ export default class AuthenticateUseCase {
       throw AuthErrors.invalidCredentials();
     }
 
+    if (usuario.fecha_eliminacion || !usuario.estado) {
+      throw AuthErrors.cuentaDesactivada();
+    }
+
     return usuario;
   }
 }

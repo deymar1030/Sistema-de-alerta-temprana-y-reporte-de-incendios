@@ -46,8 +46,11 @@ export default class PrismaZonaGeograficaRepository extends ZonaGeograficaReposi
   }
 
   async delete(id) {
-    return await this.prisma.zona_geografica.delete({
+    // Baja logica: predio.id_zona referencia esta fila con onDelete Restrict,
+    // asi que borrarla de verdad fallaria en cuanto tenga predios asociados.
+    return await this.prisma.zona_geografica.update({
       where: { id_zona: Number(id) },
+      data: { estado: false },
     });
   }
 }

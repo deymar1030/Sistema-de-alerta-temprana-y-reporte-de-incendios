@@ -15,6 +15,7 @@ export default class ValidateSesionUseCase {
     if (sesion.expira_en <= new Date()) throw AuthErrors.sessionExpired();
 
     const { usuario, ...datosSesion } = sesion;
+    if (!usuario.estado || usuario.fecha_eliminacion) throw AuthErrors.unauthenticated();
     return { sesion: datosSesion, usuario };
   }
 }

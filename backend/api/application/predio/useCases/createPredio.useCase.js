@@ -1,6 +1,7 @@
 import { CreatePredioDTO } from "../../../domain/predio/dtos/createPredio.dto.js";
 import { PredioEntity } from "../../../domain/predio/entities/predio.entity.js";
 import { calcularIrp } from "../../../domain/predio/calcularIrp.js";
+import { Hash } from "../../../config/hash.js";
 
 export default class CreatePredioUseCase {
   constructor(predioRepository) {
@@ -16,10 +17,12 @@ export default class CreatePredioUseCase {
     const predioDTO = new CreatePredioDTO(predioData);
 
     const irp = calcularIrp(predioDTO);
+    const contrasena_mqtt = await Hash.hash(predioDTO.contrasena_mqtt);
 
     const predioEntity = new PredioEntity({
       id_predio: null,
       ...predioDTO,
+      contrasena_mqtt,
       irp,
     });
 

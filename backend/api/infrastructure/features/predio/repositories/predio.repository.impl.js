@@ -20,6 +20,7 @@ export default class PrismaPredioRepository extends PredioRepository {
         direccion: predioData.direccion,
         latitud: predioData.latitud,
         longitud: predioData.longitud,
+        contrasena_mqtt: predioData.contrasena_mqtt,
         fecha_evaluacion: predioData.fecha_evaluacion ? new Date(predioData.fecha_evaluacion) : null,
         irp: predioData.irp,
         estado_electrico: predioData.estado_electrico,
@@ -72,6 +73,7 @@ export default class PrismaPredioRepository extends PredioRepository {
       direccion: predioData.direccion,
       latitud: predioData.latitud,
       longitud: predioData.longitud,
+      contrasena_mqtt: predioData.contrasena_mqtt,
       fecha_evaluacion: predioData.fecha_evaluacion !== undefined && predioData.fecha_evaluacion !== null
         ? new Date(predioData.fecha_evaluacion)
         : predioData.fecha_evaluacion,

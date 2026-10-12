@@ -1,4 +1,6 @@
 const TIPOS_PREDIO = ["VIVIENDA", "EDIFICIO", "MERCADO"];
+const MAX_LENGTH = 128;
+const MIN_CONTRASENA_MQTT_LENGTH = 8;
 
 export class CreatePredioDTO {
   constructor({
@@ -9,6 +11,7 @@ export class CreatePredioDTO {
     direccion,
     latitud,
     longitud,
+    contrasena_mqtt,
     fecha_evaluacion = null,
     estado_electrico = null,
     estado_gas = null,
@@ -25,6 +28,7 @@ export class CreatePredioDTO {
     this.direccion = direccion;
     this.latitud = latitud;
     this.longitud = longitud;
+    this.contrasena_mqtt = contrasena_mqtt;
     this.fecha_evaluacion = fecha_evaluacion;
     this.estado_electrico = estado_electrico;
     this.estado_gas = estado_gas;
@@ -35,7 +39,7 @@ export class CreatePredioDTO {
     this.nivel_proteccion = nivel_proteccion;
   }
 
-  static validate({ id_zona, id_motordet, tipo_predio, nombre, direccion, latitud, longitud }) {
+  static validate({ id_zona, id_motordet, tipo_predio, nombre, direccion, latitud, longitud, contrasena_mqtt }) {
     const errors = [];
 
     if (!id_zona) errors.push("Missing id_zona");
@@ -46,6 +50,12 @@ export class CreatePredioDTO {
     if (!direccion) errors.push("Missing direccion");
     if (latitud === undefined || latitud === null) errors.push("Missing latitud");
     if (longitud === undefined || longitud === null) errors.push("Missing longitud");
+
+    if (typeof contrasena_mqtt !== "string" || contrasena_mqtt.length < MIN_CONTRASENA_MQTT_LENGTH) {
+      errors.push(`contrasena_mqtt must be at least ${MIN_CONTRASENA_MQTT_LENGTH} characters`);
+    } else if (contrasena_mqtt.length > MAX_LENGTH) {
+      errors.push("contrasena_mqtt too long");
+    }
 
     return errors;
   }

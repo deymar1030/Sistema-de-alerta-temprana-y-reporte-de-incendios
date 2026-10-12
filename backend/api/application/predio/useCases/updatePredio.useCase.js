@@ -1,5 +1,9 @@
 import { UpdatePredioDTO } from "../../../domain/predio/dtos/updatePredio.dto.js";
 import { calcularIrp } from "../../../domain/predio/calcularIrp.js";
+import { Hash } from "../../../config/hash.js";
+
+const MAX_LENGTH = 128;
+const MIN_CONTRASENA_MQTT_LENGTH = 8;
 
 const CAMPOS_IRP = [
   "estado_electrico",
@@ -27,7 +31,19 @@ export default class UpdatePredioUseCase {
       throw new Error("Predio not found");
     }
 
+    if (predioData.contrasena_mqtt !== undefined) {
+      if (typeof predioData.contrasena_mqtt !== "string" || predioData.contrasena_mqtt.length < MIN_CONTRASENA_MQTT_LENGTH) {
+        throw new Error(`Validation errors: contrasena_mqtt must be at least ${MIN_CONTRASENA_MQTT_LENGTH} characters`);
+      }
+      if (predioData.contrasena_mqtt.length > MAX_LENGTH) {
+        throw new Error("Validation errors: contrasena_mqtt too long");
+      }
+    }
+
     const datosFinales = { ...predioData };
+    if (predioData.contrasena_mqtt !== undefined) {
+      datosFinales.contrasena_mqtt = await Hash.hash(predioData.contrasena_mqtt);
+    }
     const tocaIrp = CAMPOS_IRP.some((campo) => predioData[campo] !== undefined);
 
     if (tocaIrp) {

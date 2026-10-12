@@ -7,6 +7,9 @@ export class SocketIoRealtimeNotifier extends RealtimeNotifierPort {
     this.io = io;
   }
 
+  async emitAlertaAbierta(alerta) { this.io.emit('alerta:abierta', alerta); }
+  async emitAlertaActualizada(alerta) { this.io.emit('alerta:actualizada', alerta); }
+
   async emitAlertaConfirmada(alerta) {
     this.io.emit("alerta:confirmada", alerta);
   }
@@ -16,7 +19,7 @@ export class SocketIoRealtimeNotifier extends RealtimeNotifierPort {
   }
 
   async emitEnvioActualizado(envio) {
-    this.io.emit("notificacion:envio-actualizado", envio);
+    this.io.to(rooms.institucion(envio.id_institucion)).emit("notificacion:envio-actualizado", envio);
   }
 
   async emitReporteCiudadano(reporte) {
@@ -24,8 +27,11 @@ export class SocketIoRealtimeNotifier extends RealtimeNotifierPort {
   }
 
   async emitLecturaNueva(lectura) {
-    if (lectura.id_sensor) this.io.to(rooms.sensor(lectura.id_sensor)).emit("lectura:nueva", lectura);
-    if (lectura.id_predio) this.io.to(rooms.predio(lectura.id_predio)).emit("lectura:nueva", lectura);
+    const destinos = [];
+    if (lectura.id_sensor) destinos.push(rooms.sensor(lectura.id_sensor));
+    if (lectura.id_predio) destinos.push(rooms.predio(lectura.id_predio));
+    // Union de rooms: un usuario suscrito a ambos recibe la lectura una sola vez.
+    if (destinos.length) this.io.to(destinos).emit("lectura:nueva", lectura);
   }
 
   async emitNotificacion(notificacion) {

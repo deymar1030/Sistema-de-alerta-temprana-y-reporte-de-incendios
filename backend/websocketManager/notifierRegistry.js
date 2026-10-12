@@ -16,6 +16,8 @@ export const NotifierRegistry = {
 };
 
 export class RegistryRealtimeNotifier extends RealtimeNotifierPort {
+  async emitAlertaAbierta(...args) { return instancia?.emitAlertaAbierta(...args); }
+  async emitAlertaActualizada(...args) { return instancia?.emitAlertaActualizada(...args); }
   async emitAlertaConfirmada(...args) {
     return instancia?.emitAlertaConfirmada(...args);
   }

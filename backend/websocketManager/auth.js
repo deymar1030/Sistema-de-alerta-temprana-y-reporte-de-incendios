@@ -18,11 +18,11 @@ function leerCookie(cookieHeader, nombre) {
 
 export function createSocketAuth(validateSesionUseCase) {
   return async (socket, next) => {
-    const token = leerCookie(socket.handshake.headers.cookie, SESSION_COOKIE_NAME);
-
     try {
+      const token = leerCookie(socket.handshake.headers.cookie, SESSION_COOKIE_NAME);
       const { usuario, sesion } = await validateSesionUseCase.execute(token);
       socket.data.auth = { usuario, sesion };
+      socket.data.sessionToken = token;
       next();
     } catch {
       next(new Error("No autenticado"));

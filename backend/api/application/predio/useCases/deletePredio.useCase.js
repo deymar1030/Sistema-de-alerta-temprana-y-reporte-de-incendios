@@ -1,4 +1,5 @@
 import { GetPredioDTO } from "../../../domain/predio/dtos/getPredio.dto.js";
+import { relanzarErrorEliminacion } from "../../../config/prismaErrors.js";
 
 export default class DeletePredioUseCase {
   constructor(predioRepository) {
@@ -16,6 +17,10 @@ export default class DeletePredioUseCase {
       throw new Error("Predio not found");
     }
 
-    return await this.predioRepository.delete(id);
+    try {
+      return await this.predioRepository.delete(id);
+    } catch (error) {
+      relanzarErrorEliminacion(error, "el predio");
+    }
   }
 }

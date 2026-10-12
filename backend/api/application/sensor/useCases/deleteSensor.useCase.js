@@ -1,4 +1,5 @@
 import { GetSensorDTO } from "../../../domain/sensor/dtos/getSensor.dto.js";
+import { relanzarErrorEliminacion } from "../../../config/prismaErrors.js";
 
 export default class DeleteSensorUseCase {
   constructor(sensorRepository) {
@@ -16,6 +17,10 @@ export default class DeleteSensorUseCase {
       throw new Error("Sensor not found");
     }
 
-    return await this.sensorRepository.delete(id);
+    try {
+      return await this.sensorRepository.delete(id);
+    } catch (error) {
+      relanzarErrorEliminacion(error, "el sensor");
+    }
   }
 }

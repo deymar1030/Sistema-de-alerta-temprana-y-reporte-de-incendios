@@ -74,14 +74,14 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
   async desactivar(id) {
     return await this.prisma.usuario.update({
       where: { id_usuario: Number(id) },
-      data: { fecha_eliminacion: new Date() },
+      data: { fecha_eliminacion: new Date(), estado: false },
     });
   }
 
   async reactivar(id) {
     return await this.prisma.usuario.update({
       where: { id_usuario: Number(id) },
-      data: { fecha_eliminacion: null },
+      data: { fecha_eliminacion: null, estado: true },
     });
   }
 }

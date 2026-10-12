@@ -3,17 +3,275 @@ import { ref } from 'vue'
 import { ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
-import { usersMock as allUsersMock, roleLabels } from '../mocks/users'
-import { isWebUserRole, type WebUserRole } from '../types'
 
-const route = useRoute(); const router = useRouter(); const authStore = useAuthStore()
-const email = ref('operador@alerta.bo'); const password = ref('demo123'); const error = ref(route.query.access === 'mobile' ? 'Este acceso está disponible únicamente en la aplicación móvil.' : '')
-const homes: Record<WebUserRole,string> = { CENTRAL_OPERATOR:'/central/dashboard', INSTITUTION_ADMIN:'/admin-institucion/dashboard' }
-const usersMock = allUsersMock.filter((user) => isWebUserRole(user.rol))
-const login = async()=>{error.value='';const user=await authStore.loginDemo(email.value);if(!user){error.value='Cuenta demo no reconocida.';return}if(!isWebUserRole(user.rol)){await authStore.logout();error.value='Este acceso está disponible únicamente en la aplicación móvil.';return}await router.push(homes[user.rol])}
-const useAccount=(accountEmail:string)=>{email.value=accountEmail;password.value='demo123'}
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
+const correo = ref('ciudadano@alerta.bo')
+const password = ref('Ciudadano123')
+const loading = ref(false)
+
+const error = ref(
+  route.query.access === 'mobile'
+    ? 'Este acceso está disponible únicamente en la aplicación móvil.'
+    : '',
+)
+
+const useDemoMode = import.meta.env.VITE_USE_MOCKS === 'true'
+
+const demoAccounts = useDemoMode ? [
+  {
+    nombre: 'Operador central',
+    email: 'operador@alerta.bo',
+    password: 'Admin123',
+    rol: 'CENTRAL_OPERATOR',
+    detalle: 'Monitoreo y coordinación',
+  },
+  {
+    nombre: 'Administrador institución',
+    email: 'admin.bomberos@alerta.bo',
+    password: 'Admin123',
+    rol: 'INSTITUTION_ADMIN',
+    detalle: 'Respuesta institucional',
+  },
+  {
+    nombre: 'Ciudadano demo',
+    email: 'ciudadano@alerta.bo',
+    password: 'Ciudadano123',
+    rol: 'CITIZEN',
+    detalle: 'Reportes y alertas',
+  },
+] : [] as const
+
+const homeByRole = (rol?: string) => {
+  switch (rol ?? 'CENTRAL_OPERATOR') {
+    case 'CITIZEN':
+      return '/ciudadano/inicio'
+    case 'INSTITUTION_ADMIN':
+      return '/institucion/dashboard'
+    case 'INSTITUTION_USER':
+      return '/institucion/inicio'
+    case 'SUPER_ADMIN':
+      return '/super-admin/dashboard'
+    case 'CENTRAL_OPERATOR':
+    default:
+      return '/central/dashboard'
+  }
+}
+
+const isCompatibleRedirect = (redirect: string | undefined, rol?: string) => {
+  if (!redirect || !redirect.startsWith('/')) return false
+
+  const normalized = redirect.split('?')[0]
+
+  switch (rol ?? 'CENTRAL_OPERATOR') {
+    case 'SUPER_ADMIN':
+      return normalized.startsWith('/super-admin')
+    case 'CENTRAL_OPERATOR':
+      return normalized.startsWith('/central')
+    case 'INSTITUTION_ADMIN':
+    case 'INSTITUTION_USER':
+      return normalized.startsWith('/institucion')
+    case 'CITIZEN':
+      return normalized.startsWith('/ciudadano')
+    default:
+      return false
+  }
+}
+
+const seleccionarCuenta = (correoSeleccionado: string, passSeleccionada: string) => {
+  correo.value = correoSeleccionado
+  password.value = passSeleccionada
+  error.value = ''
+}
+
+const ingresar = async () => {
+  error.value = ''
+  loading.value = true
+
+  try {
+    const user = await authStore.login(correo.value, password.value)
+    const role = user.role ?? user.rol ?? 'CENTRAL_OPERATOR'
+    const redirectPath = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
+
+    if (redirectPath && isCompatibleRedirect(redirectPath, role)) {
+      await router.push(redirectPath)
+      return
+    }
+
+    await router.push(homeByRole(role))
+  } catch (err) {
+    error.value =
+      err instanceof Error ? err.message : 'No se pudo iniciar sesión.'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
-<template><div class="login-shell min-h-screen px-4 py-8"><div class="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl shadow-slate-200/70 lg:grid-cols-[0.95fr_1.05fr]"><section class="relative hidden overflow-hidden bg-[#17212b] p-10 text-white lg:flex lg:flex-col lg:justify-between"><div class="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-orange-500/15 blur-3xl"></div>
-<div class="relative"><img src="/logo-alerta-ave.svg" alt="ALERTA" class="h-20 w-20"/><p class="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-orange-300">ALERTA</p><h1 class="mt-2 text-4xl font-semibold leading-tight">Prevención y coordinación de incendios</h1><p class="mt-4 max-w-md text-sm leading-6 text-slate-300">Monitoreo, validación humana y coordinación institucional de emergencias por incendios.</p></div>
-<div class="relative rounded-2xl border border-white/10 bg-white/5 p-5"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">Modo demostración</p><p class="mt-2 text-sm text-slate-300">Selecciona una cuenta web: Operador Central o Admin de Institución.</p></div></section>
-<section class="flex items-center p-6 sm:p-10"><div class="mx-auto w-full max-w-lg"><div class="lg:hidden"><img src="/logo-alerta-ave.svg" alt="ALERTA" class="h-16 w-16"/></div><p class="mt-5 text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500">Acceso al prototipo</p><h2 class="mt-2 text-3xl font-semibold text-slate-900">Ingresar a ALERTA</h2><p class="mt-2 text-sm text-slate-600">No existe autenticación real todavía. Las cuentas siguientes simulan los roles que posteriormente devolverá el backend.</p><form class="mt-7 space-y-4" @submit.prevent="login"><label class="block text-sm font-medium text-slate-700">Correo<div class="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 focus-within:border-orange-300"><ShieldCheck class="h-4 w-4 text-slate-400"/><input v-model="email" type="email" class="w-full bg-transparent text-slate-900 outline-none"/></div></label><label class="block text-sm font-medium text-slate-700">Contraseña demo<div class="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3"><LockKeyhole class="h-4 w-4 text-slate-400"/><input v-model="password" type="password" class="w-full bg-transparent text-slate-900 outline-none"/></div></label><p v-if="error" class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ error }}</p><button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#f24a23] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-100">Ingresar <ArrowRight class="h-4 w-4"/></button></form><div class="mt-7"><p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Cuentas demo</p><div class="mt-3 grid gap-2 sm:grid-cols-2"><button v-for="user in usersMock" :key="user.id" class="rounded-xl border border-slate-200 p-3 text-left transition hover:border-orange-200 hover:bg-orange-50/40" @click="useAccount(user.email)"><p class="text-xs font-semibold text-slate-900">{{ roleLabels[user.rol] }}</p><p class="mt-1 truncate text-[11px] text-slate-500">{{ user.email }}</p></button></div></div></div></section></div></div></template>
+
+<template>
+  <div class="login-shell min-h-screen px-4 py-8">
+    <div
+      class="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl shadow-slate-200/70 lg:grid-cols-[0.95fr_1.05fr]"
+    >
+      <section
+        class="relative hidden overflow-hidden bg-[#17212b] p-10 text-white lg:flex lg:flex-col lg:justify-between"
+      >
+        <div
+          class="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-orange-500/15 blur-3xl"
+        ></div>
+
+        <div class="relative">
+          <img
+            src="/logo-alerta-ave.svg"
+            alt="ALERTA"
+            class="main-logo-image h-20 w-20"
+          />
+
+          <p
+            class="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-orange-300"
+          >
+            ALERTA
+          </p>
+
+          <h1 class="mt-2 text-4xl font-semibold leading-tight">
+            Prevención y coordinación de incendios
+          </h1>
+
+          <p class="mt-4 max-w-md text-sm leading-6 text-slate-300">
+            Monitoreo, validación humana y coordinación institucional de
+            emergencias por incendios.
+          </p>
+        </div>
+
+        <div
+          class="relative rounded-2xl border border-white/10 bg-white/5 p-5"
+        >
+          <p
+            class="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300"
+          >
+            Acceso seguro
+          </p>
+
+          <p class="mt-2 text-sm text-slate-300">
+            Ingresa con las credenciales asignadas o usa una cuenta demo.
+          </p>
+        </div>
+      </section>
+
+      <section class="flex items-center p-6 sm:p-10">
+        <div class="mx-auto w-full max-w-lg">
+          <div class="lg:hidden">
+            <img
+              src="/logo-alerta-ave.svg"
+              alt="ALERTA"
+              class="main-logo-image h-16 w-16"
+            />
+          </div>
+
+          <p
+            class="mt-5 text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500"
+          >
+            Acceso al sistema
+          </p>
+
+          <h2 class="mt-2 text-3xl font-semibold text-slate-900">
+            Ingresar a ALERTA
+          </h2>
+
+          <p class="mt-2 text-sm text-slate-600">
+            Ingresa con tu correo y contraseña para acceder al sistema.
+          </p>
+
+          <form
+            class="mt-7 space-y-4"
+            @submit.prevent="ingresar"
+          >
+            <label class="block text-sm font-medium text-slate-700">
+              Correo
+
+              <div
+                class="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 focus-within:border-orange-300"
+              >
+                <ShieldCheck class="h-4 w-4 text-slate-400" />
+
+                <input
+                  v-model="correo"
+                  type="email"
+                  autocomplete="email"
+                  required
+                  class="w-full bg-transparent text-slate-900 outline-none"
+                  placeholder="correo@alerta.bo"
+                />
+              </div>
+            </label>
+
+            <label class="block text-sm font-medium text-slate-700">
+              Contraseña
+
+              <div
+                class="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 focus-within:border-orange-300"
+              >
+                <LockKeyhole class="h-4 w-4 text-slate-400" />
+
+                <input
+                  v-model="password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                  class="w-full bg-transparent text-slate-900 outline-none"
+                  placeholder="Ingresa tu contraseña"
+                />
+              </div>
+            </label>
+
+            <p
+              v-if="error"
+              class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            >
+              {{ error }}
+            </p>
+
+            <button
+              type="submit"
+              :disabled="loading"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#f24a23] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-100 transition hover:bg-[#df3f1c] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {{ loading ? 'Ingresando...' : 'Ingresar' }}
+
+              <ArrowRight
+                v-if="!loading"
+                class="h-4 w-4"
+              />
+            </button>
+          </form>
+
+          <div v-if="demoAccounts.length" class="mt-8">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              CUENTAS DEMO
+            </p>
+
+            <div class="mt-3 flex flex-col gap-3">
+              <button
+                v-for="account in demoAccounts"
+                :key="account.email"
+                type="button"
+                class="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left shadow-sm transition hover:border-orange-200 hover:bg-orange-50"
+                @click="seleccionarCuenta(account.email, account.password)"
+              >
+                <div>
+                  <p class="text-sm font-semibold text-slate-900">{{ account.nombre }}</p>
+                  <p class="mt-1 text-xs text-slate-500">{{ account.detalle }}</p>
+                </div>
+                <span class="rounded-full bg-orange-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-700">
+                  {{ account.rol }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</template>

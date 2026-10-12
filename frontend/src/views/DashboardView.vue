@@ -127,7 +127,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mobile-container space-y-6">
     <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <p class="text-[10px] uppercase tracking-[0.24em] text-slate-400">Modo demostración</p>
@@ -163,7 +163,7 @@ onMounted(async () => {
         />
       </section>
 
-      <section class="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+      <section class="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
           <div class="mb-5 flex items-center justify-between">
             <div>
@@ -221,6 +221,36 @@ onMounted(async () => {
               <p class="mt-2 text-xs text-slate-400">Actualizado hace 2s</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-4 lg:flex-row">
+        <div class="flex-1 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+          <p class="text-[10px] uppercase tracking-[0.22em] text-slate-400">NOTIFICACIONES</p>
+          <ul class="mt-4 space-y-3">
+            <li class="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">
+              <span class="font-medium text-white">Nueva alerta</span>
+              <p class="mt-1 text-xs text-slate-400">Cerca de la zona centro · Riesgo alto</p>
+            </li>
+            <li class="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">
+              <span class="font-medium text-white">Mantenimiento programado</span>
+              <p class="mt-1 text-xs text-slate-400">Sensor de temperatura revisado esta mañana</p>
+            </li>
+          </ul>
+        </div>
+
+        <div class="flex-1 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+          <p class="text-[10px] uppercase tracking-[0.22em] text-slate-400">MIS REPORTES</p>
+          <ul class="mt-4 space-y-3">
+            <li class="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">
+              <span class="font-medium text-white">Reporte 001</span>
+              <p class="mt-1 text-xs text-slate-400">Humo visible · En revisión</p>
+            </li>
+            <li class="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">
+              <span class="font-medium text-white">Reporte 002</span>
+              <p class="mt-1 text-xs text-slate-400">Llamas cercanas · Validado</p>
+            </li>
+          </ul>
         </div>
       </section>
 

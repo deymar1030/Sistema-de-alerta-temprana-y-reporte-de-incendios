@@ -23,6 +23,7 @@ const fallbackSteps: Array<{ status: IncidentStatus; label: string }> = [
 
 const currentIndex = computed(() => fallbackSteps.findIndex((step) => step.status === props.currentStatus))
 const sortedEvents = computed(() => [...props.events].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()))
+const visibleEvents = computed(() => sortedEvents.value.slice(0, 1))
 const formatTime = (value: string) => new Intl.DateTimeFormat('es-BO', { hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 </script>
 
@@ -36,9 +37,9 @@ const formatTime = (value: string) => new Intl.DateTimeFormat('es-BO', { hour: '
       <Clock3 class="h-5 w-5 text-orange-500" />
     </div>
 
-    <div v-if="sortedEvents.length" class="mt-5 space-y-0">
-      <div v-for="(event, index) in sortedEvents" :key="event.id" class="relative flex gap-3 pb-5 last:pb-0">
-        <div v-if="index < sortedEvents.length - 1" class="absolute left-[9px] top-5 h-[calc(100%-10px)] w-px bg-slate-200"></div>
+    <div v-if="visibleEvents.length" class="mt-5 space-y-0">
+      <div v-for="(event, index) in visibleEvents" :key="event.id" class="relative flex gap-3 pb-5 last:pb-0">
+        <div v-if="index < visibleEvents.length - 1" class="absolute left-[9px] top-5 h-[calc(100%-10px)] w-px bg-slate-200"></div>
         <div class="relative z-10 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 ring-4 ring-white">
           <CheckCircle2 class="h-5 w-5 text-emerald-600" />
         </div>

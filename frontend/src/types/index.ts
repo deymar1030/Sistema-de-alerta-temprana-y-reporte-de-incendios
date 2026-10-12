@@ -3,10 +3,71 @@ export type AlertState = 'ACTIVA' | 'EN REVISIÓN' | 'RESUELTA'
 export type RiskLevel = 'normal' | 'warning' | 'high' | 'critical'
 export type InstitutionDeliveryState = 'ENVIADA' | 'RECIBIDA' | 'EN_PROCESO' | 'FALLIDA'
 
-export type UserRole = 'CENTRAL_OPERATOR' | 'INSTITUTION_ADMIN' | 'INSTITUTION_USER' | 'CITIZEN'
-export type WebUserRole = Extract<UserRole, 'CENTRAL_OPERATOR' | 'INSTITUTION_ADMIN'>
-export const WEB_USER_ROLES: readonly WebUserRole[] = ['CENTRAL_OPERATOR', 'INSTITUTION_ADMIN']
+export type UserRole =
+  | 'SUPER_ADMIN'
+  | 'CENTRAL_OPERATOR'
+  | 'INSTITUTION_ADMIN'
+  | 'INSTITUTION_USER'
+  | 'CITIZEN'
+
+export type WebUserRole = Extract<UserRole, 'SUPER_ADMIN' | 'CENTRAL_OPERATOR' | 'INSTITUTION_ADMIN'>
+export const WEB_USER_ROLES: readonly WebUserRole[] = ['SUPER_ADMIN', 'CENTRAL_OPERATOR', 'INSTITUTION_ADMIN']
 export const isWebUserRole = (role: UserRole): role is WebUserRole => WEB_USER_ROLES.includes(role as WebUserRole)
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  SUPER_ADMIN: 'Superadministrador',
+  CENTRAL_OPERATOR: 'Operador central',
+  INSTITUTION_ADMIN: 'Administrador de la institución',
+  INSTITUTION_USER: 'Usuario de la institución',
+  CITIZEN: 'Ciudadano',
+}
+
+export const normalizeRole = (value: number | string | UserRole | null | undefined): UserRole => {
+  if (typeof value === 'number') {
+    switch (value) {
+      case 1:
+        return 'SUPER_ADMIN'
+      case 2:
+        return 'CENTRAL_OPERATOR'
+      case 3:
+        return 'INSTITUTION_ADMIN'
+      case 4:
+        return 'INSTITUTION_USER'
+      case 5:
+        return 'CITIZEN'
+      default:
+        throw new Error(`Rol desconocido: ${value}`)
+    }
+  }
+
+  const normalized = String(value ?? '').trim().toUpperCase()
+  if (normalized === 'SUPER_ADMIN' || normalized === 'SUPERADMIN' || normalized === '1') return 'SUPER_ADMIN'
+  if (normalized === 'CENTRAL_OPERATOR' || normalized === 'CENTRALOPERATOR' || normalized === '2') return 'CENTRAL_OPERATOR'
+  if (normalized === 'INSTITUTION_ADMIN' || normalized === 'INSTITUTIONADMIN' || normalized === '3') return 'INSTITUTION_ADMIN'
+  if (normalized === 'INSTITUTION_USER' || normalized === 'INSTITUTIONUSER' || normalized === '4') return 'INSTITUTION_USER'
+  if (normalized === 'CITIZEN' || normalized === 'CIUDADANO' || normalized === '5') return 'CITIZEN'
+
+  throw new Error(`Rol desconocido: ${value}`)
+}
+
+export const getRoleLabel = (role?: UserRole | null): string => {
+  if (!role) return 'Sin rol'
+  return ROLE_LABELS[normalizeRole(role)] ?? role
+}
+
+export const normalizeStatus = (value: boolean | number | string | null | undefined): 'ACTIVE' | 'INACTIVE' => {
+  if (typeof value === 'boolean') return value ? 'ACTIVE' : 'INACTIVE'
+  if (typeof value === 'number') return value === 1 ? 'ACTIVE' : 'INACTIVE'
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (['true', 'activo', 'active', 'enabled', '1', 'si', 'sí'].includes(normalized)) return 'ACTIVE'
+    if (['false', 'inactivo', 'inactive', 'disabled', '0', 'no'].includes(normalized)) return 'INACTIVE'
+  }
+  return 'ACTIVE'
+}
+
+export const isInstitutionRole = (role?: UserRole | string | null): boolean =>
+  normalizeRole(role) === 'INSTITUTION_ADMIN' || normalizeRole(role) === 'INSTITUTION_USER'
 export type IncidentStatus =
   | 'NUEVA'
   | 'EN_VALIDACION'
@@ -23,16 +84,34 @@ export type IncidentStatus =
   | 'CANCELADA'
 export type DispatchStatus = 'PENDIENTE' | 'ENVIADA' | 'RECIBIDA' | 'ACEPTADA' | 'RECHAZADA' | 'EN_CAMINO' | 'EN_SITIO' | 'CONTROLADA' | 'FINALIZADA'
 export type ReportStatus = 'BORRADOR' | 'PENDIENTE' | 'COMPLETADO' | 'REVISADO'
-export type CitizenReportStatus = 'RECIBIDO' | 'EN_REVISION' | 'VALIDADO' | 'DESCARTADO' | 'ATENDIDO'
+export type CitizenReportStatus =
+  | 'PENDIENTE_DE_VALIDACION'
+  | 'EN_REVISION'
+  | 'CONFIRMADO'
+  | 'RECHAZADO'
+  | 'ATENDIENDO'
+  | 'FINALIZADO'
+  | 'RECIBIDO'
+  | 'VALIDADO'
+  | 'DESCARTADO'
+  | 'ATENDIDO'
 
 export interface User {
   id: string
-  nombre: string
+  nombre?: string
+  firstName?: string
+  lastName?: string
   email: string
-  rol: UserRole
-  institucionId: string | null
+  phone?: string
+  city?: string
+  role?: UserRole
+  rol?: UserRole
+  institucionId?: string | null
+  institutionId?: string | null
   telefono?: string
   activo?: boolean
+  status?: 'ACTIVE' | 'INACTIVE'
+  createdAt?: string
 }
 
 export interface Institution {
@@ -61,6 +140,9 @@ export interface Incident {
   createdAt: string
   updatedAt?: string
   citizenReportId?: string
+
+  // Cantidad real de instituciones notificadas por el backend.
+  institucionesNotificadas?: number
 }
 
 export interface Alert {
@@ -89,15 +171,32 @@ export interface Dispatch {
 
 export interface CitizenReport {
   id: string
+  citizenId?: string
+  usuarioId?: string
+  description?: string
   descripcion: string
+
+  tipo?: string
+  nivelPrioridad?: string
+
+  address?: string
   ubicacion: string
+  latitude?: number
   latitud: number
+  longitude?: number
   longitud: number
+  reference?: string
+
   status: CitizenReportStatus
   createdAt: string
+
+  photo?: string
   fotoNombre?: string
   fotoUrl?: string
+
   factores: string[]
+
+  alertId?: string | null
 }
 
 export interface Attachment {
@@ -163,8 +262,9 @@ export interface InstitucionNotificada {
 
 export interface Sensor {
   id_sensor: string
+  id_predio?: string
   nombre: string
-  tipo_sensor: 'Temperatura' | 'Humo' | 'CO'
+  tipo_sensor: 'Temperatura' | 'Humo' | 'CO' | 'Humedad'
   variable: string
   unidad_medida: string
   modelo: string
@@ -175,8 +275,10 @@ export interface Sensor {
   lat: number
   lng: number
   riesgo: RiskLevel
-  ultima_lectura: number
+  ultima_lectura: number | null
   descripcion: string
+  rango_min?: number
+  rango_max?: number
 }
 
 export interface Reading {

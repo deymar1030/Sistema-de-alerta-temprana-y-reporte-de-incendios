@@ -1,6 +1,11 @@
 export type IsoDateTime = string
 
-export type UserRole = 'CENTRAL_OPERATOR' | 'INSTITUTION_ADMIN' | 'INSTITUTION_USER' | 'CITIZEN'
+export type UserRole =
+  | 'SUPER_ADMIN'
+  | 'CENTRAL_OPERATOR'
+  | 'INSTITUTION_ADMIN'
+  | 'INSTITUTION_USER'
+  | 'CITIZEN'
 export type RiskLevel = 'normal' | 'warning' | 'high' | 'critical'
 export type InstitutionType = 'BOMBEROS' | 'POLICIA' | 'DEFENSA_CIVIL' | 'RESCATE' | 'OTRA'
 export type InstitutionStatus = 'ACTIVA' | 'INACTIVA'
@@ -34,7 +39,17 @@ export type DispatchStatus =
   | 'EN_SITIO'
   | 'CONTROLADA'
   | 'FINALIZADA'
-export type CitizenReportStatus = 'RECIBIDO' | 'EN_REVISION' | 'VALIDADO' | 'DESCARTADO' | 'ATENDIDO'
+export type CitizenReportStatus =
+  | 'PENDIENTE_DE_VALIDACION'
+  | 'EN_REVISION'
+  | 'CONFIRMADO'
+  | 'RECHAZADO'
+  | 'ATENDIENDO'
+  | 'FINALIZADO'
+  | 'RECIBIDO'
+  | 'VALIDADO'
+  | 'DESCARTADO'
+  | 'ATENDIDO'
 export type NotificationType = 'ALERTA' | 'DESPACHO' | 'ESTADO_INCIDENTE' | 'REPORTE_CIUDADANO' | 'SISTEMA'
 export type TimelineEventType =
   | 'DETECCION_RECIBIDA'
@@ -52,12 +67,16 @@ export type AttachmentType = 'application/pdf' | 'image/jpeg' | 'image/png' | 'i
 
 export interface User {
   id: string
-  name: string
+  name?: string
+  firstName?: string
+  lastName?: string
   email: string
   role: UserRole
-  institutionId?: string
+  institutionId?: string | null
   phone?: string
-  active: boolean
+  active?: boolean
+  status?: 'ACTIVE' | 'INACTIVE'
+  createdAt?: string
 }
 
 export interface Coordinates {
@@ -173,16 +192,25 @@ export interface Incident {
 export interface CitizenReport {
   id: string
   citizenId?: string
-  description: string
-  incidentType: string
-  location: Location
+  description?: string
+  incidentType?: string
+  location?: Location
   photoUrl?: string
-  smokeVisible: boolean
-  flamesVisible: boolean
-  peopleAtRisk: boolean
-  explosions: boolean
+  photo?: string
+  smokeVisible?: boolean
+  flamesVisible?: boolean
+  peopleAtRisk?: boolean
+  explosions?: boolean
+  address?: string
+  reference?: string
+  latitude?: number
+  longitude?: number
   status: CitizenReportStatus
   createdAt: IsoDateTime
+  descripcion?: string
+  ubicacion?: string
+  latitud?: number
+  longitud?: number
 }
 
 export interface Notification {

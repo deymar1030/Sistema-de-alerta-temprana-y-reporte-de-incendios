@@ -28,6 +28,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 90% 0%, rgba(244, 162, 89, 0.08), transparent 28rem),
     linear-gradient(145deg, #ffffff 0%, #f3f5f3 52%, #e9ecea 100%);
@@ -37,6 +38,21 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 #app { min-height: 100vh; }
 input[type='range'] { accent-color: var(--alert-orange-strong); }
+.mobile-container {
+  max-width: 500px;
+  margin: 0 auto;
+  width: 100%;
+}
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (max-width: 420px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 .leaflet-container {
   position: relative;

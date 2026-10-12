@@ -8,6 +8,7 @@ export class PredioEntity {
     direccion,
     latitud,
     longitud,
+    contrasena_mqtt,
     fecha_evaluacion,
     irp,
     estado_electrico,
@@ -26,6 +27,7 @@ export class PredioEntity {
     this.direccion = direccion;
     this.latitud = latitud;
     this.longitud = longitud;
+    this.contrasena_mqtt = contrasena_mqtt;
     this.fecha_evaluacion = fecha_evaluacion;
     this.irp = irp;
     this.estado_electrico = estado_electrico;

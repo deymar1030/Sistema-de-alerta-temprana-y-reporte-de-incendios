@@ -270,6 +270,7 @@ model predio {
   material_construccion Int?      @db.SmallInt
   ocupacion             Int?      @db.SmallInt
   nivel_proteccion      Int?      @db.SmallInt
+  contrasena_mqtt       String?   @db.VarChar(60)
 
   zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Restrict)
   motor_det       motor_det       @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Restrict)

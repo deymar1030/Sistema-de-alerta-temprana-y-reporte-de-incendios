@@ -35,4 +35,7 @@ export const envs = {
   MQTT_USERNAME: process.env.MQTT_USERNAME || "backend",
   MQTT_PASSWORD: process.env.MQTT_PASSWORD || "",
   MQTT_CA_FILE: process.env.MQTT_CA_FILE || "",
+
+  // Secreto compartido con Mosquitto para /internal/mqtt/* (va en auth_opt_http_user_agent).
+  MQTT_AUTH_SECRET: process.env.MQTT_AUTH_SECRET || "",
 };

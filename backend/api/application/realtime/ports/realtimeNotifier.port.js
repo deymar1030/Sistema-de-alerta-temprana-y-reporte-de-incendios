@@ -1,4 +1,6 @@
 export class RealtimeNotifierPort {
+  async emitAlertaAbierta() { throw new Error('Method not implemented'); }
+  async emitAlertaActualizada() { throw new Error('Method not implemented'); }
   async emitAlertaConfirmada(alerta) {
     throw new Error("Method not implemented");
   }

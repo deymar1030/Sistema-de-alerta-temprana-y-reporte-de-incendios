@@ -16,7 +16,7 @@ export function connectMqttClient(config = envs) {
     manualConnect: true,
     resubscribe: false,
     queueQoSZero: false,
-    ca: config.MQTT_CA_FILE ? readFileSync(config.MQTT_CA_FILE) : undefined,
+    ca: config.MQTT_CA || (config.MQTT_CA_FILE ? readFileSync(config.MQTT_CA_FILE) : undefined),
     rejectUnauthorized: true,
     reconnectPeriod: 2000,
     connectTimeout: 10000,

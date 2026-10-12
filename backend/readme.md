@@ -98,3 +98,32 @@ Servidor por defecto en `http://localhost:3000`.
 | ------ | ----------------- | -------------------------- |
 | GET    | `/`               | Info de la API             |
 | GET    | `/api/health`     | Estado del servicio        |
+| POST   | `/api/detections/image` | Recibe una imagen y devuelve la detección de incendio |
+
+## Detección desde una imagen
+
+La inferencia se ejecuta en el servicio Python de [`ml-service/`](../ml-service/),
+porque el modelo del notebook es PyTorch/ResNet18. Sigue las instrucciones de
+esa carpeta para descargar el archivo `.pth` de Colab e iniciar el servicio en
+el puerto 8000. Después inicia este backend normalmente.
+
+Envía la imagen como `multipart/form-data`, en el campo `image`:
+
+```bash
+curl -X POST http://localhost:3000/api/detections/image \
+  -F "image=@/ruta/a/foto.jpg"
+```
+
+Ejemplo de respuesta:
+
+```json
+{
+  "label": "FIRE",
+  "detected": true,
+  "fire_probability": 0.9342,
+  "no_fire_probability": 0.0658,
+  "threshold": 0.62,
+  "warning": null,
+  "filename": "foto.jpg"
+}
+```

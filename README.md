@@ -34,6 +34,8 @@ reportados, con notificaciones en tiempo real hacia los responsables.
 - **Frontend** de visualización y gestión — *stack por definir*.
 - **Hardware** de sensado y envío de datos — *stack por definir*.
 - Arquitectura por capas, desacoplada del framework y de la base de datos.
+- Servicio de inferencia **Python/FastAPI + PyTorch** para detectar incendios
+  en imágenes subidas por usuarios.
 
 ---
 
@@ -122,6 +124,17 @@ npm start
 ```
 
 Servidor por defecto en `http://localhost:3000`.
+
+#### Detección de incendios por imagen
+
+El notebook incluido entrena una ResNet18 en PyTorch. Una vez entrenado,
+descarga su archivo `.pth` desde Colab y sigue las instrucciones de
+[`ml-service/README.md`](ml-service/README.md) para ejecutarlo. Con ambos
+servicios activos se puede enviar una imagen a:
+
+```text
+POST /api/detections/image  (multipart/form-data, campo: image)
+```
 
 ---
 

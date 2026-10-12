@@ -1,0 +1,6 @@
+# Artefactos de inferencia: se descargan desde Colab y no se versionan.
+ml-service/models/*.pth
+ml-service/models/*.pt
+ml-service/.venv/
+__pycache__/
+*.pyc

@@ -39,6 +39,7 @@ function mapPredioUpdateRequest(body) {
     "material_construccion",
     "ocupacion",
     "nivel_proteccion",
+    "activo",
   ];
 
   const data = {};
@@ -69,6 +70,7 @@ export class PredioController {
       const predios = await this.predioService.getAll({
         id_zona: req.query.id_zona,
         tipo_predio: req.query.tipo_predio,
+        activo: req.query.activo,
       });
       res.json({ success: true, data: PredioMapper.toResponseDTOArray(predios) });
     } catch (error) {

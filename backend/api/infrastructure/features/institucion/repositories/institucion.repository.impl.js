@@ -60,8 +60,12 @@ export default class PrismaInstitucionRepository extends InstitucionRepository {
   }
 
   async delete(id) {
-    return await this.prisma.institucion.delete({
+    // Baja logica: borrarla de verdad fallaria en cuanto tenga informes de
+    // atencion asociados (Restrict), y antes de eso arrastraria en cascada
+    // su historial de notificaciones (envia) y jurisdicciones.
+    return await this.prisma.institucion.update({
       where: { id_institucion: Number(id) },
+      data: { estado: false },
     });
   }
 

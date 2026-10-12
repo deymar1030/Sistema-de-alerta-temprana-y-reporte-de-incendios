@@ -21,6 +21,7 @@ export class ResponsePredioDTO {
     material_construccion,
     ocupacion,
     nivel_proteccion,
+    activo,
     sensores = undefined,
   }) {
     this.id_predio = id_predio;
@@ -40,6 +41,7 @@ export class ResponsePredioDTO {
     this.material_construccion = material_construccion;
     this.ocupacion = ocupacion;
     this.nivel_proteccion = nivel_proteccion;
+    this.activo = activo;
     if (sensores !== undefined) this.sensores = sensores;
   }
 
@@ -62,6 +64,7 @@ export class ResponsePredioDTO {
       material_construccion: predio.material_construccion,
       ocupacion: predio.ocupacion,
       nivel_proteccion: predio.nivel_proteccion,
+      activo: predio.activo,
       sensores,
     });
   }

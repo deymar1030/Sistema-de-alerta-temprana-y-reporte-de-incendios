@@ -51,6 +51,7 @@ export default class PrismaPredioRepository extends PredioRepository {
     const where = {};
     if (filters.id_zona) where.id_zona = Number(filters.id_zona);
     if (filters.tipo_predio) where.tipo_predio = filters.tipo_predio;
+    if (filters.activo !== undefined) where.activo = filters.activo === "true" || filters.activo === true;
 
     return await this.prisma.predio.findMany({
       where,
@@ -85,6 +86,7 @@ export default class PrismaPredioRepository extends PredioRepository {
       material_construccion: predioData.material_construccion,
       ocupacion: predioData.ocupacion,
       nivel_proteccion: predioData.nivel_proteccion,
+      activo: predioData.activo,
     });
 
     return await this.prisma.predio.update({

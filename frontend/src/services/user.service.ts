@@ -63,7 +63,7 @@ const formatFullName = (user: ApiUser) => {
 const toUser = (user: Partial<ApiUser> | null): User => {
   const id = String(user?.id_usuario ?? user?.id ?? crypto.randomUUID())
   const institutionId = user?.institutionId ?? user?.institucionId ?? user?.id_institucion ?? null
-  const roleValue = user?.role ?? user?.rol ?? user?.id_rol ?? 'CITIZEN'
+  const roleValue = user?.id_rol ?? user?.rol ?? user?.role
   const statusValue = user?.status ?? user?.estado ?? user?.activo ?? 'ACTIVE'
   const normalizedRole = normalizeRole(roleValue as number | string | UserRole | null | undefined)
   const normalizedStatus = normalizeStatus(statusValue)
@@ -131,17 +131,16 @@ const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
 
 const roleToApiId = (role?: UserRole | string | number | null): number | string => {
   switch (normalizeRole(role)) {
-    case 'SUPER_ADMIN':
+    case 'ADMIN':
       return 1
-    case 'CENTRAL_OPERATOR':
+    case 'JEFE_INSTITUCION':
       return 2
-    case 'INSTITUTION_ADMIN':
+    case 'OPERATIVO':
       return 3
-    case 'INSTITUTION_USER':
+    case 'CIUDADANO':
       return 4
-    case 'CITIZEN':
     default:
-      return 5
+      throw new Error(`Rol desconocido: ${role}`)
   }
 }
 
@@ -163,7 +162,7 @@ export const userService = {
   },
 
   async createUser(input: CreateUserInput): Promise<User> {
-    const role = normalizeRole(input.role ?? input.id_rol ?? 'CITIZEN')
+    const role = normalizeRole(input.role ?? input.id_rol ?? 'CIUDADANO')
     const institutionId = input.institutionId ?? input.id_institucion ?? null
     const payload = {
       id_rol: input.id_rol ?? roleToApiId(role),
@@ -186,7 +185,7 @@ export const userService = {
 
   async updateUser(id: string, input: UpdateUserInput): Promise<User> {
     const payload: Record<string, unknown> = {
-      ...(input.id_rol !== undefined ? { id_rol: input.id_rol ?? roleToApiId(input.role ?? 'CITIZEN') } : {}),
+      ...(input.id_rol !== undefined ? { id_rol: input.id_rol ?? roleToApiId(input.role ?? 'CIUDADANO') } : {}),
       ...(input.id_institucion !== undefined && input.id_institucion !== null && input.id_institucion !== '' ? { id_institucion: input.id_institucion } : {}),
       ...(input.nombre !== undefined ? { nombre: input.nombre.trim() } : {}),
       ...(input.primer_apellido !== undefined ? { primer_apellido: input.primer_apellido.trim() } : {}),

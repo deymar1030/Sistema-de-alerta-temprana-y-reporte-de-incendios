@@ -3,49 +3,41 @@ export type AlertState = 'ACTIVA' | 'EN REVISIÓN' | 'RESUELTA'
 export type RiskLevel = 'normal' | 'warning' | 'high' | 'critical'
 export type InstitutionDeliveryState = 'ENVIADA' | 'RECIBIDA' | 'EN_PROCESO' | 'FALLIDA'
 
-export type UserRole =
-  | 'SUPER_ADMIN'
-  | 'CENTRAL_OPERATOR'
-  | 'INSTITUTION_ADMIN'
-  | 'INSTITUTION_USER'
-  | 'CITIZEN'
+export type UserRole = 'ADMIN' | 'JEFE_INSTITUCION' | 'OPERATIVO' | 'CIUDADANO'
 
-export type WebUserRole = Extract<UserRole, 'SUPER_ADMIN' | 'CENTRAL_OPERATOR' | 'INSTITUTION_ADMIN'>
-export const WEB_USER_ROLES: readonly WebUserRole[] = ['SUPER_ADMIN', 'CENTRAL_OPERATOR', 'INSTITUTION_ADMIN']
+export type WebUserRole = Extract<UserRole, 'ADMIN' | 'JEFE_INSTITUCION' | 'OPERATIVO'>
+export const WEB_USER_ROLES: readonly WebUserRole[] = ['ADMIN', 'JEFE_INSTITUCION', 'OPERATIVO']
 export const isWebUserRole = (role: UserRole): role is WebUserRole => WEB_USER_ROLES.includes(role as WebUserRole)
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  SUPER_ADMIN: 'Superadministrador',
-  CENTRAL_OPERATOR: 'Operador central',
-  INSTITUTION_ADMIN: 'Administrador de la institución',
-  INSTITUTION_USER: 'Usuario de la institución',
-  CITIZEN: 'Ciudadano',
+  ADMIN: 'Administrador',
+  JEFE_INSTITUCION: 'Administrador de la institución',
+  OPERATIVO: 'Personal de la institución',
+  CIUDADANO: 'Ciudadano',
 }
 
 export const normalizeRole = (value: number | string | UserRole | null | undefined): UserRole => {
   if (typeof value === 'number') {
     switch (value) {
       case 1:
-        return 'SUPER_ADMIN'
+        return 'ADMIN'
       case 2:
-        return 'CENTRAL_OPERATOR'
+        return 'JEFE_INSTITUCION'
       case 3:
-        return 'INSTITUTION_ADMIN'
+        return 'OPERATIVO'
       case 4:
-        return 'INSTITUTION_USER'
-      case 5:
-        return 'CITIZEN'
+        return 'CIUDADANO'
       default:
         throw new Error(`Rol desconocido: ${value}`)
     }
   }
 
   const normalized = String(value ?? '').trim().toUpperCase()
-  if (normalized === 'SUPER_ADMIN' || normalized === 'SUPERADMIN' || normalized === '1') return 'SUPER_ADMIN'
-  if (normalized === 'CENTRAL_OPERATOR' || normalized === 'CENTRALOPERATOR' || normalized === '2') return 'CENTRAL_OPERATOR'
-  if (normalized === 'INSTITUTION_ADMIN' || normalized === 'INSTITUTIONADMIN' || normalized === '3') return 'INSTITUTION_ADMIN'
-  if (normalized === 'INSTITUTION_USER' || normalized === 'INSTITUTIONUSER' || normalized === '4') return 'INSTITUTION_USER'
-  if (normalized === 'CITIZEN' || normalized === 'CIUDADANO' || normalized === '5') return 'CITIZEN'
+
+  if (normalized === 'ADMIN' || normalized === '1') return 'ADMIN'
+  if (normalized === 'JEFE_INSTITUCION' || normalized === '2') return 'JEFE_INSTITUCION'
+  if (normalized === 'OPERATIVO' || normalized === '3') return 'OPERATIVO'
+  if (normalized === 'CIUDADANO' || normalized === '4') return 'CIUDADANO'
 
   throw new Error(`Rol desconocido: ${value}`)
 }
@@ -67,7 +59,7 @@ export const normalizeStatus = (value: boolean | number | string | null | undefi
 }
 
 export const isInstitutionRole = (role?: UserRole | string | null): boolean =>
-  normalizeRole(role) === 'INSTITUTION_ADMIN' || normalizeRole(role) === 'INSTITUTION_USER'
+  normalizeRole(role) === 'JEFE_INSTITUCION' || normalizeRole(role) === 'OPERATIVO'
 export type IncidentStatus =
   | 'NUEVA'
   | 'EN_VALIDACION'

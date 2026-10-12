@@ -51,10 +51,10 @@ const validate = async () => {
     incidentId: incident.id,
     estado: 'VALIDADA',
     titulo: 'Alerta validada',
-    detalle: 'El Operador Central verificó la información y habilitó el despacho manual.',
-    actor: authStore.user?.nombre ?? 'Operador Central',
+    detalle: 'El equipo de atención verificó la información y habilitó el despacho manual.',
+    actor: authStore.user?.nombre ?? 'Equipo de atención',
   })
-  await auditStore.addLog({ usuario: authStore.user?.nombre ?? 'Operador Central', accion: 'Validó alerta', incidenteId: incident.id, detalle: 'Alerta habilitada para despacho manual.' })
+  await auditStore.addLog({ usuario: authStore.user?.nombre ?? 'Equipo de atención', accion: 'Validó alerta', incidenteId: incident.id, detalle: 'Alerta habilitada para despacho manual.' })
   showToast({
     type: 'success',
     title: 'Alerta validada',
@@ -85,9 +85,9 @@ const dispatch = async () => {
       estado: 'ENVIADA',
       titulo: 'Despacho enviado',
       detalle: `Alerta enviada manualmente a ${institution?.nombre ?? institutionId}.`,
-      actor: authStore.user?.nombre ?? 'Operador Central',
+      actor: authStore.user?.nombre ?? 'Equipo de atención',
     })
-    await auditStore.addLog({ usuario: authStore.user?.nombre ?? 'Operador Central', accion: 'Despachó alerta', incidenteId: incident.id, detalle: `Alerta enviada a ${institution?.nombre ?? institutionId}.` })
+    await auditStore.addLog({ usuario: authStore.user?.nombre ?? 'Equipo de atención', accion: 'Despachó alerta', incidenteId: incident.id, detalle: `Alerta enviada a ${institution?.nombre ?? institutionId}.` })
   }
   await incidentStore.updateStatus(incident.id, 'DESPACHADA')
   successMessage.value = `Alerta enviada a ${selectedInstitutions.value.length} institución(es).`
@@ -125,7 +125,7 @@ onMounted(async () => {
 <template>
   <div class="space-y-6">
     <section>
-      <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500">Operador Central · Validación y despacho</p>
+      <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500">Validación y despacho</p>
       <h2 class="mt-2 text-2xl font-semibold text-slate-900">Bandeja de alertas</h2>
       <p class="mt-2 max-w-3xl text-sm text-slate-600">Aquí se revisan alertas de sensores y reportes ciudadanos. Ninguna institución recibe un despacho hasta que el operador la selecciona manualmente.</p>
     </section>

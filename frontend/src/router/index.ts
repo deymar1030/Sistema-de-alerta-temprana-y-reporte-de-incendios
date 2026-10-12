@@ -13,7 +13,7 @@ import AlertsView from '../views/AlertsView.vue'
 import LocationsView from '../views/LocationsView.vue'
 import SettingsView from '../views/SettingsView.vue'
 
-// Operador Central
+// Vistas de coordinación institucional
 import CentralDashboardView from '../views/CentralDashboardView.vue'
 import CentralAlertsView from '../views/CentralAlertsView.vue'
 import CentralIncidentsView from '../views/CentralIncidentsView.vue'
@@ -44,7 +44,7 @@ import CitizenProfileView from '../views/CitizenProfileView.vue'
 import CitizenEditProfileView from '../views/CitizenEditProfileView.vue'
 import CitizenChangePasswordView from '../views/CitizenChangePasswordView.vue'
 
-// Super admin
+// Administración general
 import SuperAdminDashboardView from '../views/SuperAdminDashboardView.vue'
 import SuperAdminUsersView from '../views/SuperAdminUsersView.vue'
 import SuperAdminInstitutionsView from '../views/SuperAdminInstitutionsView.vue'
@@ -53,10 +53,9 @@ import SuperAdminIncidentsView from '../views/SuperAdminIncidentsView.vue'
 import SuperAdminAuditView from '../views/SuperAdminAuditView.vue'
 import SuperAdminSettingsView from '../views/SuperAdminSettingsView.vue'
 
-const centralRoles: UserRole[] = ['CENTRAL_OPERATOR']
-const institutionAdminRoles: UserRole[] = ['INSTITUTION_ADMIN', 'INSTITUTION_USER']
-const citizenRoles: UserRole[] = ['CITIZEN']
-const superAdminRoles: UserRole[] = ['SUPER_ADMIN']
+const adminRoles: UserRole[] = ['ADMIN']
+const institutionRoles: UserRole[] = ['JEFE_INSTITUCION', 'OPERATIVO']
+const citizenRoles: UserRole[] = ['CIUDADANO']
 
 export const routes: RouteRecordRaw[] = [
   { path: '/login', name: 'login', component: LoginView, meta: { title: 'Acceso' } },
@@ -75,15 +74,15 @@ export const routes: RouteRecordRaw[] = [
   { path: '/ciudadano/perfil/cambiar-password', name: 'citizen-change-password', component: CitizenChangePasswordView, meta: { roles: citizenRoles, title: 'Cambiar contraseña' } },
 
   {
-    path: '/super-admin', component: MonitoringLayout, meta: { roles: superAdminRoles }, children: [
+    path: '/super-admin', component: MonitoringLayout, meta: { roles: adminRoles }, children: [
       { path: '', redirect: '/super-admin/dashboard' },
-      { path: 'dashboard', name: 'super-admin-dashboard', component: SuperAdminDashboardView, meta: { roles: superAdminRoles, title: 'Dashboard general' } },
-      { path: 'usuarios', name: 'super-admin-users', component: SuperAdminUsersView, meta: { roles: superAdminRoles, title: 'Usuarios del sistema' } },
-      { path: 'instituciones', name: 'super-admin-institutions', component: SuperAdminInstitutionsView, meta: { roles: superAdminRoles, title: 'Instituciones' } },
-      { path: 'alertas', name: 'super-admin-alerts', component: SuperAdminAlertsView, meta: { roles: superAdminRoles, title: 'Alertas' } },
-      { path: 'incidentes', name: 'super-admin-incidents', component: SuperAdminIncidentsView, meta: { roles: superAdminRoles, title: 'Incidentes' } },
-      { path: 'auditoria', name: 'super-admin-audit', component: SuperAdminAuditView, meta: { roles: superAdminRoles, title: 'Auditoría' } },
-      { path: 'configuracion', name: 'super-admin-settings', component: SuperAdminSettingsView, meta: { roles: superAdminRoles, title: 'Configuración' } },
+      { path: 'dashboard', name: 'super-admin-dashboard', component: SuperAdminDashboardView, meta: { roles: adminRoles, title: 'Dashboard general' } },
+      { path: 'usuarios', name: 'super-admin-users', component: SuperAdminUsersView, meta: { roles: adminRoles, title: 'Usuarios del sistema' } },
+      { path: 'instituciones', name: 'super-admin-institutions', component: SuperAdminInstitutionsView, meta: { roles: adminRoles, title: 'Instituciones' } },
+      { path: 'alertas', name: 'super-admin-alerts', component: SuperAdminAlertsView, meta: { roles: adminRoles, title: 'Alertas' } },
+      { path: 'incidentes', name: 'super-admin-incidents', component: SuperAdminIncidentsView, meta: { roles: adminRoles, title: 'Incidentes' } },
+      { path: 'auditoria', name: 'super-admin-audit', component: SuperAdminAuditView, meta: { roles: adminRoles, title: 'Auditoría' } },
+      { path: 'configuracion', name: 'super-admin-settings', component: SuperAdminSettingsView, meta: { roles: adminRoles, title: 'Configuración' } },
     ],
   },
 
@@ -92,22 +91,22 @@ export const routes: RouteRecordRaw[] = [
   },
 
   {
-    path: '/institucion', component: MonitoringLayout, meta: { roles: institutionAdminRoles }, children: [
+    path: '/institucion', component: MonitoringLayout, meta: { roles: institutionRoles }, children: [
       { path: '', redirect: '/institucion/dashboard' },
-      { path: 'dashboard', name: 'institution-admin-dashboard', component: InstitutionAdminDashboardView, meta: { roles: institutionAdminRoles, title: 'Dashboard institucional' } },
+      { path: 'dashboard', name: 'institution-admin-dashboard', component: InstitutionAdminDashboardView, meta: { roles: institutionRoles, title: 'Dashboard institucional' } },
       { path: 'inicio', redirect: '/institucion/dashboard' },
-      { path: 'alertas', name: 'institution-admin-alerts', component: InstitutionAlertsView, meta: { roles: institutionAdminRoles, title: 'Alertas recibidas' } },
-      { path: 'alertas/:id', name: 'institution-admin-alert-detail', component: InstitutionAlertDetailView, meta: { roles: institutionAdminRoles, title: 'Detalle de alerta' } },
-      { path: 'usuarios', name: 'institution-users', component: AdminUsersView, meta: { roles: institutionAdminRoles, title: 'Personal y usuarios' } },
-      { path: 'informes', name: 'institution-reports', component: InstitutionReportsView, meta: { roles: institutionAdminRoles, title: 'Informes de Atención' } },
-      { path: 'historial', name: 'institution-history', component: InstitutionHistoryView, meta: { roles: institutionAdminRoles, title: 'Historial' } },
-      { path: 'configuracion', name: 'institution-settings', component: SettingsView, meta: { roles: institutionAdminRoles, title: 'Configuración' } },
+      { path: 'alertas', name: 'institution-admin-alerts', component: InstitutionAlertsView, meta: { roles: institutionRoles, title: 'Alertas recibidas' } },
+      { path: 'alertas/:id', name: 'institution-admin-alert-detail', component: InstitutionAlertDetailView, meta: { roles: institutionRoles, title: 'Detalle de alerta' } },
+      { path: 'usuarios', name: 'institution-users', component: AdminUsersView, meta: { roles: institutionRoles, title: 'Personal y usuarios' } },
+      { path: 'informes', name: 'institution-reports', component: InstitutionReportsView, meta: { roles: institutionRoles, title: 'Informes de Atención' } },
+      { path: 'historial', name: 'institution-history', component: InstitutionHistoryView, meta: { roles: institutionRoles, title: 'Historial' } },
+      { path: 'configuracion', name: 'institution-settings', component: SettingsView, meta: { roles: institutionRoles, title: 'Configuración' } },
     ],
   },
 
   // Compatibilidad de rutas antiguas para institucional y central.
   {
-    path: '/admin-institucion', component: MonitoringLayout, meta: { roles: institutionAdminRoles }, children: [
+    path: '/admin-institucion', component: MonitoringLayout, meta: { roles: institutionRoles }, children: [
       { path: '', redirect: '/institucion/dashboard' },
       { path: 'dashboard', redirect: '/institucion/dashboard' },
       { path: 'alertas', redirect: '/institucion/alertas' },
@@ -121,34 +120,34 @@ export const routes: RouteRecordRaw[] = [
 
   // Rutas heredadas: se conservan para no romper enlaces del prototipo anterior.
   {
-    path: '/', component: MonitoringLayout, meta: { roles: centralRoles }, children: [
-      { path: '', redirect: '/central/dashboard' },
-      { path: 'dashboard-anterior', name: 'legacy-dashboard', component: DashboardView, meta: { roles: centralRoles, title: 'Dashboard anterior' } },
-      { path: 'sensores', name: 'sensors', component: SensorsView, meta: { roles: centralRoles, title: 'Sensores' } },
-      { path: 'sensores/:id', name: 'sensor-detail', component: SensorsView, meta: { roles: centralRoles, title: 'Detalle de sensor' } },
-      { path: 'lecturas', name: 'readings', component: ReadingsView, meta: { roles: centralRoles, title: 'Lecturas' } },
-      { path: 'motor', name: 'detection', component: DetectionEngineView, meta: { roles: centralRoles, title: 'Motor de Detección' } },
-      { path: 'alertas', name: 'alerts', component: AlertsView, meta: { roles: centralRoles, title: 'Alertas técnicas' } },
-      { path: 'ubicaciones', name: 'locations', component: LocationsView, meta: { roles: centralRoles, title: 'Ubicaciones' } },
-      { path: 'configuracion', name: 'settings', component: SettingsView, meta: { roles: centralRoles, title: 'Configuración' } },
+    path: '/', component: MonitoringLayout, meta: { roles: adminRoles }, children: [
+      { path: '', redirect: '/super-admin/dashboard' },
+      { path: 'dashboard-anterior', name: 'legacy-dashboard', component: DashboardView, meta: { roles: adminRoles, title: 'Dashboard anterior' } },
+      { path: 'sensores', name: 'sensors', component: SensorsView, meta: { roles: adminRoles, title: 'Sensores' } },
+      { path: 'sensores/:id', name: 'sensor-detail', component: SensorsView, meta: { roles: adminRoles, title: 'Detalle de sensor' } },
+      { path: 'lecturas', name: 'readings', component: ReadingsView, meta: { roles: adminRoles, title: 'Lecturas' } },
+      { path: 'motor', name: 'detection', component: DetectionEngineView, meta: { roles: adminRoles, title: 'Motor de Detección' } },
+      { path: 'alertas', name: 'alerts', component: AlertsView, meta: { roles: adminRoles, title: 'Alertas técnicas' } },
+      { path: 'ubicaciones', name: 'locations', component: LocationsView, meta: { roles: adminRoles, title: 'Ubicaciones' } },
+      { path: 'configuracion', name: 'settings', component: SettingsView, meta: { roles: adminRoles, title: 'Configuración' } },
     ],
   },
 
   {
-    path: '/central', component: MonitoringLayout, meta: { roles: centralRoles }, children: [
-      { path: '', redirect: '/central/dashboard' },
-      { path: 'dashboard', name: 'central-dashboard', component: CentralDashboardView, meta: { roles: centralRoles, title: 'Dashboard' } },
-      { path: 'alertas', name: 'central-alerts', component: CentralAlertsView, meta: { roles: centralRoles, title: 'Alertas por validar' } },
-      { path: 'incidentes', name: 'central-incidents', component: CentralIncidentsView, meta: { roles: centralRoles, title: 'Incidentes' } },
-      { path: 'sensores', name: 'central-sensors', component: SensorsView, meta: { roles: centralRoles, title: 'Sensores' } },
-      { path: 'instituciones', name: 'central-institutions', component: CentralInstitutionsView, meta: { roles: centralRoles, title: 'Instituciones' } },
-      { path: 'usuarios', name: 'central-users', component: CentralUsersView, meta: { roles: centralRoles, title: 'Usuarios' } },
-      { path: 'historial', name: 'central-history', component: CentralHistoryView, meta: { roles: centralRoles, title: 'Historial' } },
-      { path: 'configuracion', name: 'central-settings', component: SettingsView, meta: { roles: centralRoles, title: 'Configuración' } },
+    path: '/central', component: MonitoringLayout, meta: { roles: adminRoles }, children: [
+      { path: '', redirect: '/super-admin/dashboard' },
+      { path: 'dashboard', name: 'central-dashboard', component: CentralDashboardView, meta: { roles: adminRoles, title: 'Dashboard' } },
+      { path: 'alertas', name: 'central-alerts', component: CentralAlertsView, meta: { roles: adminRoles, title: 'Alertas por validar' } },
+      { path: 'incidentes', name: 'central-incidents', component: CentralIncidentsView, meta: { roles: adminRoles, title: 'Incidentes' } },
+      { path: 'sensores', name: 'central-sensors', component: SensorsView, meta: { roles: adminRoles, title: 'Sensores' } },
+      { path: 'instituciones', name: 'central-institutions', component: CentralInstitutionsView, meta: { roles: adminRoles, title: 'Instituciones' } },
+      { path: 'usuarios', name: 'central-users', component: CentralUsersView, meta: { roles: adminRoles, title: 'Usuarios' } },
+      { path: 'historial', name: 'central-history', component: CentralHistoryView, meta: { roles: adminRoles, title: 'Historial' } },
+      { path: 'configuracion', name: 'central-settings', component: SettingsView, meta: { roles: adminRoles, title: 'Configuración' } },
       // Compatibilidad con enlaces generados por la versión anterior.
-      { path: 'despacho', redirect: '/central/alertas' },
-      { path: 'ubicaciones', redirect: '/central/dashboard' },
-      { path: 'informes', redirect: '/central/historial' },
+      { path: 'despacho', redirect: '/super-admin/dashboard' },
+      { path: 'ubicaciones', redirect: '/super-admin/dashboard' },
+      { path: 'informes', redirect: '/super-admin/dashboard' },
     ],
   },
 

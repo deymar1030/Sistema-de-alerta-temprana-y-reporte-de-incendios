@@ -33,7 +33,7 @@ const visibleUsers = computed(() => {
   const search = query.value.trim().toLowerCase()
 
   return userStore.users.filter((user) => {
-    const matchesRole = user.rol === 'INSTITUTION_ADMIN'
+    const matchesRole = user.rol === 'JEFE_INSTITUCION'
     const matchesInstitution = selectedInstitution.value === 'all' || user.institucionId === selectedInstitution.value
     const hayBusqueda = !search || `${user.nombre} ${user.email}`.toLowerCase().includes(search)
     return matchesRole && matchesInstitution && hayBusqueda

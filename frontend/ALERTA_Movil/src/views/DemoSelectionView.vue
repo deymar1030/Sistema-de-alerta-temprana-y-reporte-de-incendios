@@ -93,9 +93,9 @@ async function submitLogin() {
   try {
     const user = await authStore.login(email.value.trim(), password.value)
 
-    if (user.role === 'CITIZEN') {
+    if (user.role === 'CIUDADANO') {
       await router.push('/ciudadano/inicio')
-    } else if (user.role === 'INSTITUTION_USER') {
+    } else if (user.role === 'OPERATIVO') {
       await router.push('/institucion/inicio')
     } else {
       await router.push('/login')

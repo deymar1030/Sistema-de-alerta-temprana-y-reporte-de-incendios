@@ -30,7 +30,7 @@ export const useUserStore = defineStore('user', () => {
     users.value = useMocks ? usersMock.map(normalizeUser) : []
   }
 
-  const institutionUsers = computed(() => users.value.filter((user) => normalizeRole(user.role ?? user.rol) !== 'CENTRAL_OPERATOR'))
+  const institutionUsers = computed(() => users.value.filter((user) => normalizeRole(user.role ?? user.rol) !== 'ADMIN'))
 
   const getUsers = async () => users.value
   const getUsersByRole = (role: UserRole) => users.value.filter((user) => normalizeRole(user.role ?? user.rol) === role)

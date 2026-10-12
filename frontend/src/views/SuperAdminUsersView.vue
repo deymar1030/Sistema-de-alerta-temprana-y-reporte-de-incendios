@@ -12,11 +12,10 @@ const showForm = ref(false)
 
 const roleTabs = [
   { key: 'ALL', label: 'Todos' },
-  { key: 'SUPER_ADMIN', label: 'Superadmins' },
-  { key: 'CENTRAL_OPERATOR', label: 'Operadores' },
-  { key: 'INSTITUTION_ADMIN', label: 'Admin. institución' },
-  { key: 'INSTITUTION_USER', label: 'Personal institución' },
-  { key: 'CITIZEN', label: 'Ciudadanos' },
+  { key: 'ADMIN', label: 'Administradores' },
+  { key: 'JEFE_INSTITUCION', label: 'Admin. institución' },
+  { key: 'OPERATIVO', label: 'Personal institución' },
+  { key: 'CIUDADANO', label: 'Ciudadanos' },
 ] as const
 
 const form = ref<{
@@ -32,28 +31,27 @@ const form = ref<{
   lastName: '',
   email: '',
   password: '',
-  role: 'SUPER_ADMIN',
+  role: 'ADMIN',
   institutionId: '',
   status: 'ACTIVE',
 })
 
-const needsInstitution = computed(() => form.value.role === 'INSTITUTION_ADMIN' || form.value.role === 'INSTITUTION_USER')
+const needsInstitution = computed(() => form.value.role === 'JEFE_INSTITUCION' || form.value.role === 'OPERATIVO')
 const institutionOptions = computed(() => institutionStore.institutions)
 
 const roleCounts = computed(() => ({
   ALL: userStore.users.length,
-  SUPER_ADMIN: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CITIZEN') === 'SUPER_ADMIN').length,
-  CENTRAL_OPERATOR: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CITIZEN') === 'CENTRAL_OPERATOR').length,
-  INSTITUTION_ADMIN: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CITIZEN') === 'INSTITUTION_ADMIN').length,
-  INSTITUTION_USER: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CITIZEN') === 'INSTITUTION_USER').length,
-  CITIZEN: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CITIZEN') === 'CITIZEN').length,
+  ADMIN: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CIUDADANO') === 'ADMIN').length,
+  JEFE_INSTITUCION: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CIUDADANO') === 'JEFE_INSTITUCION').length,
+  OPERATIVO: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CIUDADANO') === 'OPERATIVO').length,
+  CIUDADANO: userStore.users.filter((user) => (user.role ?? user.rol ?? 'CIUDADANO') === 'CIUDADANO').length,
 }))
 
 const filteredUsers = computed(() => {
   const text = searchText.value.trim().toLowerCase()
 
   return userStore.users.filter((user) => {
-    const role = (user.role ?? user.rol ?? 'CITIZEN') as UserRole
+    const role = (user.role ?? user.rol ?? 'CIUDADANO') as UserRole
     const matchesRole = selectedRole.value === 'ALL' || role === selectedRole.value
     const hayBusqueda = !text || `${user.nombre ?? ''} ${user.email ?? ''} ${user.firstName ?? ''} ${user.lastName ?? ''}`.toLowerCase().includes(text)
 
@@ -67,7 +65,7 @@ const resetForm = () => {
     lastName: '',
     email: '',
     password: '',
-    role: 'SUPER_ADMIN',
+    role: 'ADMIN',
     institutionId: '',
     status: 'ACTIVE',
   }
@@ -76,7 +74,7 @@ const resetForm = () => {
 watch(
   () => form.value.role,
   (nextRole) => {
-    if (nextRole !== 'INSTITUTION_ADMIN' && nextRole !== 'INSTITUTION_USER') {
+    if (nextRole !== 'JEFE_INSTITUCION' && nextRole !== 'OPERATIVO') {
       form.value.institutionId = ''
     }
   },
@@ -89,6 +87,14 @@ const initializeData = async () => {
     // Se mantiene el error visible en el store.
   }
 
+  await userStore.fetchUsers()
+}
+
+const handleDeleteUser = async (id: string) => {
+  const confirmed = window.confirm('¿Deseas eliminar este usuario?')
+  if (!confirmed) return
+
+  await userStore.deactivateUser(id)
   await userStore.fetchUsers()
 }
 
@@ -174,10 +180,9 @@ onMounted(async () => {
         <input v-model="form.email" placeholder="Correo" type="email" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 md:col-span-2" />
         <input v-model="form.password" placeholder="Contraseña temporal" type="password" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 md:col-span-2" />
         <select v-model="form.role" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          <option value="SUPER_ADMIN">Superadministrador</option>
-          <option value="CENTRAL_OPERATOR">Operador central</option>
-          <option value="INSTITUTION_ADMIN">Administrador de la institución</option>
-          <option value="INSTITUTION_USER">Usuario de la institución</option>
+          <option value="ADMIN">Administrador</option>
+          <option value="JEFE_INSTITUCION">Administrador de la institución</option>
+          <option value="OPERATIVO">Personal de la institución</option>
         </select>
         <select v-model="form.status" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
           <option value="ACTIVE">Activo</option>
@@ -234,7 +239,10 @@ onMounted(async () => {
             </td>
             <td class="px-4 py-3 text-slate-600">{{ user.createdAt ? new Date(user.createdAt).toLocaleDateString('es-BO') : 'Reciente' }}</td>
             <td class="px-4 py-3">
-              <button class="text-orange-600">Editar</button>
+              <div class="flex gap-2">
+                <button class="text-orange-600" type="button">Editar</button>
+                <button class="text-red-600" type="button" @click="handleDeleteUser(user.id)">Eliminar</button>
+              </div>
             </td>
           </tr>
         </tbody>

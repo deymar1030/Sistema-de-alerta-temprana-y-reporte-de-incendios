@@ -1,8 +1,8 @@
 <script setup lang="ts">
 const logs = [
-  { id: 'AUD-001', action: 'CREATE_USER', performedBy: 'USR-SA-001', targetRole: 'SUPER_ADMIN', timestamp: '2026-10-11T10:00:00Z' },
-  { id: 'AUD-002', action: 'EDIT_USER', performedBy: 'USR-SA-001', targetRole: 'INSTITUTION_ADMIN', timestamp: '2026-10-11T09:15:00Z' },
-  { id: 'AUD-003', action: 'DEACTIVATE_USER', performedBy: 'USR-SA-001', targetRole: 'CITIZEN', timestamp: '2026-10-10T18:20:00Z' },
+  { id: 'AUD-001', action: 'CREATE_USER', performedBy: 'USR-SA-001', targetRole: 'ADMIN', timestamp: '2026-10-11T10:00:00Z' },
+  { id: 'AUD-002', action: 'EDIT_USER', performedBy: 'USR-SA-001', targetRole: 'JEFE_INSTITUCION', timestamp: '2026-10-11T09:15:00Z' },
+  { id: 'AUD-003', action: 'DEACTIVATE_USER', performedBy: 'USR-SA-001', targetRole: 'CIUDADANO', timestamp: '2026-10-10T18:20:00Z' },
 ]
 </script>
 

@@ -158,9 +158,8 @@ async function handleSubmit() {
       position: 'bottom',
     })
     await toast.present()
-    await router.push('/login')
+    await router.replace('/login')
   } catch (error) {
-    console.error('Registro ciudadano falló:', error)
     const message = error instanceof Error ? error.message : 'No se pudo crear la cuenta.'
     errors.value = {
       general: message === 'Este correo electrónico ya está registrado.' ? message : 'No se pudo crear la cuenta.',

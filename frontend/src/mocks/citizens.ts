@@ -5,7 +5,7 @@ export interface CitizenMock {
   email: string
   phone: string
   city: string
-  role: 'CITIZEN'
+  role: 'CIUDADANO'
   status: 'ACTIVE'
   createdAt: string
 }
@@ -18,7 +18,7 @@ export const citizensMock: CitizenMock[] = [
     email: 'juan@email.com',
     phone: '76543210',
     city: 'La Paz',
-    role: 'CITIZEN',
+    role: 'CIUDADANO',
     status: 'ACTIVE',
     createdAt: '2026-10-01T08:00:00.000Z',
   },
@@ -29,7 +29,7 @@ export const citizensMock: CitizenMock[] = [
     email: 'ana@email.com',
     phone: '71234567',
     city: 'Santa Cruz',
-    role: 'CITIZEN',
+    role: 'CIUDADANO',
     status: 'ACTIVE',
     createdAt: '2026-10-02T09:30:00.000Z',
   },
@@ -40,7 +40,7 @@ export const citizensMock: CitizenMock[] = [
     email: 'marco@email.com',
     phone: '79876543',
     city: 'Cochabamba',
-    role: 'CITIZEN',
+    role: 'CIUDADANO',
     status: 'ACTIVE',
     createdAt: '2026-10-03T11:15:00.000Z',
   },

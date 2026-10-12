@@ -15,6 +15,7 @@ import { useIncidentStore } from '../../stores/incident.store'
 import { useInstitutionStore } from '../../stores/institution.store'
 import { useCitizenReportStore } from '../../stores/citizen-report.store'
 import { usePredioStore } from '../../stores/predio.store'
+import { useDispatchStore } from '../../stores/dispatch.store'
 
 const props = withDefaults(
   defineProps<{
@@ -23,6 +24,8 @@ const props = withDefaults(
     showInstitutions?: boolean
     showReports?: boolean
     showPredios?: boolean
+    mode?: 'all' | 'institution'
+    institutionId?: string | null
 
     heightClass?: string
 
@@ -36,6 +39,8 @@ const props = withDefaults(
     showInstitutions: true,
     showReports: false,
     showPredios: false,
+    mode: 'all',
+    institutionId: null,
 
     heightClass: 'h-[430px]',
     focusZoom: 14,
@@ -48,6 +53,7 @@ const institutionStore = useInstitutionStore()
 const citizenReportStore =
   useCitizenReportStore()
 const predioStore = usePredioStore()
+const dispatchStore = useDispatchStore()
 
 const mapContainer =
   ref<HTMLElement | null>(null)
@@ -140,6 +146,16 @@ const popup = (
   </div>
 `
 
+const hasValidCoordinates = (
+  lat: number | undefined | null,
+  lng: number | undefined | null,
+): boolean =>
+  Number.isFinite(lat) &&
+  Number.isFinite(lng) &&
+  !(lat === 0 && lng === 0)
+
+const emptyStateMessage = ref('')
+
 const rebuildLayers = () => {
   if (
     !map ||
@@ -157,6 +173,10 @@ const rebuildLayers = () => {
   institutionLayer.clearLayers()
   reportLayer.clearLayers()
   predioLayer.clearLayers()
+  emptyStateMessage.value = ''
+
+  let validIncidentMarkers = 0
+  let validInstitutionMarkers = 0
 
   /*
    * SENSORES REALES
@@ -165,10 +185,10 @@ const rebuildLayers = () => {
     sensorStore.sensors.forEach(
       (sensor) => {
         if (
-          !Number.isFinite(sensor.lat) ||
-          !Number.isFinite(sensor.lng) ||
-          (sensor.lat === 0 &&
-            sensor.lng === 0)
+          !hasValidCoordinates(
+            sensor.lat,
+            sensor.lng,
+          )
         ) {
           return
         }
@@ -232,17 +252,29 @@ const rebuildLayers = () => {
       )
       .forEach((incident) => {
         if (
-          !Number.isFinite(
-            incident.latitud,
-          ) ||
-          !Number.isFinite(
-            incident.longitud,
-          ) ||
-          (incident.latitud === 0 &&
-            incident.longitud === 0)
+          props.mode === 'institution' &&
+          props.institutionId &&
+          !dispatchStore.dispatches.some(
+            (dispatch) =>
+              dispatch.institutionId ===
+                String(props.institutionId) &&
+              dispatch.incidentId ===
+                incident.id,
+          )
         ) {
           return
         }
+
+        if (
+          !hasValidCoordinates(
+            incident.latitud,
+            incident.longitud,
+          )
+        ) {
+          return
+        }
+
+        validIncidentMarkers += 1
 
         const color =
           incidentColors[
@@ -302,15 +334,24 @@ const rebuildLayers = () => {
     institutionStore.institutions.forEach(
       (institution) => {
         if (
-          !Number.isFinite(
+          props.mode === 'institution' &&
+          props.institutionId &&
+          String(institution.id) !==
+            String(props.institutionId)
+        ) {
+          return
+        }
+
+        if (
+          !hasValidCoordinates(
             institution.latitud,
-          ) ||
-          !Number.isFinite(
             institution.longitud,
           )
         ) {
           return
         }
+
+        validInstitutionMarkers += 1
 
         const color =
           institution.disponibilidad ===
@@ -384,10 +425,8 @@ const rebuildLayers = () => {
       )
       .forEach((report) => {
         if (
-          !Number.isFinite(
+          !hasValidCoordinates(
             report.latitud,
-          ) ||
-          !Number.isFinite(
             report.longitud,
           )
         ) {
@@ -442,6 +481,15 @@ const rebuildLayers = () => {
   if (props.showPredios) {
     predioStore.predios.forEach(
       (predio) => {
+        if (
+          !hasValidCoordinates(
+            predio.latitud,
+            predio.longitud,
+          )
+        ) {
+          return
+        }
+
         const risk =
           riskFromIrp(predio.irp)
 
@@ -485,6 +533,29 @@ const rebuildLayers = () => {
           )
       },
     )
+  }
+
+  if (
+    props.mode === 'institution' &&
+    props.institutionId
+  ) {
+    emptyStateMessage.value =
+      validIncidentMarkers === 0 &&
+      validInstitutionMarkers === 0
+        ? 'No hay alertas georreferenciadas para esta institución.'
+        : ''
+  } else if (
+    validIncidentMarkers === 0 &&
+    validInstitutionMarkers === 0
+  ) {
+    emptyStateMessage.value =
+      props.showInstitutions &&
+      !props.showIncidents &&
+      !props.showSensors &&
+      !props.showReports &&
+      !props.showPredios
+        ? 'No hay ubicaciones geográficas disponibles para las instituciones.'
+        : 'No hay ubicaciones geográficas disponibles.'
   }
 }
 
@@ -588,6 +659,16 @@ const loadMapData = async () => {
     )
   }
 
+  if (
+    props.mode === 'institution' &&
+    props.institutionId &&
+    dispatchStore.dispatches.length === 0
+  ) {
+    requests.push(
+      dispatchStore.fetchDispatches(),
+    )
+  }
+
   if (requests.length > 0) {
     await Promise.all(requests)
   }
@@ -664,6 +745,8 @@ watch(
     props.showInstitutions,
     props.showReports,
     props.showPredios,
+    props.mode,
+    props.institutionId,
   ],
   async () => {
     await loadMapData()
@@ -703,6 +786,12 @@ watch(
 )
 
 watch(
+  () => dispatchStore.dispatches,
+  rebuildLayers,
+  { deep: true },
+)
+
+watch(
   () => [
     props.focusLat,
     props.focusLng,
@@ -736,6 +825,15 @@ onBeforeUnmount(() => {
       minHeight: resolvedHeight,
     }"
   >
+    <div
+      v-if="emptyStateMessage"
+      class="absolute inset-0 z-[350] flex items-center justify-center bg-slate-50/80 px-6"
+    >
+      <p class="max-w-xs text-center text-sm text-slate-600">
+        {{ emptyStateMessage }}
+      </p>
+    </div>
+
     <div
       ref="mapContainer"
       class="h-full w-full"

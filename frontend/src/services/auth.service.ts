@@ -27,6 +27,7 @@ interface ApiUser {
 
 interface ApiEnvelope<T> {
   success?: boolean
+  code?: string
   data?: T
   user?: T
   usuario?: T
@@ -42,8 +43,8 @@ const demoUsers: Array<{ email: string; password: string; user: User }> = [
       id: 'USR-SA-001',
       nombre: 'Santiago Mejía',
       email: 'superadmin@alerta.bo',
-      role: 'SUPER_ADMIN',
-      rol: 'SUPER_ADMIN',
+      role: 'ADMIN',
+      rol: 'ADMIN',
       institutionId: null,
       institucionId: null,
       activo: true,
@@ -58,8 +59,8 @@ const demoUsers: Array<{ email: string; password: string; user: User }> = [
       id: 'USR-001',
       nombre: 'Operador principal',
       email: 'operador@alerta.bo',
-      role: 'CENTRAL_OPERATOR',
-      rol: 'CENTRAL_OPERATOR',
+      role: 'OPERATIVO',
+      rol: 'OPERATIVO',
       institutionId: null,
       institucionId: null,
       activo: true,
@@ -74,8 +75,8 @@ const demoUsers: Array<{ email: string; password: string; user: User }> = [
       id: 'USR-002',
       nombre: 'Administradora Bomberos',
       email: 'admin.bomberos@alerta.bo',
-      role: 'INSTITUTION_ADMIN',
-      rol: 'INSTITUTION_ADMIN',
+      role: 'JEFE_INSTITUCION',
+      rol: 'JEFE_INSTITUCION',
       institutionId: 'INS-001',
       institucionId: 'INS-001',
       activo: true,
@@ -90,8 +91,8 @@ const demoUsers: Array<{ email: string; password: string; user: User }> = [
       id: 'USR-003',
       nombre: 'Personal operativo',
       email: 'operativo@alerta.bo',
-      role: 'INSTITUTION_USER',
-      rol: 'INSTITUTION_USER',
+      role: 'OPERATIVO',
+      rol: 'OPERATIVO',
       institutionId: 'INS-001',
       institucionId: 'INS-001',
       activo: true,
@@ -106,8 +107,8 @@ const demoUsers: Array<{ email: string; password: string; user: User }> = [
       id: 'USR-004',
       nombre: 'Ciudadano demo',
       email: 'ciudadano@alerta.bo',
-      role: 'CITIZEN',
-      rol: 'CITIZEN',
+      role: 'CIUDADANO',
+      rol: 'CIUDADANO',
       institutionId: null,
       institucionId: null,
       activo: true,
@@ -258,8 +259,6 @@ export const authService = {
       telefono: payload.phone.trim(),
       ciudad: payload.city.trim(),
       contrasena: payload.password,
-      confirmPassword: payload.confirmPassword,
-      role: 'CITIZEN',
     }
 
     try {
@@ -273,17 +272,26 @@ export const authService = {
       })
 
       const result = (await response.json().catch(() => null)) as ApiEnvelope<ApiUser> | null
-      if (!response.ok || result?.success !== true || !result?.data) {
+      if (!response.ok) {
         const message = result?.message ?? result?.error ?? 'No se pudo crear la cuenta.'
+        if (result?.code === 'CORREO_YA_REGISTRADO' || /correo/i.test(message)) {
+          throw new Error('Este correo electrónico ya está registrado.')
+        }
         throw new Error(message)
       }
 
-      const user = readBackendUser(result)
-      if (!user) {
-        throw new Error('El backend no devolvió un usuario válido.')
+      return readBackendUser(result) ?? {
+        id: `MOB-CIT-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+        nombre: `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim(),
+        email: payload.email.trim().toLowerCase(),
+        role: 'CIUDADANO',
+        rol: 'CIUDADANO',
+        phone: payload.phone.trim(),
+        city: payload.city.trim(),
+        activo: true,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
       }
-
-      return user
     } catch (error) {
       if (!USE_MOCKS) {
         throw error instanceof Error ? error : new Error('El backend no expone un endpoint público de registro ciudadano.')
@@ -293,8 +301,8 @@ export const authService = {
         id: `MOB-CIT-${String(Math.floor(Math.random() * 9000) + 1000)}`,
         nombre: `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim(),
         email: payload.email.trim().toLowerCase(),
-        role: 'CITIZEN',
-        rol: 'CITIZEN',
+        role: 'CIUDADANO',
+        rol: 'CIUDADANO',
         phone: payload.phone.trim(),
         city: payload.city.trim(),
         activo: true,

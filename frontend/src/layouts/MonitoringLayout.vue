@@ -11,7 +11,6 @@ import {
 import { useRoute, useRouter } from 'vue-router'
 
 import {
-  Activity,
   AlertTriangle,
   Bell,
   Building2,
@@ -61,7 +60,7 @@ type NavItem = {
 }
 
 const navByRole: Record<WebUserRole, NavItem[]> = {
-  SUPER_ADMIN: [
+  ADMIN: [
     {
       label: 'Dashboard',
       to: '/super-admin/dashboard',
@@ -93,45 +92,7 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
       icon: History,
     },
   ],
-  CENTRAL_OPERATOR: [
-    {
-      label: 'Dashboard',
-      to: '/central/dashboard',
-      icon: Gauge,
-    },
-    {
-      label: 'Alertas',
-      to: '/central/alertas',
-      icon: AlertTriangle,
-    },
-    {
-      label: 'Incidentes',
-      to: '/central/incidentes',
-      icon: Flame,
-    },
-    {
-      label: 'Sensores',
-      to: '/central/sensores',
-      icon: Activity,
-    },
-    {
-      label: 'Instituciones',
-      to: '/central/instituciones',
-      icon: Building2,
-    },
-    {
-      label: 'Usuarios',
-      to: '/central/usuarios',
-      icon: Users,
-    },
-    {
-      label: 'Historial',
-      to: '/central/historial',
-      icon: History,
-    },
-  ],
-
-  INSTITUTION_ADMIN: [
+  JEFE_INSTITUCION: [
     {
       label: 'Dashboard',
       to: '/institucion/dashboard',
@@ -158,14 +119,31 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
       icon: History,
     },
   ],
+  OPERATIVO: [
+    {
+      label: 'Dashboard',
+      to: '/institucion/dashboard',
+      icon: Gauge,
+    },
+    {
+      label: 'Alertas recibidas',
+      to: '/institucion/alertas',
+      icon: AlertTriangle,
+    },
+    {
+      label: 'Historial',
+      to: '/institucion/historial',
+      icon: History,
+    },
+  ],
 }
 
 const navItems = computed(() => {
-  const role = authStore.role ?? 'CENTRAL_OPERATOR'
+  const role = authStore.role ?? 'ADMIN'
   return navByRole[
     isWebUserRole(role)
       ? role
-      : 'CENTRAL_OPERATOR'
+      : 'ADMIN'
   ]
 })
 
@@ -174,8 +152,8 @@ const currentTitle = computed(() =>
 )
 
 const headerContext = computed(() => {
-  if (authStore.role === 'SUPER_ADMIN') return 'Administración general'
-  if (authStore.role === 'INSTITUTION_ADMIN') return 'Administración Institucional'
+  if (authStore.role === 'ADMIN') return 'Administración general'
+  if (authStore.role === 'JEFE_INSTITUCION' || authStore.role === 'OPERATIVO') return 'Administración Institucional'
   return 'Centro de Monitoreo'
 })
 
@@ -189,15 +167,16 @@ const initials = computed(() =>
 )
 
 const settingsRoute = computed(() => {
-  if (authStore.role === 'SUPER_ADMIN') return '/super-admin/configuracion'
-  if (authStore.role === 'INSTITUTION_ADMIN') return '/institucion/configuracion'
-  return '/central/configuracion'
+  if (authStore.role === 'ADMIN') return '/super-admin/configuracion'
+  if (authStore.role === 'JEFE_INSTITUCION' || authStore.role === 'OPERATIVO') return '/institucion/configuracion'
+  return '/ciudadano/perfil'
 })
 
 const userRoleBadge = computed(() => {
-  if (authStore.role === 'SUPER_ADMIN') return 'SUPER ADMIN'
-  if (authStore.role === 'INSTITUTION_ADMIN') return 'ADMIN INSTITUCIÓN'
-  return 'ONLINE'
+  if (authStore.role === 'ADMIN') return 'ADMIN'
+  if (authStore.role === 'JEFE_INSTITUCION') return 'JEFE INSTITUCIÓN'
+  if (authStore.role === 'OPERATIVO') return 'OPERATIVO'
+  return 'CIUDADANO'
 })
 
 /*

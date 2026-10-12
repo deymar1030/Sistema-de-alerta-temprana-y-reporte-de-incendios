@@ -17,12 +17,12 @@
             <form @submit.prevent="submitLogin">
               <ion-item class="input-item">
                 <ion-label position="stacked">Correo</ion-label>
-                <ion-input v-model="email" type="email" autocomplete="email" placeholder="usuario@correo.com" />
+                <ion-input v-model="email" type="email" autocomplete="email" placeholder="Ingresa tu correo" />
               </ion-item>
 
               <ion-item class="input-item">
                 <ion-label position="stacked">Contraseña</ion-label>
-                <ion-input v-model="password" type="password" autocomplete="current-password" placeholder="********" />
+                <ion-input v-model="password" type="password" autocomplete="current-password" placeholder="Ingresa tu password" />
               </ion-item>
 
               <ion-button expand="block" type="submit" :disabled="submitting || !email || !password">
@@ -66,8 +66,8 @@ import { useAuthStore } from '../stores/auth.store'
 
 const authStore = useAuthStore()
 const router = useRouter()
-const email = ref('ciudadano@alerta.bo')
-const password = ref('Ciudadano123')
+const email = ref('')
+const password = ref('')
 const submitting = ref(false)
 
 async function notify(message: string) {
@@ -94,16 +94,16 @@ async function submitLogin() {
   try {
     const user = await authStore.login(email.value.trim(), password.value)
 
-    if (user.role === 'CITIZEN') {
+    if (user.role === 'CIUDADANO') {
       await router.push('/citizen/home')
-    } else if (user.role === 'INSTITUTION_USER') {
+    } else if (user.role === 'OPERATIVO' || user.role === 'JEFE_INSTITUCION') {
       await router.push('/institucion/inicio')
     } else {
       authStore.setError('Este usuario debe ingresar desde la plataforma web.')
       await router.push('/login')
     }
 
-    if (user.role === 'CITIZEN' || user.role === 'INSTITUTION_USER') {
+    if (user.role === 'CIUDADANO' || user.role === 'OPERATIVO' || user.role === 'JEFE_INSTITUCION') {
       await notify('Inicio de sesión correcto')
     }
   } catch (error) {

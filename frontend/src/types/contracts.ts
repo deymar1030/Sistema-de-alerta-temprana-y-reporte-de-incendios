@@ -1,11 +1,6 @@
 export type IsoDateTime = string
 
-export type UserRole =
-  | 'SUPER_ADMIN'
-  | 'CENTRAL_OPERATOR'
-  | 'INSTITUTION_ADMIN'
-  | 'INSTITUTION_USER'
-  | 'CITIZEN'
+export type UserRole = 'ADMIN' | 'JEFE_INSTITUCION' | 'OPERATIVO' | 'CIUDADANO'
 export type RiskLevel = 'normal' | 'warning' | 'high' | 'critical'
 export type InstitutionType = 'BOMBEROS' | 'POLICIA' | 'DEFENSA_CIVIL' | 'RESCATE' | 'OTRA'
 export type InstitutionStatus = 'ACTIVA' | 'INACTIVA'

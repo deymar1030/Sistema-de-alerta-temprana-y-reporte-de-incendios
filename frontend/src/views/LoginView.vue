@@ -8,8 +8,8 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const correo = ref('ciudadano@alerta.bo')
-const password = ref('Ciudadano123')
+const correo = ref('')
+const password = ref('')
 const loading = ref(false)
 
 const error = ref(
@@ -22,41 +22,38 @@ const useDemoMode = import.meta.env.VITE_USE_MOCKS === 'true'
 
 const demoAccounts = useDemoMode ? [
   {
-    nombre: 'Operador central',
-    email: 'operador@alerta.bo',
+    nombre: 'Administrador',
+    email: 'superadmin@alerta.bo',
     password: 'Admin123',
-    rol: 'CENTRAL_OPERATOR',
-    detalle: 'Monitoreo y coordinación',
+    rol: 'ADMIN',
+    detalle: 'Administración general',
   },
   {
-    nombre: 'Administrador institución',
+    nombre: 'Jefe de institución',
     email: 'admin.bomberos@alerta.bo',
     password: 'Admin123',
-    rol: 'INSTITUTION_ADMIN',
+    rol: 'JEFE_INSTITUCION',
     detalle: 'Respuesta institucional',
   },
   {
     nombre: 'Ciudadano demo',
     email: 'ciudadano@alerta.bo',
     password: 'Ciudadano123',
-    rol: 'CITIZEN',
+    rol: 'CIUDADANO',
     detalle: 'Reportes y alertas',
   },
 ] : [] as const
 
 const homeByRole = (rol?: string) => {
-  switch (rol ?? 'CENTRAL_OPERATOR') {
-    case 'CITIZEN':
+  switch (rol ?? 'ADMIN') {
+    case 'CIUDADANO':
       return '/ciudadano/inicio'
-    case 'INSTITUTION_ADMIN':
+    case 'JEFE_INSTITUCION':
+    case 'OPERATIVO':
       return '/institucion/dashboard'
-    case 'INSTITUTION_USER':
-      return '/institucion/inicio'
-    case 'SUPER_ADMIN':
-      return '/super-admin/dashboard'
-    case 'CENTRAL_OPERATOR':
+    case 'ADMIN':
     default:
-      return '/central/dashboard'
+      return '/super-admin/dashboard'
   }
 }
 
@@ -65,15 +62,13 @@ const isCompatibleRedirect = (redirect: string | undefined, rol?: string) => {
 
   const normalized = redirect.split('?')[0]
 
-  switch (rol ?? 'CENTRAL_OPERATOR') {
-    case 'SUPER_ADMIN':
+  switch (rol ?? 'ADMIN') {
+    case 'ADMIN':
       return normalized.startsWith('/super-admin')
-    case 'CENTRAL_OPERATOR':
-      return normalized.startsWith('/central')
-    case 'INSTITUTION_ADMIN':
-    case 'INSTITUTION_USER':
+    case 'JEFE_INSTITUCION':
+    case 'OPERATIVO':
       return normalized.startsWith('/institucion')
-    case 'CITIZEN':
+    case 'CIUDADANO':
       return normalized.startsWith('/ciudadano')
     default:
       return false
@@ -92,7 +87,7 @@ const ingresar = async () => {
 
   try {
     const user = await authStore.login(correo.value, password.value)
-    const role = user.role ?? user.rol ?? 'CENTRAL_OPERATOR'
+    const role = user.role ?? user.rol ?? 'ADMIN'
     const redirectPath = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
 
     if (redirectPath && isCompatibleRedirect(redirectPath, role)) {
@@ -202,7 +197,7 @@ const ingresar = async () => {
                   autocomplete="email"
                   required
                   class="w-full bg-transparent text-slate-900 outline-none"
-                  placeholder="correo@alerta.bo"
+                  placeholder="Ingresa tu correo"
                 />
               </div>
             </label>

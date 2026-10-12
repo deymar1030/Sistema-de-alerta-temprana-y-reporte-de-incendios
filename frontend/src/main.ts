@@ -22,24 +22,24 @@ app.use(pinia)
 app.use(router)
 
 const fallback: Record<WebUserRole, string> = {
-  SUPER_ADMIN: '/super-admin/dashboard',
-  CENTRAL_OPERATOR: '/central/dashboard',
-  INSTITUTION_ADMIN: '/institucion/dashboard',
+  ADMIN: '/super-admin/dashboard',
+  JEFE_INSTITUCION: '/institucion/dashboard',
+  OPERATIVO: '/institucion/dashboard',
 }
 
 const homeForRole = (role: UserRole | null | undefined) => {
   if (!role) return '/login'
 
-  if (role === 'SUPER_ADMIN') {
+  if (role === 'ADMIN') {
     return '/super-admin/dashboard'
   }
 
-  if (role === 'CITIZEN') {
+  if (role === 'CIUDADANO') {
     return '/ciudadano/inicio'
   }
 
-  if (role === 'INSTITUTION_USER') {
-    return '/institucion/inicio'
+  if (role === 'JEFE_INSTITUCION' || role === 'OPERATIVO') {
+    return '/institucion/dashboard'
   }
 
   if (isWebUserRole(role)) {
@@ -55,14 +55,12 @@ const isCompatibleRedirect = (redirect: string | undefined, role: UserRole | nul
   const normalized = redirect.split('?')[0]
 
   switch (role) {
-    case 'SUPER_ADMIN':
+    case 'ADMIN':
       return normalized.startsWith('/super-admin')
-    case 'CENTRAL_OPERATOR':
-      return normalized.startsWith('/central')
-    case 'INSTITUTION_ADMIN':
-    case 'INSTITUTION_USER':
+    case 'JEFE_INSTITUCION':
+    case 'OPERATIVO':
       return normalized.startsWith('/institucion')
-    case 'CITIZEN':
+    case 'CIUDADANO':
       return normalized.startsWith('/ciudadano')
     default:
       return false

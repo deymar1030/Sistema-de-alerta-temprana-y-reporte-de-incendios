@@ -18,7 +18,7 @@ onMounted(async () => { await Promise.all([dispatchStore.fetchDispatches(), inci
 
 <template>
   <div class="space-y-6">
-    <section><p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500">Administración institucional</p><h2 class="mt-2 text-2xl font-semibold text-slate-900">Alertas recibidas</h2><p class="mt-2 text-sm text-slate-600">Vista de consulta de los despachos dirigidos exclusivamente a tu institución. El despacho inicial lo realiza el Operador Central.</p></section>
+    <section><p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500">Administración institucional</p><h2 class="mt-2 text-2xl font-semibold text-slate-900">Alertas recibidas</h2><p class="mt-2 text-sm text-slate-600">Vista de consulta de los despachos dirigidos exclusivamente a tu institución. El despacho inicial lo realiza el equipo de atención.</p></section>
     <section class="grid gap-4 lg:grid-cols-2">
       <RouterLink v-for="dispatch in myDispatches" :key="dispatch.id" :to="`/admin-institucion/alertas/${dispatch.id}`" class="group block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-orange-200 hover:shadow-md">
         <div class="flex items-start justify-between gap-3">

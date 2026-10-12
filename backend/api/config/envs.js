@@ -34,4 +34,5 @@ export const envs = {
   MQTT_CLIENT_ID: process.env.MQTT_CLIENT_ID || "backend",
   MQTT_USERNAME: process.env.MQTT_USERNAME || "backend",
   MQTT_PASSWORD: process.env.MQTT_PASSWORD || "",
+  MQTT_CA_FILE: process.env.MQTT_CA_FILE || "",
 };

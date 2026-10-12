@@ -1,7 +1,15 @@
 listener 1883
 
 allow_anonymous false
+use_username_as_clientid true
+retain_available false
 password_file /mosquitto/config/passwd
+acl_file /mosquitto/config/acl
 
-persistence false
+persistence true
+persistence_location /mosquitto/data/
+autosave_interval 60
+max_packet_size 4096
+max_queued_messages 10000
+max_inflight_messages 20
 log_dest stdout

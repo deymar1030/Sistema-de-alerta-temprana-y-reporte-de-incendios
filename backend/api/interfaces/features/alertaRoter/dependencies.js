@@ -9,6 +9,7 @@ import GetAlertaUseCase from "../../../application/alerta/useCases/getAlerta.use
 import RecibirEnvioUseCase from "../../../application/envia/useCases/recibirEnvio.useCase.js";
 import AtenderEnvioUseCase from "../../../application/envia/useCases/atenderEnvio.useCase.js";
 import CerrarEnvioUseCase from "../../../application/envia/useCases/cerrarEnvio.useCase.js";
+import { RegistryRealtimeNotifier } from '../../../../websocketManager/notifierRegistry.js';
 
 export class AlertaDependencies {
   static createController() {
@@ -16,6 +17,7 @@ export class AlertaDependencies {
     const enviaRepository = new PrismaEnviaRepository(prisma);
 
     const useCases = {
+      realtimeNotifier: new RegistryRealtimeNotifier(),
       getAllAlertaUseCase: new GetAllAlertaUseCase(alertaRepository),
       getActivasAlertaUseCase: new GetActivasAlertaUseCase(alertaRepository),
       getAlertaUseCase: new GetAlertaUseCase(alertaRepository),

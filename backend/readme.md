@@ -2,6 +2,12 @@
 
 API REST con Node.js + Express (ESM).
 
+El flujo MQTT, motor de detección y Socket.IO está implementado. Ver la
+[guía de arranque, configuración y pruebas](mqtt/README.md) y los
+[simuladores originales](../docs/mqtt%20example/SENSORES/README.md).
+Esa guía describe el estado actual del tiempo real; las secciones de
+planificación de este documento conservan el contexto arquitectónico inicial.
+
 ## Stack tecnológico
 
 ### En uso
@@ -30,7 +36,7 @@ API REST con Node.js + Express (ESM).
 
 ## Requisitos
 
-- Node.js 18+ (probado con v24)
+- Node.js 24 (versión utilizada para el backend y las pruebas actuales)
 
 ## Arquitectura
 

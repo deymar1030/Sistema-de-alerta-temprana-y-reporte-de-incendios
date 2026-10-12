@@ -3,6 +3,8 @@ import SesionRepository from "../../../../application/sesion/repositories/sesion
 // rol.nombre_rol viaja junto a id_rol para que requireRole() pueda
 // autorizar sin una consulta aparte (ver requireAuth.middleware.js).
 const USUARIO_PUBLICO = {
+  estado: true,
+  fecha_eliminacion: true,
   id_usuario: true,
   id_rol: true,
   id_institucion: true,

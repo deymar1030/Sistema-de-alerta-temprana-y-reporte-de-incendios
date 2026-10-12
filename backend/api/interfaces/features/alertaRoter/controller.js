@@ -9,6 +9,16 @@ export class AlertaController {
     this.alertaService = alertaService;
   }
 
+  autorizarInstitucion(req, res) {
+    const usuario = req.auth?.usuario;
+    if (!usuario?.id_institucion || String(usuario.id_institucion) !== String(req.params.id_institucion) ||
+        !['JEFE_INSTITUCION', 'OPERATIVO'].includes(usuario.rol?.nombre_rol)) {
+      res.status(403).json({ success: false, error: 'Solo personal de la institucion destinataria puede gestionar el envio' });
+      return false;
+    }
+    return true;
+  }
+
   list = async (req, res) => {
     try {
       const alertas = await this.alertaService.getAll({
@@ -62,6 +72,7 @@ export class AlertaController {
   };
 
   recibir = async (req, res) => {
+    if (!this.autorizarInstitucion(req, res)) return;
     try {
       const envio = await this.alertaService.recibir(req.params.id, req.params.id_institucion);
       res.json({ success: true, data: ResponseEnvioDTO.fromEntity(envio) });
@@ -71,6 +82,7 @@ export class AlertaController {
   };
 
   atender = async (req, res) => {
+    if (!this.autorizarInstitucion(req, res)) return;
     try {
       const envio = await this.alertaService.atender(req.params.id, req.params.id_institucion);
       res.json({ success: true, data: ResponseEnvioDTO.fromEntity(envio) });
@@ -80,6 +92,7 @@ export class AlertaController {
   };
 
   cerrar = async (req, res) => {
+    if (!this.autorizarInstitucion(req, res)) return;
     try {
       const envio = await this.alertaService.cerrar(req.params.id, req.params.id_institucion);
       res.json({ success: true, data: ResponseEnvioDTO.fromEntity(envio) });

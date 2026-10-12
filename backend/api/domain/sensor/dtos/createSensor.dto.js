@@ -1,4 +1,4 @@
-const TIPOS_SENSOR = ["TEMPERATURA", "HUMO", "CO", "HUMEDAD"];
+import { TIPOS_SENSOR } from '../tiposSensor.js';
 
 export class CreateSensorDTO {
   constructor({

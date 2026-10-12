@@ -1,3 +1,6 @@
+import { ResponseAlertaDTO } from '../../../domain/alerta/dtos/responseAlerta.dto.js';
+import { ResponseEnvioDTO } from '../../../domain/envia/dtos/responseEnvia.dto.js';
+
 export class AlertaService {
   constructor({
     getAllAlertaUseCase,
@@ -6,6 +9,7 @@ export class AlertaService {
     recibirEnvioUseCase,
     atenderEnvioUseCase,
     cerrarEnvioUseCase,
+    realtimeNotifier,
   }) {
     this.getAllAlertaUseCase = getAllAlertaUseCase;
     this.getActivasAlertaUseCase = getActivasAlertaUseCase;
@@ -13,6 +17,7 @@ export class AlertaService {
     this.recibirEnvioUseCase = recibirEnvioUseCase;
     this.atenderEnvioUseCase = atenderEnvioUseCase;
     this.cerrarEnvioUseCase = cerrarEnvioUseCase;
+    this.realtimeNotifier = realtimeNotifier;
   }
 
   async getAll(filters) {
@@ -28,14 +33,22 @@ export class AlertaService {
   }
 
   async recibir(id_alerta, id_institucion) {
-    return await this.recibirEnvioUseCase.execute(id_alerta, id_institucion);
+    return this.publicarEnvio(await this.recibirEnvioUseCase.execute(id_alerta, id_institucion));
   }
 
   async atender(id_alerta, id_institucion) {
-    return await this.atenderEnvioUseCase.execute(id_alerta, id_institucion);
+    return this.publicarEnvio(await this.atenderEnvioUseCase.execute(id_alerta, id_institucion));
   }
 
   async cerrar(id_alerta, id_institucion) {
-    return await this.cerrarEnvioUseCase.execute(id_alerta, id_institucion);
+    return this.publicarEnvio(await this.cerrarEnvioUseCase.execute(id_alerta, id_institucion));
+  }
+
+  async publicarEnvio(envio) {
+    try {
+      await this.realtimeNotifier?.emitEnvioActualizado(ResponseEnvioDTO.fromEntity(envio));
+      if (envio.alerta_actualizada) await this.realtimeNotifier?.emitAlertaActualizada(ResponseAlertaDTO.fromEntity(envio.alerta_actualizada));
+    } catch (error) { console.error('[websocket] cambio ya persistido:', error.message); }
+    return envio;
   }
 }

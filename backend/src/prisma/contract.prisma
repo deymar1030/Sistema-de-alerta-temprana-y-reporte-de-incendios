@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id_usuario         Int       @id @default(autoincrement())
+  id_rol             Int
+  id_institucion     Int
+  nombre             String
+  primer_apellido    String
+  segundo_apellido   String?
+  telefono           String?
+  correo             String    @unique
+  contrasena         String
+  multiF_S           Boolean   @default(false)
+  multiF_A           Boolean   @default(false)
+  
+  // Nuevos campos para control de estado y baja lógica
+  fecha_eliminacion  DateTime? 
+  intentos_fallidos  Int       @default(0)
+  bloqueado_hasta    DateTime?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}

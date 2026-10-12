@@ -15,12 +15,17 @@ API REST con Node.js + Express (ESM).
 | **morgan** | Logger de peticiones HTTP en consola |
 | **npm** | Gestor de paquetes |
 
+### Configurado
+
+| Herramienta | Rol |
+| ----------- | --- |
+| **Prisma 7** | Esquema PostgreSQL y configuración de migraciones (`prisma.config.ts`) |
+
 ### Planificado
 
 | Herramienta | Rol |
 | ----------- | --- |
 | **PostgreSQL** | Base de datos relacional |
-| **Prisma** | ORM y motor de migraciones (`schema.prisma`, `prisma migrate`) |
 | **Socket.IO** | Notificaciones en tiempo real (alertas de incendio) |
 | **Zod** | Validación de los datos de entrada (request → DTO) |
 | **jsonwebtoken** + **bcrypt** | Autenticación y hash de contraseñas |
@@ -91,6 +96,13 @@ npm start
 ```
 
 Servidor por defecto en `http://localhost:3000`.
+
+Configura `DATABASE_URL` en `.env` para conectar PostgreSQL. Prisma 7 usa
+`prisma migrate dev` para crear y aplicar migraciones en desarrollo:
+
+```bash
+npx prisma migrate dev --name init
+```
 
 ## Endpoints actuales
 

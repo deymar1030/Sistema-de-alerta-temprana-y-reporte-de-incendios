@@ -5,6 +5,7 @@ import { Search, Wifi, Factory, ArrowRight } from 'lucide-vue-next'
 
 import { useSensorStore } from '../stores/sensor.store'
 import { readingService } from '../services/reading.service'
+import { useToast } from '../composables/useToast'
 
 import type { Sensor, Reading } from '../types'
 
@@ -13,6 +14,7 @@ import StatusBadge from '../components/common/StatusBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { showToast } = useToast()
 
 const sensorStore = useSensorStore()
 
@@ -22,6 +24,181 @@ const selectedState = ref('Todos')
 
 const sensorDetail = ref<Sensor | null>(null)
 const sensorReadings = ref<Reading[]>([])
+
+const emptySensorForm = () => ({
+  id_predio: '',
+  nombre: '',
+  tipo_sensor: 'TEMPERATURA',
+  estado: 'ACTIVO',
+  modelo: '',
+  fabricante: '',
+  unidad_medida: '',
+  fecha_instalacion: new Date().toISOString().slice(0, 10),
+  rango_min: '',
+  rango_max: '',
+})
+
+const sensorForm = ref(emptySensorForm())
+const showSensorForm = ref(false)
+const editingSensorId = ref<string | null>(null)
+
+const mapSensorTypeToApi = (value: Sensor['tipo_sensor']) => {
+  switch (value) {
+    case 'Temperatura':
+      return 'TEMPERATURA'
+    case 'Humo':
+      return 'HUMO'
+    case 'CO':
+      return 'CO'
+    case 'Humedad':
+      return 'HUMEDAD'
+    default:
+      return 'TEMPERATURA'
+  }
+}
+
+const mapSensorStateToApi = (value: Sensor['estado']) => {
+  switch (value) {
+    case 'Activo':
+      return 'ACTIVO'
+    case 'Inactivo':
+      return 'INACTIVO'
+    case 'Mantenimiento':
+      return 'MANTENIMIENTO'
+    case 'Error':
+      return 'ERROR'
+    default:
+      return 'ACTIVO'
+  }
+}
+
+const openCreateSensor = () => {
+  sensorForm.value = emptySensorForm()
+  editingSensorId.value = null
+  showSensorForm.value = true
+}
+
+const openEditSensor = (sensor: Sensor) => {
+  sensorForm.value = {
+    id_predio: sensor.id_predio ?? '',
+    nombre: sensor.nombre,
+    tipo_sensor: mapSensorTypeToApi(sensor.tipo_sensor),
+    estado: mapSensorStateToApi(sensor.estado),
+    modelo: sensor.modelo,
+    fabricante: sensor.fabricante,
+    unidad_medida: sensor.unidad_medida,
+    fecha_instalacion: sensor.fecha_instalacion,
+    rango_min: String(sensor.rango_min ?? ''),
+    rango_max: String(sensor.rango_max ?? ''),
+  }
+  editingSensorId.value = sensor.id_sensor
+  showSensorForm.value = true
+}
+
+const normalizeSensorForm = () => {
+  const idPredio = Number(sensorForm.value.id_predio)
+  const nombre = sensorForm.value.nombre.trim()
+  const tipoSensor = sensorForm.value.tipo_sensor
+  const estado = sensorForm.value.estado
+  const modelo = sensorForm.value.modelo.trim()
+  const fabricante = sensorForm.value.fabricante.trim()
+  const unidadMedida = sensorForm.value.unidad_medida.trim()
+  const fechaInstalacion = sensorForm.value.fecha_instalacion
+
+  if (!idPredio) {
+    throw new Error('Debe indicar el predio del sensor.')
+  }
+
+  if (!nombre) {
+    throw new Error('Debe ingresar el nombre del sensor.')
+  }
+
+  if (!tipoSensor) {
+    throw new Error('Debe seleccionar el tipo de sensor.')
+  }
+
+  if (!estado) {
+    throw new Error('Debe seleccionar el estado del sensor.')
+  }
+
+  if (!modelo) {
+    throw new Error('Debe ingresar el modelo del sensor.')
+  }
+
+  if (!fabricante) {
+    throw new Error('Debe ingresar el fabricante del sensor.')
+  }
+
+  if (!unidadMedida) {
+    throw new Error('Debe indicar la unidad de medida.')
+  }
+
+  if (!fechaInstalacion) {
+    throw new Error('Debe indicar la fecha de instalación.')
+  }
+
+  return {
+    id_predio: idPredio,
+    nombre,
+    tipo_sensor: tipoSensor,
+    estado,
+    modelo,
+    fabricante,
+    unidad_medida: unidadMedida,
+    fecha_instalacion: fechaInstalacion,
+    rango_min: Number(sensorForm.value.rango_min || 0),
+    rango_max: Number(sensorForm.value.rango_max || 0),
+  }
+}
+
+const submitSensor = async () => {
+  try {
+    const payload = normalizeSensorForm()
+
+    if (editingSensorId.value) {
+      await sensorStore.updateSensor(editingSensorId.value, payload)
+      showToast({ type: 'success', title: 'Sensor actualizado', description: 'Los cambios se guardaron correctamente.' })
+    } else {
+      await sensorStore.createSensor(payload)
+      showToast({ type: 'success', title: 'Sensor creado', description: 'El sensor fue registrado correctamente.' })
+    }
+
+    showSensorForm.value = false
+    editingSensorId.value = null
+    sensorForm.value = emptySensorForm()
+    await sensorStore.fetchSensors()
+
+    if (route.params.id) {
+      const detail = await sensorStore.getSensorById(String(route.params.id))
+      sensorDetail.value = detail ?? null
+      sensorReadings.value = detail ? await readingService.getReadingsBySensor(detail.id_sensor) : []
+    }
+  } catch (error) {
+    showToast({ type: 'error', title: 'No se pudo guardar el sensor', description: error instanceof Error ? error.message : 'Ocurrió un error inesperado.' })
+  }
+}
+
+const deleteSensor = async (sensor: Sensor) => {
+  const confirmed = window.confirm(`¿Deseas eliminar el sensor "${sensor.nombre}"?`)
+
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    await sensorStore.deleteSensor(sensor.id_sensor)
+    await sensorStore.fetchSensors()
+
+    if (sensorDetail.value?.id_sensor === sensor.id_sensor) {
+      sensorDetail.value = null
+      sensorReadings.value = []
+    }
+
+    showToast({ type: 'success', title: 'Sensor eliminado', description: 'El registro se eliminó correctamente.' })
+  } catch (error) {
+    showToast({ type: 'error', title: 'No se pudo eliminar el sensor', description: error instanceof Error ? error.message : 'La eliminación falló.' })
+  }
+}
 
 const filteredSensors = computed(() => {
   const term = search.value.trim().toLowerCase()
@@ -144,6 +321,94 @@ watch(
       <section
         class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
       >
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400">Sensores</p>
+          </div>
+
+          <button
+            type="button"
+            class="inline-flex items-center rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-200 transition hover:bg-orange-500/20"
+            @click="openCreateSensor"
+          >
+            + Crear sensor
+          </button>
+        </div>
+
+        <div v-if="showSensorForm" class="mb-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white">{{ editingSensorId ? 'Editar sensor' : 'Crear sensor' }}</h3>
+            <button type="button" class="text-sm text-slate-400 hover:text-white" @click="showSensorForm = false">Cerrar</button>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">ID predio</span>
+              <input v-model="sensorForm.id_predio" type="number" min="1" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Nombre</span>
+              <input v-model="sensorForm.nombre" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Tipo</span>
+              <select v-model="sensorForm.tipo_sensor" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500">
+                <option value="TEMPERATURA">Temperatura</option>
+                <option value="HUMO">Humo</option>
+                <option value="CO">CO</option>
+                <option value="HUMEDAD">Humedad</option>
+              </select>
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Estado</span>
+              <select v-model="sensorForm.estado" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500">
+                <option value="ACTIVO">Activo</option>
+                <option value="INACTIVO">Inactivo</option>
+                <option value="MANTENIMIENTO">Mantenimiento</option>
+                <option value="ERROR">Error</option>
+              </select>
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Modelo</span>
+              <input v-model="sensorForm.modelo" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Fabricante</span>
+              <input v-model="sensorForm.fabricante" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Unidad de medida</span>
+              <input v-model="sensorForm.unidad_medida" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Fecha instalación</span>
+              <input v-model="sensorForm.fecha_instalacion" type="date" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Rango mínimo</span>
+              <input v-model="sensorForm.rango_min" type="number" step="0.01" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
+            </label>
+
+            <label class="block text-sm text-slate-300">
+              <span class="mb-1 block">Rango máximo</span>
+              <input v-model="sensorForm.rango_max" type="number" step="0.01" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
+            </label>
+          </div>
+
+          <div class="mt-4 flex justify-end gap-3">
+            <button type="button" class="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200" @click="showSensorForm = false">Cancelar</button>
+            <button type="button" class="rounded-xl bg-orange-500 px-4 py-2 text-sm font-medium text-white" @click="submitSensor">Guardar</button>
+          </div>
+        </div>
+
         <!-- Filtros -->
         <div
           class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
@@ -302,16 +567,36 @@ watch(
 
                 <!-- Acción -->
                 <td class="py-3">
-                  <button
-                    class="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-orange-500 hover:text-white"
-                    @click="openSensor(sensor)"
-                  >
-                    Ver detalle
+                  <div class="flex flex-col gap-2">
+                    <button
+                      class="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-orange-500 hover:text-white"
+                      @click="openSensor(sensor)"
+                    >
+                      Ver detalle
 
-                    <ArrowRight
-                      class="h-3.5 w-3.5"
-                    />
-                  </button>
+                      <ArrowRight
+                        class="h-3.5 w-3.5"
+                      />
+                    </button>
+
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        class="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 hover:border-orange-500 hover:text-white"
+                        @click="openEditSensor(sensor)"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        type="button"
+                        class="rounded-lg border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-[11px] font-medium text-red-200 hover:bg-red-500/20"
+                        @click="deleteSensor(sensor)"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
                 </td>
               </tr>
             </tbody>

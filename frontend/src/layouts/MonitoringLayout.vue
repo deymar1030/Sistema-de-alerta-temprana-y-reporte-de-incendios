@@ -21,15 +21,19 @@ import {
   History,
   LogOut,
   Menu,
+  MapPinned,
   Settings,
+  UserRound,
   Users,
   X,
 } from 'lucide-vue-next'
 
 import { useAuthStore } from '../stores/auth.store'
+import { useInstitutionStore } from '../stores/institution.store'
 import { useNotificationStore } from '../stores/notification.store'
 
 import {
+  getRoleLabel,
   isWebUserRole,
   type WebUserRole,
 } from '../types'
@@ -38,6 +42,7 @@ const route = useRoute()
 const router = useRouter()
 
 const authStore = useAuthStore()
+const institutionStore = useInstitutionStore()
 const notificationStore = useNotificationStore()
 
 const sidebarOpen = ref(false)
@@ -45,6 +50,7 @@ const collapsed = ref(false)
 const notificationsOpen = ref(false)
 
 const profileMenuOpen = ref(false)
+const accountModalOpen = ref(false)
 
 const profileMenuRef = ref<HTMLElement | null>(null)
 const notificationMenuRef = ref<HTMLElement | null>(null)
@@ -75,6 +81,26 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
       label: 'Instituciones',
       to: '/super-admin/instituciones',
       icon: Building2,
+    },
+    {
+      label: 'Zonas',
+      to: '/super-admin/zonas',
+      icon: MapPinned,
+    },
+    {
+      label: 'Predios',
+      to: '/super-admin/predios',
+      icon: Building2,
+    },
+    {
+      label: 'Sensores',
+      to: '/super-admin/sensores',
+      icon: Gauge,
+    },
+    {
+      label: 'Lecturas',
+      to: '/super-admin/lecturas',
+      icon: ClipboardList,
     },
     {
       label: 'Alertas',
@@ -172,6 +198,23 @@ const settingsRoute = computed(() => {
   return '/ciudadano/perfil'
 })
 
+const accountFields = computed(() => {
+  const institutionId = authStore.user?.institucionId ?? authStore.user?.institutionId ?? null
+  const institutionName = institutionId
+    ? institutionStore.institutions.find((institution) => String(institution.id) === String(institutionId))?.nombre ?? '—'
+    : '—'
+
+  return [
+    { label: 'Nombre', value: authStore.user?.nombre ?? '—' },
+    { label: 'Primer apellido', value: authStore.user?.firstName ?? '—' },
+    { label: 'Segundo apellido', value: authStore.user?.lastName ?? '—' },
+    { label: 'Correo', value: authStore.user?.email ?? '—' },
+    { label: 'Teléfono', value: authStore.user?.phone ?? '—' },
+    { label: 'Rol', value: authStore.role ? getRoleLabel(authStore.role) : '—' },
+    { label: 'Institución', value: institutionName },
+  ]
+})
+
 const userRoleBadge = computed(() => {
   if (authStore.role === 'ADMIN') return 'ADMIN'
   if (authStore.role === 'JEFE_INSTITUCION') return 'JEFE INSTITUCIÓN'
@@ -254,6 +297,11 @@ const logout = async () => {
   await authStore.logout()
 
   await router.push('/login')
+}
+
+const openAccountModal = () => {
+  profileMenuOpen.value = false
+  accountModalOpen.value = true
 }
 
 /*
@@ -341,7 +389,10 @@ onMounted(async () => {
    * GET /api/notificaciones
    * GET /api/notificaciones/no-leidas/conteo
    */
-  await notificationStore.fetchNotifications()
+  await Promise.all([
+    institutionStore.fetchInstitutions(),
+    notificationStore.fetchNotifications(),
+  ])
 })
 
 onBeforeUnmount(() => {
@@ -723,9 +774,16 @@ const formattedTime = computed(() =>
                   v-if="profileMenuOpen"
                   class="absolute right-0 top-[calc(100%+0.75rem)] z-[60] w-56 rounded-2xl border border-[#D4DAD7] bg-white p-2 shadow-[0_18px_42px_rgba(15,23,42,0.12)]"
                 >
-                  <!-- Configuración -->
                   <button
                     class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[#17212B] transition hover:bg-slate-50"
+                    @click="openAccountModal"
+                  >
+                    <UserRound class="h-4 w-4 text-slate-600" />
+                    <span>Mi cuenta</span>
+                  </button>
+
+                  <button
+                    class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[#17212B] transition hover:bg-slate-50"
                     @click="
                       router.push(
                         settingsRoute,
@@ -743,7 +801,6 @@ const formattedTime = computed(() =>
                     </span>
                   </button>
 
-                  <!-- Logout -->
                   <button
                     class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[#17212B] transition hover:bg-slate-50"
                     @click="logout"
@@ -756,6 +813,44 @@ const formattedTime = computed(() =>
                       Cerrar sesión
                     </span>
                   </button>
+                </div>
+              </div>
+
+              <div
+                v-if="accountModalOpen"
+                class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 p-4"
+                @click.self="accountModalOpen = false"
+              >
+                <div class="w-full max-w-lg rounded-3xl border border-slate-200 bg-white shadow-[0_22px_55px_rgba(15,23,42,0.22)]">
+                  <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                    <h2 class="text-xl font-semibold text-slate-900">Mi cuenta</h2>
+                    <button type="button" class="rounded-xl border border-slate-200 p-2 text-slate-500 hover:text-slate-700" @click="accountModalOpen = false" aria-label="Cerrar cuenta">
+                      <X class="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div class="p-5">
+                    <div class="flex items-center gap-4 border-b border-slate-200 pb-4">
+                      <div class="flex h-14 w-14 items-center justify-center rounded-full bg-[#f6e8d9] text-lg font-semibold text-orange-600">
+                        {{ initials }}
+                      </div>
+                      <div>
+                        <p class="text-lg font-semibold text-slate-900">{{ authStore.user?.nombre ?? 'Usuario' }}</p>
+                        <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ authStore.role ? getRoleLabel(authStore.role) : 'Sin rol' }}</p>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 space-y-3">
+                      <div v-for="field in accountFields" :key="field.label" class="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-3 py-2.5 text-sm">
+                        <span class="font-medium text-slate-500">{{ field.label }}</span>
+                        <span class="text-right font-medium text-slate-900">{{ field.value }}</span>
+                      </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end">
+                      <button type="button" class="rounded-xl bg-[#f24a23] px-4 py-2.5 font-semibold text-white" @click="accountModalOpen = false">Cerrar</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

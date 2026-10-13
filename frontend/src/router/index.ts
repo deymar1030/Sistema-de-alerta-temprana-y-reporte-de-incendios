@@ -6,6 +6,7 @@ import MonitoringLayout from '../layouts/MonitoringLayout.vue'
 
 // Vistas de monitoreo existentes
 import DashboardView from '../views/DashboardView.vue'
+import PrediosView from '../views/PrediosView.vue'
 import SensorsView from '../views/SensorsView.vue'
 import ReadingsView from '../views/ReadingsView.vue'
 import DetectionEngineView from '../views/DetectionEngineView.vue'
@@ -79,6 +80,10 @@ export const routes: RouteRecordRaw[] = [
       { path: 'dashboard', name: 'super-admin-dashboard', component: SuperAdminDashboardView, meta: { roles: adminRoles, title: 'Dashboard general' } },
       { path: 'usuarios', name: 'super-admin-users', component: SuperAdminUsersView, meta: { roles: adminRoles, title: 'Usuarios del sistema' } },
       { path: 'instituciones', name: 'super-admin-institutions', component: SuperAdminInstitutionsView, meta: { roles: adminRoles, title: 'Instituciones' } },
+      { path: 'zonas', name: 'super-admin-zones', component: LocationsView, meta: { roles: adminRoles, title: 'Zonas geográficas' } },
+      { path: 'predios', name: 'super-admin-predios', component: PrediosView, meta: { roles: adminRoles, title: 'Predios' } },
+      { path: 'sensores', name: 'super-admin-sensors', component: SensorsView, meta: { roles: adminRoles, title: 'Sensores' } },
+      { path: 'lecturas', name: 'super-admin-readings', component: ReadingsView, meta: { roles: adminRoles, title: 'Lecturas' } },
       { path: 'alertas', name: 'super-admin-alerts', component: SuperAdminAlertsView, meta: { roles: adminRoles, title: 'Alertas' } },
       { path: 'incidentes', name: 'super-admin-incidents', component: SuperAdminIncidentsView, meta: { roles: adminRoles, title: 'Incidentes' } },
       { path: 'auditoria', name: 'super-admin-audit', component: SuperAdminAuditView, meta: { roles: adminRoles, title: 'Auditoría' } },
@@ -123,6 +128,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/', component: MonitoringLayout, meta: { roles: adminRoles }, children: [
       { path: '', redirect: '/super-admin/dashboard' },
       { path: 'dashboard-anterior', name: 'legacy-dashboard', component: DashboardView, meta: { roles: adminRoles, title: 'Dashboard anterior' } },
+      { path: 'predios', name: 'legacy-predios', component: PrediosView, meta: { roles: adminRoles, title: 'Predios' } },
       { path: 'sensores', name: 'sensors', component: SensorsView, meta: { roles: adminRoles, title: 'Sensores' } },
       { path: 'sensores/:id', name: 'sensor-detail', component: SensorsView, meta: { roles: adminRoles, title: 'Detalle de sensor' } },
       { path: 'lecturas', name: 'readings', component: ReadingsView, meta: { roles: adminRoles, title: 'Lecturas' } },

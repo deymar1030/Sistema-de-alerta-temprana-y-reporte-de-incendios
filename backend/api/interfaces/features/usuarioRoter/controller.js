@@ -18,7 +18,9 @@ function mapUsuarioUpdateRequest(body) {
 
   const data = {};
   for (const campo of campos) {
-    if (body[campo] !== undefined) data[campo] = body[campo];
+    // "" se trata como "no enviado": un formulario que no toca un campo
+    // opcional no debe vaciarlo silenciosamente.
+    if (body[campo] !== undefined && body[campo] !== "") data[campo] = body[campo];
   }
 
   return data;

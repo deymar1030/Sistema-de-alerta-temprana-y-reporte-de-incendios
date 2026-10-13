@@ -1,37 +1,3 @@
-# Simuladores originales
-
-Una conexión MQTT por predio agrupa sus sensores. **Ya no se usa un manifiesto estático** (`simuladores.json`): en cada corrida, el script inicia sesión como un usuario de simulación y descubre en vivo, vía la API, qué predios y sensores activos existen — así los predios que se creen desde el frontend entran automáticamente en la próxima corrida, sin tocar el código ni archivos de configuración.
-
-## Preparación
-
-1. Necesitas un usuario de simulación ya registrado en el sistema (cualquier rol sirve, `/predios` y `/sensores` no restringen por rol — solo requieren sesión iniciada). Regístralo una vez con `POST /api/auth/register` o pide que te den uno.
-2. Instala dependencias:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-3. Copia `.env.example` a `.env` y completa los valores (`.env` está en `.gitignore`, nunca se sube):
-
-```
-SIMULADOR_BACKEND_URL=http://TU-BACKEND
-SIMULADOR_CORREO=simulador@sistema.local
-SIMULADOR_CONTRASENA=TU_CONTRASENA
-MQTT_BROKER_URL=mqtts://TU-BROKER:8883
-MQTT_CA_FILE=ruta/al/server.crt
-```
-
-4. Corre el simulador (lee todo de `.env` automáticamente):
-
-```powershell
-.venv\Scripts\python.exe main.py --intervalo 7 --escenario normal
-```
-
-En Linux/macOS usar `.venv/bin/python`. Ctrl+C detiene todos los clientes.
-
-Cualquier valor del `.env` se puede sobrescribir puntualmente por línea de comandos, ej. `--broker` o `--escenario`; ver `--help` para la lista completa.
-
 ### Credenciales MQTT por predio
 
 El backend solo guarda el **hash** de la contraseña MQTT de cada predio (`predio.contrasena_mqtt`); nunca la expone de vuelta por la API. Por eso, cuando el script descubre un predio que **todavía no tiene credencial asignada por este simulador**, genera una contraseña nueva, la manda al backend (`PUT /predios/:id`) y la guarda localmente en `runtime/credenciales_predios.json` (ignorado por Git) para reusarla en corridas futuras — no hace falta volver a generarla cada vez.

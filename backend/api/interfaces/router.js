@@ -6,6 +6,7 @@ import { UsuarioRouter } from "./features/usuarioRoter/routes.js";
 import { ReporteURouter } from "./features/reporteURoter/routes.js";
 import { NotificacionRouter } from "./features/notificacionRoter/routes.js";
 import { PredioRouter } from "./features/predioRoter/routes.js";
+import { MotorDetRouter } from "./features/motorDetRoter/routes.js";
 import { LecturaRouter } from "./features/lecturaRoter/routes.js";
 import { AlertaRouter } from "./features/alertaRoter/routes.js";
 import { ArchivoRouter } from "./features/archivoRoter/routes.js";
@@ -34,6 +35,7 @@ export class AppRouter {
     router.use("/reportes-usuario", requireAuth, ReporteURouter.routes);
     router.use("/notificaciones", requireAuth, NotificacionRouter.routes);
     router.use("/predios", requireAuth, PredioRouter.routes);
+    router.use("/motores-deteccion", requireAuth, MotorDetRouter.routes);
     router.use("/lecturas", requireAuth, LecturaRouter.routes);
     router.use("/alertas", requireAuth, AlertaRouter.routes);
     router.use("/archivos", requireAuth, ArchivoRouter.routes);

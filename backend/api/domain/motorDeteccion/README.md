@@ -1,10 +1,14 @@
-# `domain/motorDeteccion` — contrato pendiente de implementar
+# `domain/motorDeteccion` — motor de detección implementado
 
-Esta carpeta es el entorno preparado para el motor de detección de
-incendios. **La matemática no está implementada todavía** — cada función
-lanza `"pendiente de implementar"` a propósito. Resolverla es trabajo de
-otra área (no de esta rama de arquitectura), a partir de
-[`bd/DM-OPE-01727092026_Motor_Deteccion_Predio.pdf`](../../../../bd/DM-OPE-01727092026_Motor_Deteccion_Predio.pdf).
+Esta carpeta contiene el motor de detección de incendios. **Las seis
+funciones del dominio están implementadas** (`filtroHampel`, `cusum`,
+`theilSen`, `contrasteVecinos`, `puntajeAlerta` y `clasificarAlerta`), a
+partir de
+[`docs/DM-OPE-01727092026_Motor_Deteccion_Predio.pdf`](../../../../docs/DM-OPE-01727092026_Motor_Deteccion_Predio.pdf).
+La **configuración de referencia** del motor (parámetros por tipo de predio y
+constantes de las fórmulas) está en
+[`parametrosMotor.js`](parametrosMotor.js); sus valores son de referencia del
+PDF y **no están calibrados** con datos reales.
 
 ## Regla de la carpeta
 
@@ -33,6 +37,33 @@ de la base):
 | `tiempo_max_evaluacion_min` | tiempo máximo que una alerta puede quedar `EN_EVALUACION` |
 | `radio_vecindad_m` | radio para elegir los sensores vecinos de `contrasteVecinos` |
 
+## Configuración de referencia (`parametrosMotor.js`)
+
+Los valores concretos por tipo de predio viven en `parametrosMotor.js`, separados
+de las fórmulas. Son **valores de referencia del PDF**, **no calibrados** con
+datos reales. El módulo solo expone datos y una búsqueda pura: sin I/O, sin
+Prisma, sin entorno.
+
+- `CONFIGURACIONES`: un bloque por tipo (`vivienda`, `edificio`, `mercado`, con
+  las diferencias del PDF Tabla 2). Cada bloque trae los parámetros generales
+  (`ventanaBaseMin`, `umbralZ`, `cusumH`, `umbralConfirmacion`, `umbralDescarte`,
+  `tiempoMaxEvaluacionMin`, `radioVecindadM`) y `variables`.
+- `variables`: claves `humo`, `co`, `temperatura`, `humedad`, cada una con
+  `umbralCritico`, `peso`, `bmax`, `madMin` y `unidad` (PDF Tablas 3 y 4). El
+  `umbralCritico` de la humedad es `null` porque el PDF no le asigna umbral
+  crítico. `bmax` y `MADmin` son iguales para los tres tipos y van dentro de la
+  variable.
+- `CONSTANTES_FORMULA`: constantes compartidas por las fórmulas (PDF Tabla 4):
+  `zrobUmbral` (3.5), `cusumVentanaLecturas` (20) y `cusumK` (0.5).
+- `META_PARAMETROS`: origen y estado (`referencia, no calibrada`).
+- `obtenerConfiguracionMotor(tipoPredio)`: normaliza el texto (minúsculas, sin
+  tildes ni espacios), devuelve el bloque del tipo y **lanza un error explícito**
+  si el tipo no existe; no hay valor por defecto silencioso.
+
+Los tiempos de aplicación/infraestructura (contexto previo 5 min, etapa 2 a 2
+min, antigüedad de vecino 2 min, espera tras descarte 15 min, retención 24 h) **no**
+forman parte de esta configuración: pertenecen a la capa de aplicación.
+
 ## Funciones
 
 ### `filtroHampel(ventana, valorActual, madMin, umbralZ)`
@@ -50,14 +81,17 @@ sensor, tamaño según `ventana_base_min`).
 - Si `ventana` viene vacía no hay mediana/MAD: devuelve valores nulos y
   `esAnomala = false` (la aplicación no debe evaluar sin historial).
 
-### `cusum(zRecientes, cusumH, k = 0.5)`
+### `cusum(zRecientes, cusumH, cusumK, cusumVentanaLecturas)`
 PDF, ecuación 3. Suma acumulada de desviaciones para detectar un cambio
 sostenido de nivel (no solo un pico puntual).
 
 - Entrada: `zRecientes` (los `z` de las últimas lecturas del sensor, en orden
-  temporal antiguo → nuevo, máximo 20), `cusumH` (`motor_det.cusum_h`) y la
-  tolerancia `k = 0.5`.
-- Recurrencia: `Sₜ = max(0, Sₜ₋₁ + zₜ − k)`.
+  temporal antiguo → nuevo), `cusumH` (`motor_det.cusum_h`), `cusumK` y
+  `cusumVentanaLecturas`. Los dos últimos ya no tienen valores incrustados:
+  los entrega la configuración (`CONSTANTES_FORMULA`, PDF Tabla 4: `cusumK = 0.5`
+  y `cusumVentanaLecturas = 20`).
+- Recurrencia: `Sₜ = max(0, Sₜ₋₁ + zₜ − k)`, sobre las últimas
+  `cusumVentanaLecturas` lecturas.
 - Decisión provisional (documentada): el acumulado se **recalcula desde
   `S₀ = 0`** con los `z` recibidos en cada llamada; no se persiste.
 - Salida: `{ acumulado, disparado }` con `disparado = acumulado > cusumH`.
@@ -154,6 +188,16 @@ recibe `R`, los umbrales del motor y los indicadores ya calculados.
 - Salida: `{ estado, clasificacion }` con
   `estado ∈ { EN_EVALUACION, CONFIRMADA, DESCARTADA }` y
   `clasificacion ∈ { INCENDIO, CLIMA, FALLA_SENSOR, SIN_EVIDENCIA, null }`.
+
+## Reglas pendientes (el PDF no las define)
+
+No se codifican ni se dejan como campos nulos; están pendientes de definición
+del equipo:
+
+- límite de "salto físicamente imposible" por variable (regla `FALLA_SENSOR`);
+- criterio de "mayoría de vecinos";
+- umbral de "humo y CO normales";
+- definición de "sin cambios en las demás variables".
 
 ## Quién las va a llamar
 

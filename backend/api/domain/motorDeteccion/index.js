@@ -4,3 +4,8 @@ export { theilSen } from "./theilSen.js";
 export { contrasteVecinos } from "./contrasteVecinos.js";
 export { puntajeAlerta } from "./puntajeAlerta.js";
 export { clasificarAlerta } from "./clasificarAlerta.js";
+export {
+  obtenerConfiguracionMotor,
+  CONSTANTES_FORMULA,
+  META_PARAMETROS,
+} from "./parametrosMotor.js";

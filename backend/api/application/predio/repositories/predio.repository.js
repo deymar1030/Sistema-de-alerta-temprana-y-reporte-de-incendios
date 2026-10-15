@@ -11,6 +11,10 @@ export default class PredioRepository {
     throw new Error("Method not implemented");
   }
 
+  async findVecinos(datos, client) {
+    throw new Error("Method not implemented");
+  }
+
   async findAll(filters) {
     throw new Error("Method not implemented");
   }

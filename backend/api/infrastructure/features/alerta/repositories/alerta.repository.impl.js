@@ -2,6 +2,10 @@ import AlertaRepository from "../../../../application/alerta/repositories/alerta
 
 const ESTADOS_ACTIVOS = ["EN_EVALUACION", "CONFIRMADA", "ATENDIDA"];
 
+function limpiar(data) {
+  return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+}
+
 function buildWhere(filters = {}) {
   const where = {};
 
@@ -76,5 +80,54 @@ export default class PrismaAlertaRepository extends AlertaRepository {
     });
 
     return vinculo?.reporte_u ?? null;
+  }
+
+  async findActivaByPredio(id_predio, client = this.prisma) {
+    return await client.alerta.findFirst({
+      where: {
+        estado: { in: ESTADOS_ACTIVOS },
+        lectura: { some: { sensor: { id_predio: Number(id_predio) } } },
+      },
+      orderBy: [{ fecha: "desc" }, { hora: "desc" }],
+    });
+  }
+
+  async findUltimaDescartadaByPredio(id_predio, client = this.prisma) {
+    return await client.alerta.findFirst({
+      where: {
+        estado: "DESCARTADA",
+        lectura: { some: { sensor: { id_predio: Number(id_predio) } } },
+      },
+      orderBy: [{ fecha: "desc" }, { hora: "desc" }],
+    });
+  }
+
+  async create(datos, client = this.prisma) {
+    return await client.alerta.create({
+      data: limpiar({
+        fecha: datos.fecha instanceof Date ? datos.fecha : new Date(datos.fecha),
+        hora: datos.hora instanceof Date ? datos.hora : new Date(datos.hora),
+        estado: datos.estado,
+        puntaje: datos.puntaje,
+        clasificacion: datos.clasificacion,
+        fecha_confirmacion:
+          datos.fecha_confirmacion instanceof Date ? datos.fecha_confirmacion : datos.fecha_confirmacion,
+        fecha_cierre: datos.fecha_cierre instanceof Date ? datos.fecha_cierre : datos.fecha_cierre,
+      }),
+    });
+  }
+
+  async update(id_alerta, datos, client = this.prisma) {
+    return await client.alerta.update({
+      where: { id_alerta: Number(id_alerta) },
+      data: limpiar({
+        estado: datos.estado,
+        puntaje: datos.puntaje,
+        clasificacion: datos.clasificacion,
+        fecha_confirmacion:
+          datos.fecha_confirmacion instanceof Date ? datos.fecha_confirmacion : datos.fecha_confirmacion,
+        fecha_cierre: datos.fecha_cierre instanceof Date ? datos.fecha_cierre : datos.fecha_cierre,
+      }),
+    });
   }
 }

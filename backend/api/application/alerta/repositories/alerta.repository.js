@@ -26,4 +26,20 @@ export default class AlertaRepository {
   async findReporteOrigen(id_alerta) {
     throw new Error("Method not implemented");
   }
+
+  async findActivaByPredio(id_predio, client) {
+    throw new Error("Method not implemented");
+  }
+
+  async findUltimaDescartadaByPredio(id_predio, client) {
+    throw new Error("Method not implemented");
+  }
+
+  async create(datos, client) {
+    throw new Error("Method not implemented");
+  }
+
+  async update(id_alerta, datos, client) {
+    throw new Error("Method not implemented");
+  }
 }

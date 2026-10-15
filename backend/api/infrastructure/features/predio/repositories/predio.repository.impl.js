@@ -4,6 +4,18 @@ function limpiar(data) {
   return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
 }
 
+function distanciaMetros(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const rad = (grados) => (grados * Math.PI) / 180;
+  const dLat = rad(lat2 - lat1);
+  const dLon = rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
 export default class PrismaPredioRepository extends PredioRepository {
   constructor(prisma) {
     super();
@@ -43,6 +55,27 @@ export default class PrismaPredioRepository extends PredioRepository {
     return await this.prisma.sensor.findMany({
       where: { id_predio: Number(id_predio) },
       select: { id_sensor: true, nombre: true, tipo_sensor: true, estado: true },
+    });
+  }
+
+  async findVecinos({ id_predio, tipo_predio, latitud, longitud, radio_metros }, client = this.prisma) {
+    const predios = await client.predio.findMany({
+      where: {
+        tipo_predio,
+        id_predio: { not: Number(id_predio) },
+      },
+      select: { id_predio: true, latitud: true, longitud: true },
+    });
+
+    return predios.filter((p) => {
+      if (p.latitud === null || p.longitud === null) return false;
+      const distancia = distanciaMetros(
+        Number(latitud),
+        Number(longitud),
+        Number(p.latitud),
+        Number(p.longitud),
+      );
+      return distancia <= Number(radio_metros);
     });
   }
 

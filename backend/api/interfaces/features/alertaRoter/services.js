@@ -9,6 +9,7 @@ export class AlertaService {
     recibirEnvioUseCase,
     atenderEnvioUseCase,
     cerrarEnvioUseCase,
+    despacharAlertaManualUseCase,
     realtimeNotifier,
   }) {
     this.getAllAlertaUseCase = getAllAlertaUseCase;
@@ -17,6 +18,7 @@ export class AlertaService {
     this.recibirEnvioUseCase = recibirEnvioUseCase;
     this.atenderEnvioUseCase = atenderEnvioUseCase;
     this.cerrarEnvioUseCase = cerrarEnvioUseCase;
+    this.despacharAlertaManualUseCase = despacharAlertaManualUseCase;
     this.realtimeNotifier = realtimeNotifier;
   }
 
@@ -42,6 +44,10 @@ export class AlertaService {
 
   async cerrar(id_alerta, id_institucion) {
     return this.publicarEnvio(await this.cerrarEnvioUseCase.execute(id_alerta, id_institucion));
+  }
+
+  async despachar(id_alerta, id_instituciones) {
+    return await this.despacharAlertaManualUseCase.execute({ id_alerta, id_instituciones });
   }
 
   async publicarEnvio(envio) {

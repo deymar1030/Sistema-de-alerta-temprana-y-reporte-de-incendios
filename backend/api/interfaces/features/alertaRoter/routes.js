@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { AlertaDependencies } from "./dependencies.js";
+import { requireRole } from "../../middlewares/requireRole.middleware.js";
+import { RolNombres } from "../../../domain/rol/rolNombres.js";
 
 export class AlertaRouter {
   static get routes() {
@@ -13,6 +15,7 @@ export class AlertaRouter {
     router.patch("/:id/instituciones/:id_institucion/recibir", alertaController.recibir);
     router.patch("/:id/instituciones/:id_institucion/atender", alertaController.atender);
     router.patch("/:id/instituciones/:id_institucion/cerrar", alertaController.cerrar);
+    router.post("/:id/despachar", requireRole(RolNombres.ADMIN), alertaController.despachar);
 
     return router;
   }

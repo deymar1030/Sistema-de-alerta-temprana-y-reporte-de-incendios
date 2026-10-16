@@ -6,4 +6,8 @@ export default class EnviaRepository {
   async updateEstado(id_alerta, id_institucion, estado) {
     throw new Error("Method not implemented");
   }
+
+  async crearMuchos(id_alerta, id_instituciones) {
+    throw new Error("Method not implemented");
+  }
 }

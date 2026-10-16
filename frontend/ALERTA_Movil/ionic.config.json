@@ -1,0 +1,7 @@
+{
+  "name": "ALERTA_Movil",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}

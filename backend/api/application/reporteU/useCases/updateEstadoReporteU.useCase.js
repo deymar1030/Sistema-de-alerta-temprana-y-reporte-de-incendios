@@ -1,8 +1,16 @@
 import { UpdateEstadoReporteUDTO } from "../../../domain/reporteU/dtos/updateEstadoReporteU.dto.js";
 
+const MENSAJES_ESTADO = {
+  VALIDADO: "Tu reporte fue validado.",
+  DESCARTADO: "Tu reporte fue descartado.",
+  ATENDIDO: "Tu reporte fue atendido.",
+};
+
 export default class UpdateEstadoReporteUUseCase {
-  constructor(reporteURepository) {
+  constructor(reporteURepository, notificacionRepository, notifier) {
     this.reporteURepository = reporteURepository;
+    this.notificacionRepository = notificacionRepository;
+    this.notifier = notifier;
   }
 
   async execute(id, data) {
@@ -18,6 +26,20 @@ export default class UpdateEstadoReporteUUseCase {
 
     const { estado } = new UpdateEstadoReporteUDTO(data);
 
-    return await this.reporteURepository.updateEstado(id, estado);
+    const actualizado = await this.reporteURepository.updateEstado(id, estado);
+
+    const mensaje = MENSAJES_ESTADO[estado];
+    if (mensaje && this.notificacionRepository && this.notifier) {
+      const notificacion = await this.notificacionRepository.create({
+        id_usuario: existing.id_usuario,
+        id_alerta: null,
+        tipo: "REPORTE",
+        titulo: "Actualización de tu reporte",
+        mensaje,
+      });
+      await this.notifier.emitNotificacion(notificacion);
+    }
+
+    return actualizado;
   }
 }

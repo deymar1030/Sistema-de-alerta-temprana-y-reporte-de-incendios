@@ -2,8 +2,9 @@ import { CreateReporteUDTO } from "../../../domain/reporteU/dtos/createReporteU.
 import { ReporteUEntity } from "../../../domain/reporteU/entities/reporteU.entity.js";
 
 export default class CreateReporteUUseCase {
-  constructor(reporteURepository) {
+  constructor(reporteURepository, notifier) {
     this.reporteURepository = reporteURepository;
+    this.notifier = notifier;
   }
 
   async execute(reporteUData) {
@@ -21,6 +22,8 @@ export default class CreateReporteUUseCase {
       ...reporteUDTO,
     });
 
-    return await this.reporteURepository.create(reporteUEntity);
+    const reporte = await this.reporteURepository.create(reporteUEntity);
+    await this.notifier?.emitReporteCiudadano(reporte);
+    return reporte;
   }
 }

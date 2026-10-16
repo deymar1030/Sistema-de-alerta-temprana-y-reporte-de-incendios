@@ -4,18 +4,44 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/*.test.js",
+    "test:integration": "node --test --test-concurrency=1 tests/integration/*.test.js",
+    "mqtt:provisionar": "node scripts/provisionar-mqtt.js",
+    "mqtt:verificar": "node scripts/verificar-simuladores.js",
+    "mqtt:up": "docker compose -f mqtt/docker-compose.yml up -d",
+    "mqtt:local": "node scripts/iniciar-mosquitto.js",
+    "mqtt:down": "docker compose -f mqtt/docker-compose.yml down",
+    "dev:mqtt": "node --env-file=mqtt/runtime/backend.env --watch app.js",
     "run dev": "node app.js",
-    "dev": "node --watch app.js"
+    "dev": "node --watch app.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "crear-usuario": "node scripts/crear-usuario.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "morgan": "^1.12.0"
+    "express-rate-limit": "^8.7.0",
+    "morgan": "^1.12.0",
+    "mqtt": "^5.16.0",
+    "multer": "^2.4.0",
+    "pg": "^8.16.3",
+    "prisma": "^7.10.0",
+    "socket.io": "^4.8.4",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
   }
 }

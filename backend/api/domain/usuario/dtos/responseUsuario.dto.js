@@ -2,6 +2,7 @@ export class ResponseUsuarioDTO {
   constructor({
     id_usuario,
     id_rol,
+    nombre_rol,
     id_institucion,
     nombre,
     telefono,
@@ -13,6 +14,7 @@ export class ResponseUsuarioDTO {
   }) {
     this.id_usuario = id_usuario;
     this.id_rol = id_rol;
+    this.nombre_rol = nombre_rol;
     this.id_institucion = id_institucion;
     this.nombre = nombre;
     this.telefono = telefono;
@@ -27,6 +29,10 @@ export class ResponseUsuarioDTO {
     return new ResponseUsuarioDTO({
       id_usuario: usuario.id_usuario,
       id_rol: usuario.id_rol,
+      // No es una columna propia del usuario: viaja via el include/select de
+      // la relacion "rol" cuando el repositorio la trae (ver PrismaSesionRepository
+      // y PrismaUsuarioRepository). Si no viene incluida, queda undefined.
+      nombre_rol: usuario.rol?.nombre_rol,
       id_institucion: usuario.id_institucion,
       nombre: usuario.nombre,
       telefono: usuario.telefono,

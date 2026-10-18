@@ -22,6 +22,7 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
         primer_apellido: usuarioData.primer_apellido,
         segundo_apellido: usuarioData.segundo_apellido,
       },
+      include: { rol: { select: { nombre_rol: true } } },
     });
   }
 
@@ -68,6 +69,7 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
         primer_apellido: usuarioData.primer_apellido,
         segundo_apellido: usuarioData.segundo_apellido,
       }),
+      include: { rol: { select: { nombre_rol: true } } },
     });
   }
 

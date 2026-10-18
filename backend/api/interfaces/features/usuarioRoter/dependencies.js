@@ -2,6 +2,7 @@ import prisma from "../../../infrastructure/prismaConfig/prismaClient.js";
 import { UsuarioService } from "./services.js";
 import { UsuarioController } from "./controller.js";
 import PrismaUsuarioRepository from "../../../infrastructure/features/usuario/repositories/usuario.repository.impl.js";
+import PrismaRolRepository from "../../../infrastructure/features/rol/repositories/rol.repository.impl.js";
 import CreateUsuarioUseCase from "../../../application/usuario/useCases/createUsuario.useCase.js";
 import GetAllUsuarioUseCase from "../../../application/usuario/useCases/getAllUsuario.useCase.js";
 import GetUsuarioUseCase from "../../../application/usuario/useCases/getUsuario.useCase.js";
@@ -13,12 +14,13 @@ import GetOperativosInstitucionUseCase from "../../../application/usuario/useCas
 export class UsuarioDependencies {
   static createController() {
     const usuarioRepository = new PrismaUsuarioRepository(prisma);
+    const rolRepository = new PrismaRolRepository(prisma);
 
     const useCases = {
-      createUsuarioUseCase: new CreateUsuarioUseCase(usuarioRepository),
+      createUsuarioUseCase: new CreateUsuarioUseCase({ usuarioRepository, rolRepository }),
       getAllUsuarioUseCase: new GetAllUsuarioUseCase(usuarioRepository),
       getUsuarioUseCase: new GetUsuarioUseCase(usuarioRepository),
-      updateUsuarioUseCase: new UpdateUsuarioUseCase(usuarioRepository),
+      updateUsuarioUseCase: new UpdateUsuarioUseCase({ usuarioRepository, rolRepository }),
       desactivarUsuarioUseCase: new DesactivarUsuarioUseCase(usuarioRepository),
       reactivarUsuarioUseCase: new ReactivarUsuarioUseCase(usuarioRepository),
       getOperativosInstitucionUseCase: new GetOperativosInstitucionUseCase(usuarioRepository),

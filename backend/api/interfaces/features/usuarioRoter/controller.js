@@ -3,6 +3,8 @@ import { UsuarioMapper } from "../../../domain/usuario/mappers/usuario.mapper.js
 function mapUsuarioCreateRequest(body) {
   return {
     id_rol: body.id_rol ?? null,
+    // Alternativa a id_rol: el use case la resuelve con rolRepository.findOrCreateByNombre.
+    nombre_rol: body.nombre_rol,
     id_institucion: body.id_institucion ?? null,
     nombre: body.nombre,
     telefono: body.telefono ?? null,
@@ -14,7 +16,7 @@ function mapUsuarioCreateRequest(body) {
 }
 
 function mapUsuarioUpdateRequest(body) {
-  const campos = ["id_rol", "id_institucion", "nombre", "telefono", "primer_apellido", "segundo_apellido"];
+  const campos = ["id_rol", "nombre_rol", "id_institucion", "nombre", "telefono", "primer_apellido", "segundo_apellido"];
 
   const data = {};
   for (const campo of campos) {

@@ -14,6 +14,12 @@
  *         id_rol:
  *           type: integer
  *           example: 1
+ *         nombre_rol:
+ *           type: string
+ *           description: >
+ *             Nombre del rol (tabla "rol"); se adjunta solo para lectura,
+ *             no reemplaza a id_rol.
+ *           example: "CIUDADANO"
  *         id_institucion:
  *           type: integer
  *           nullable: true
@@ -46,8 +52,11 @@
  *
  *     CreateUsuario:
  *       type: object
+ *       description: >
+ *         El rol se indica con id_rol o con nombre_rol (si se envian ambos,
+ *         nombre_rol tiene prioridad); nombre_rol se resuelve con
+ *         rolRepository.findOrCreateByNombre.
  *       required:
- *         - id_rol
  *         - nombre
  *         - primer_apellido
  *         - correo
@@ -56,6 +65,9 @@
  *         id_rol:
  *           type: integer
  *           example: 1
+ *         nombre_rol:
+ *           type: string
+ *           example: "CIUDADANO"
  *         id_institucion:
  *           type: integer
  *           nullable: true
@@ -92,6 +104,9 @@
  *       properties:
  *         id_rol:
  *           type: integer
+ *         nombre_rol:
+ *           type: string
+ *           example: "OPERATIVO"
  *         id_institucion:
  *           type: integer
  *           nullable: true

@@ -1,0 +1,47 @@
+import type { Incident } from '../types'
+
+export const incidentsMock: Incident[] = [
+  {
+    id: 'INC-001',
+    title: 'Incendio en comercio',
+    status: 'NUEVA',
+    risk: 'CRITICO',
+    location: 'Av. Arce',
+    address: 'Av. Arce 242, La Paz',
+    description: 'Se reporta humo intenso y posible fuego en el interior de un local comercial.',
+    institutionId: 'bomberos-la-paz',
+    institutionName: 'Bomberos La Paz',
+    createdAt: '2026-09-29T14:32:00',
+    updatedAt: '2026-09-29T14:32:00',
+    distanceKm: 1.4,
+    latitude: -16.4947,
+    longitude: -68.1324,
+    timeline: [
+      { id: 'ev-1', type: 'ALERTA_RECIBIDA', timestamp: '2026-09-29T14:32:00', status: 'NUEVA' },
+    ],
+  },
+  {
+    id: 'INC-002',
+    title: 'Vegetación en riesgo',
+    status: 'FINALIZADA',
+    risk: 'ALTO',
+    location: 'Miraflores',
+    address: 'Calle 12, Miraflores',
+    description: 'Fuego controlado en vereda y área vegetal cercana a viviendas.',
+    institutionId: 'bomberos-la-paz',
+    institutionName: 'Bomberos La Paz',
+    createdAt: '2026-09-28T17:10:00',
+    updatedAt: '2026-09-28T18:12:00',
+    distanceKm: 3.1,
+    latitude: -16.5012,
+    longitude: -68.1206,
+    timeline: [
+      { id: 'ev-4', type: 'ALERTA_RECIBIDA', timestamp: '2026-09-28T17:10:00', status: 'NUEVA' },
+      { id: 'ev-5', type: 'RECEPCION_CONFIRMADA', timestamp: '2026-09-28T17:15:00', status: 'RECIBIDA' },
+      { id: 'ev-6', type: 'UNIDAD_EN_CAMINO', timestamp: '2026-09-28T17:22:00', status: 'EN_CAMINO' },
+      { id: 'ev-7', type: 'LLEGADA_AL_LUGAR', timestamp: '2026-09-28T17:31:00', status: 'EN_SITIO' },
+      { id: 'ev-8', type: 'INCENDIO_CONTROLADO', timestamp: '2026-09-28T17:55:00', status: 'CONTROLADA' },
+      { id: 'ev-9', type: 'INTERVENCION_FINALIZADA', timestamp: '2026-09-28T18:12:00', status: 'FINALIZADA' },
+    ],
+  },
+]

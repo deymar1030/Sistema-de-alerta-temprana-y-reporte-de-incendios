@@ -1,0 +1,35 @@
+import type { CitizenReport } from '../types'
+
+export const citizenReportsMock: CitizenReport[] = [
+  {
+    id: 'CR-101',
+    description: 'Humo fuerte en el frente del edificio con personas en riesgo.',
+    type: 'Incendio',
+    incidentType: 'EDIFICIO',
+    location: 'Av. Arce, cerca al mercado',
+    latitude: -16.4949,
+    longitude: -68.1321,
+    smokeVisible: true,
+    fireVisible: true,
+    peopleAtRisk: true,
+    explosions: false,
+    photo: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=900&q=80',
+    status: 'RECIBIDO',
+    createdAt: '2026-09-29T14:12:00',
+  },
+  {
+    id: 'CR-102',
+    description: 'Se observa fuego en un vehículo junto a la vía principal.',
+    type: 'Vehículo',
+    incidentType: 'VEHICULO',
+    location: 'Sopocachi',
+    latitude: -16.5011,
+    longitude: -68.1215,
+    smokeVisible: true,
+    fireVisible: false,
+    peopleAtRisk: false,
+    explosions: false,
+    status: 'VALIDADO',
+    createdAt: '2026-09-28T09:40:00',
+  },
+]

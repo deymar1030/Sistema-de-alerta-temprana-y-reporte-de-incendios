@@ -13,6 +13,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   AlertTriangle,
   Bell,
+  BrainCircuit,
   Building2,
   ChevronRight,
   ClipboardList,
@@ -101,6 +102,11 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
       label: 'Lecturas',
       to: '/super-admin/lecturas',
       icon: ClipboardList,
+    },
+    {
+      label: 'Motor de detección',
+      to: '/super-admin/motor',
+      icon: BrainCircuit,
     },
     {
       label: 'Alertas',

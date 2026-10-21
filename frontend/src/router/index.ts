@@ -84,6 +84,7 @@ export const routes: RouteRecordRaw[] = [
       { path: 'predios', name: 'super-admin-predios', component: PrediosView, meta: { roles: adminRoles, title: 'Predios' } },
       { path: 'sensores', name: 'super-admin-sensors', component: SensorsView, meta: { roles: adminRoles, title: 'Sensores' } },
       { path: 'lecturas', name: 'super-admin-readings', component: ReadingsView, meta: { roles: adminRoles, title: 'Lecturas' } },
+      { path: 'motor', name: 'super-admin-detection', component: DetectionEngineView, meta: { roles: adminRoles, title: 'Motor de detección' } },
       { path: 'alertas', name: 'super-admin-alerts', component: SuperAdminAlertsView, meta: { roles: adminRoles, title: 'Alertas' } },
       { path: 'incidentes', name: 'super-admin-incidents', component: SuperAdminIncidentsView, meta: { roles: adminRoles, title: 'Incidentes' } },
       { path: 'auditoria', name: 'super-admin-audit', component: SuperAdminAuditView, meta: { roles: adminRoles, title: 'Auditoría' } },

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lecturas manuales | Simulador de incendios</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #182230; background: #f3f6fa; }
+    body { max-width: 760px; margin: 3rem auto; padding: 0 1rem; }
+    main { background: white; border: 1px solid #d9e1eb; border-radius: 12px; padding: 1.5rem; }
+    h1 { margin-top: 0; font-size: 1.6rem; }
+    p { line-height: 1.5; }
+    label { display: block; margin: 1rem 0 .35rem; font-weight: 600; }
+    select, input, button { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #aab7c6; border-radius: 6px; font: inherit; }
+    button { margin-top: 1.25rem; border: 0; color: white; background: #a62929; font-weight: 700; cursor: pointer; }
+    .notice { padding: .8rem; border-radius: 6px; margin: .75rem 0; }
+    .success { background: #e8f6ec; color: #14532d; }
+    .error { background: #fff0f0; color: #8a1c1c; }
+    .empty { padding: 1rem; background: #fff8e6; border-radius: 6px; }
+    small { color: #526173; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Reporte manual de lectura</h1>
+    <p>Selecciona un sensor activo y encola un valor que se publicara por MQTT en el siguiente ciclo del simulador.</p>
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, mensaje in mensajes %}
+        <div class="notice {{ categoria }}" role="status">{{ mensaje }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% if sensores %}
+      <form method="post" action="{{ url_for('crear_lectura') }}">
+        <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+        <label for="id_sensor">Sensor</label>
+        <select id="id_sensor" name="id_sensor" required>
+          {% for sensor in sensores %}
+            <option value="{{ sensor.id_sensor }}">
+              Predio {{ sensor.id_predio }} · Sensor {{ sensor.id_sensor }} ·
+              {{ sensor.tipo_variable }} ({{ sensor.unidad }})
+            </option>
+          {% endfor %}
+        </select>
+        <label for="valor">Valor de lectura</label>
+        <input id="valor" name="valor" type="number" step="any" required>
+        <small>El valor se valida contra el rango configurado para el sensor.</small>
+        <button type="submit">Encolar lectura</button>
+      </form>
+    {% else %}
+      <p class="empty">No se encontraron sensores activos. Verifica el backend y vuelve a iniciar el simulador.</p>
+    {% endif %}
+  </main>
+</body>
+</html>

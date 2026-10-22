@@ -1,4 +1,5 @@
 import { UpdateUsuarioDTO } from "../../../domain/usuario/dtos/updateUsuario.dto.js";
+import { Hash } from "../../../config/hash.js";
 
 export default class UpdateUsuarioUseCase {
   constructor({ usuarioRepository, rolRepository }) {
@@ -23,6 +24,10 @@ export default class UpdateUsuarioUseCase {
     if (nombre_rol) {
       const rol = await this.rolRepository.findOrCreateByNombre(nombre_rol);
       datos.id_rol = rol.id_rol;
+    }
+
+    if (datos.contrasena) {
+      datos.contrasena = await Hash.hash(datos.contrasena);
     }
 
     const usuarioDTO = new UpdateUsuarioDTO(datos);

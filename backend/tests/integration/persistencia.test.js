@@ -8,6 +8,7 @@ import { PrismaDeteccionRepository } from '../../api/infrastructure/features/lec
 import { EvaluarLecturaUseCase } from '../../api/application/lectura/useCases/evaluarLectura.useCase.js';
 import { leerSimuladores } from '../../scripts/provisionar-mqtt.js';
 import PrismaEnviaRepository from '../../api/infrastructure/features/envia/repositories/envia.repository.impl.js';
+import PrismaAlertaDesdeReporteRepository from '../../api/infrastructure/features/deteccionImagen/repositories/prismaAlertaDesdeReporte.repository.impl.js';
 
 const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('Definir TEST_DATABASE_URL para una BD local aislada llamada mqtt_detection_test (puerto distinto de 5432)');
@@ -94,17 +95,18 @@ async function agregarHumo() {
 }
 test('Confirmacion validada persiste ENVIA/notificacion una sola vez y mantiene alerta abierta', async () => {
   const p = await agregarHumo();
-  const institucion = await prisma.institucion.create({ data: { nombre: 'Fixture bomberos', categoria: 'BOMBEROS', cubre_jurisdiccion: { create: { id_zona: p.id_zona } } } });
+  const institucion = await prisma.institucion.create({ data: { nombre: 'Fixture bomberos', categoria: 'BOMBEROS' } });
+  await prisma.institucion.create({ data: { nombre: 'Otra institucion sin jurisdiccion', categoria: 'POLICIA', estado: false } });
   const rol = await prisma.rol.create({ data: { nombre_rol: 'JEFE_INSTITUCION' } });
   await prisma.usuario.create({ data: { nombre: 'Fixture', primer_apellido: 'Jefe', correo: 'fixture@example.invalid', contrasena: 'no-login', id_rol: rol.id_rol, id_institucion: institucion.id_institucion } });
   await useCase.execute(mensaje(80, 600));
   ahora = new Date(+ahora + 5000);
   const r = await useCase.execute(mensaje(80, 650));
   assert.equal(r.alerta.estado, 'CONFIRMADA'); assert.ok(r.alerta.fecha_confirmacion);
-  assert.equal(await prisma.envia.count(), 1); assert.equal(await prisma.notificacion.count(), 1);
+  assert.equal(await prisma.envia.count(), 2); assert.equal(await prisma.notificacion.count(), 1);
   ahora = new Date(+ahora + 5000);
   await useCase.execute(mensaje(80, 700));
-  assert.equal(await prisma.envia.count(), 1); assert.equal(eventos.filter(([e]) => e === 'emitAlertaConfirmada').length, 1);
+  assert.equal(await prisma.envia.count(), 2); assert.equal(eventos.filter(([e]) => e === 'emitAlertaConfirmada').length, 1);
 });
 test('Fallo al distribuir revierte lectura/alerta y no publica eventos', async () => {
   await agregarHumo(); await useCase.execute(mensaje(80, 600));
@@ -120,7 +122,7 @@ test('Fallo al distribuir revierte lectura/alerta y no publica eventos', async (
 
 test('Atencion y cierre institucional liberan el predio para el siguiente episodio', async () => {
   const p = await agregarHumo();
-  const institucion = await prisma.institucion.create({ data: { nombre: 'Fixture cierre', categoria: 'BOMBEROS', cubre_jurisdiccion: { create: { id_zona: p.id_zona } } } });
+  const institucion = await prisma.institucion.create({ data: { nombre: 'Fixture cierre', categoria: 'BOMBEROS' } });
   await useCase.execute(mensaje(80, 600)); ahora = new Date(+ahora + 5000);
   const r = await useCase.execute(mensaje(80, 650));
   const envios = new PrismaEnviaRepository(prisma);
@@ -136,4 +138,40 @@ test('Atencion y cierre institucional liberan el predio para el siguiente episod
   const siguiente = await useCase.execute(mensaje(80, 700));
   assert.notEqual(siguiente.alerta.id_alerta, cerrada.id_alerta);
   assert.equal(await prisma.alerta.count(), 2);
+});
+
+
+test('Snapshot consulta el motor sin modificar lecturas ni alertas', async () => {
+  const count = await prisma.lectura.count();
+  const result = await repo.snapshot(8, {}, t0);
+  assert.equal(result.id_predio, 8n);
+  assert.equal(result.evaluacion.confirmacionDisponible, false);
+  assert.equal(result.evaluacion.puntaje, null);
+  assert.equal(await prisma.lectura.count(), count);
+  assert.equal(await prisma.alerta.count(), 0);
+  assert.equal(await repo.snapshot(999, {}, t0), null);
+});
+
+test('Vision distribuye a todas las instituciones, vincula y evita doble confirmacion', async () => {
+  const rol = await prisma.rol.create({ data: { nombre_rol: 'CIUDADANO' } });
+  const user = await prisma.usuario.create({ data: { nombre: 'Fixture', primer_apellido: 'Vision', correo: 'vision@example.invalid', contrasena: 'no-login', id_rol: rol.id_rol } });
+  await prisma.institucion.createMany({ data: [ { nombre: 'A', categoria: 'BOMBEROS' }, { nombre: 'B', categoria: 'POLICIA', estado: false } ] });
+  const repository = new PrismaAlertaDesdeReporteRepository(prisma);
+  const prediccion = { detected: true, fire_probability: .95 };
+  const result = await repository.crearReporteConAlerta({ reporteU: { id_usuario: user.id_usuario, descripcion: 'Vision', estado: 'RECIBIDO', ubicacion_tipo: 'CERCANA' }, prediccion, ahora: t0 });
+  assert.equal(result.envios.length, 2);
+  assert.equal(await prisma.genera_ru.count(), 1);
+  const duplicate = await repository.confirmarIncendio({ reporteU: result.reporteU, prediccion, ahora: t0 });
+  assert.equal(duplicate.alerta.id_alerta, result.alerta.id_alerta);
+  assert.equal(await prisma.alerta.count(), 1);
+  assert.equal(await prisma.envia.count(), 2);
+});
+
+test('Vision revierte tambien el reporte si la distribucion falla', async () => {
+  const rol = await prisma.rol.create({ data: { nombre_rol: 'CIUDADANO' } });
+  const user = await prisma.usuario.create({ data: { nombre: 'Fixture', primer_apellido: 'Rollback', correo: 'rollback@example.invalid', contrasena: 'no-login', id_rol: rol.id_rol } });
+  const repository = new PrismaAlertaDesdeReporteRepository(prisma);
+  repository.confirmar = async () => { throw new Error('Fallo distribucion'); };
+  await assert.rejects(repository.crearReporteConAlerta({ reporteU: { id_usuario: user.id_usuario, descripcion: 'Rollback', estado: 'RECIBIDO' }, prediccion: {}, ahora: t0 }), /Fallo distribucion/);
+  assert.equal(await prisma.reporte_u.count(), 0);
 });

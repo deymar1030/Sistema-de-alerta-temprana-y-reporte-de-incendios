@@ -16,7 +16,7 @@ function mapUsuarioCreateRequest(body) {
 }
 
 function mapUsuarioUpdateRequest(body) {
-  const campos = ["id_rol", "nombre_rol", "id_institucion", "nombre", "telefono", "primer_apellido", "segundo_apellido"];
+  const campos = ["id_rol", "nombre_rol", "id_institucion", "nombre", "telefono", "primer_apellido", "segundo_apellido", "correo", "contrasena"];
 
   const data = {};
   for (const campo of campos) {

@@ -124,12 +124,4 @@
  *       items:
  *         $ref: '#/components/schemas/Institucion'
  *
- *     AddJurisdiccion:
- *       type: object
- *       required:
- *         - id_zona
- *       properties:
- *         id_zona:
- *           type: integer
- *           example: 1
  */

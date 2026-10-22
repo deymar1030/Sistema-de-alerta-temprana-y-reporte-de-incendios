@@ -5,9 +5,9 @@ const UMBRAL_ALTA = 0.85;
 const RANGO_PRIORIDAD = { ALTA: 3, MEDIA: 2, BAJA: 1 };
 
 export function sugerirNivelPrioridad(prediccion) {
-  if (!prediccion || !prediccion.detected) return null;
+  if (!prediccion || prediccion.detected !== true) return null;
 
-  if (typeof prediccion.fire_probability === "number" && prediccion.fire_probability >= UMBRAL_ALTA) {
+  if (!prediccion.warning && Number.isFinite(prediccion.fire_probability) && prediccion.fire_probability <= 1 && prediccion.fire_probability >= UMBRAL_ALTA) {
     return "ALTA";
   }
 
@@ -32,4 +32,26 @@ export function describirPrediccion(prediccion) {
   const aviso = prediccion.warning ? " (confianza baja, requiere revision humana)" : "";
 
   return `Analisis IA: ${etiqueta} (${porcentaje}%)${aviso}`;
+}
+
+// EN_SITIO: el ciudadano esta en el lugar -- las coordenadas del reporte SON
+// el incendio. CERCANA: el ciudadano esta cerca pero no en el lugar exacto --
+// las coordenadas ubican al reportante, no al incendio. null: sin especificar
+// (reportes anteriores a este campo), se trata igual que EN_SITIO.
+export function esUbicacionCercana(ubicacionTipo) {
+  return ubicacionTipo === "CERCANA";
+}
+
+export function describirUbicacion(ubicacionTipo) {
+  if (ubicacionTipo === "CERCANA") {
+    return "Ubicacion aproximada: el ciudadano reporta estar cerca, no en el lugar exacto del incendio.";
+  }
+  if (ubicacionTipo === "EN_SITIO") {
+    return "Ubicacion exacta: el ciudadano reporta estar en el lugar del incendio.";
+  }
+  return null;
+}
+
+export function tituloAlertaPorUbicacion(ubicacionTipo) {
+  return esUbicacionCercana(ubicacionTipo) ? "Posible incendio cercano (reporte ciudadano)" : "Incendio confirmado por IA";
 }

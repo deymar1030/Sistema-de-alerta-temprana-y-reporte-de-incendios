@@ -3,7 +3,7 @@ import { ArchivoStorage } from "../../../archivos/archivo.storage.js";
 import { envs } from "../../../../config/envs.js";
 
 // foto_url siempre tiene esta forma -- la arma ArchivoController.subir().
-const FOTO_URL_PATTERN = /^\/api\/archivos\/([^/]+)\/([^/]+)$/;
+const FOTO_URL_PATTERN = /^\/api\/archivos\/(reportes-usuario)\/([a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|webp))$/;
 
 export default class HttpClasificadorImagenRepository extends ClasificadorImagenRepository {
   async classify(fotoUrl) {
@@ -42,6 +42,12 @@ export default class HttpClasificadorImagenRepository extends ClasificadorImagen
       throw new Error(`ml-service respondio con error: ${detail}`);
     }
 
+    if (!payload || typeof payload.detected !== 'boolean' ||
+        !Number.isFinite(payload.fire_probability) || payload.fire_probability < 0 || payload.fire_probability > 1 ||
+        !Number.isFinite(payload.threshold) || payload.threshold <= 0 || payload.threshold >= 1 ||
+        payload.detected !== (payload.fire_probability >= payload.threshold)) {
+      throw new Error('Respuesta de vision invalida');
+    }
     return payload;
   }
 }

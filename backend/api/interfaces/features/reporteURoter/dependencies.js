@@ -3,6 +3,7 @@ import { ReporteUService } from "./services.js";
 import { ReporteUController } from "./controller.js";
 import PrismaReporteURepository from "../../../infrastructure/features/reporteU/repositories/reporteU.repository.impl.js";
 import HttpClasificadorImagenRepository from "../../../infrastructure/features/deteccionImagen/repositories/httpClasificadorImagen.repository.impl.js";
+import PrismaAlertaDesdeReporteRepository from "../../../infrastructure/features/deteccionImagen/repositories/prismaAlertaDesdeReporte.repository.impl.js";
 import { RegistryRealtimeNotifier } from "../../../../websocketManager/notifierRegistry.js";
 import CreateReporteUUseCase from "../../../application/reporteU/useCases/createReporteU.useCase.js";
 import GetAllReporteUUseCase from "../../../application/reporteU/useCases/getAllReporteU.useCase.js";
@@ -14,6 +15,7 @@ export class ReporteUDependencies {
   static createController() {
     const reporteURepository = new PrismaReporteURepository(prisma);
     const clasificadorImagenRepository = new HttpClasificadorImagenRepository();
+    const alertaDesdeReporteRepository = new PrismaAlertaDesdeReporteRepository(prisma);
 
     const useCases = {
       // RegistryRealtimeNotifier resuelve el notifier real recien al emitir
@@ -21,6 +23,7 @@ export class ReporteUDependencies {
       createReporteUUseCase: new CreateReporteUUseCase({
         reporteURepository,
         clasificadorImagenRepository,
+        alertaDesdeReporteRepository,
         realtimeNotifier: new RegistryRealtimeNotifier(),
       }),
       getAllReporteUUseCase: new GetAllReporteUUseCase(reporteURepository),

@@ -89,7 +89,7 @@ async def predict(image: UploadFile = File(...)) -> Prediction:
     if image.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=415, detail="Solo se aceptan imágenes JPG, PNG o WEBP.")
 
-    contents = await image.read()
+    contents = await image.read(MAX_IMAGE_SIZE_BYTES + 1)
     if not contents:
         raise HTTPException(status_code=400, detail="La imagen está vacía.")
     if len(contents) > MAX_IMAGE_SIZE_BYTES:

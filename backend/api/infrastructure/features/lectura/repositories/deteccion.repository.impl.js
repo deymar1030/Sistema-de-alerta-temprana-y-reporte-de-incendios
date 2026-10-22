@@ -1,3 +1,6 @@
+import { distribuirAlerta } from '../../alerta/distribuirAlerta.js';
+import { resolverConfiguracion } from '../../../../domain/motorDeteccion/configuracion.js';
+import { evaluarPredio } from '../../../../domain/motorDeteccion/evaluarPredio.js';
 import { DeteccionRepository } from '../../../../application/lectura/repositories/deteccion.repository.js';
 import { distanciaMetros } from '../../../../domain/motorDeteccion/evaluarPredio.js';
 import { normalizarVariable } from '../../../../domain/sensor/tiposSensor.js';
@@ -60,23 +63,10 @@ class TransaccionDeteccion {
     return this.db.alerta.update({ where: { id_alerta: alerta.id_alerta }, data });
   }
   async distribuir(alerta, predio, ahora) {
-    const instituciones = await this.db.institucion.findMany({ where: { estado: true, cubre_jurisdiccion: { some: { id_zona: predio.id_zona } } } });
-    if (!instituciones.length) return { envios: [], notificaciones: [] };
-    const envios = [];
-    for (const i of instituciones) {
-      envios.push(await this.db.envia.create({ data: { id_alerta: alerta.id_alerta, id_institucion: i.id_institucion, estado: 'ENVIADA', fecha_envio: ahora } }));
-    }
-    const jefes = await this.db.usuario.findMany({ where: { estado: true, fecha_eliminacion: null,
-      id_institucion: { in: instituciones.map((i) => i.id_institucion) }, rol: { nombre_rol: 'JEFE_INSTITUCION' } }, select: { id_usuario: true } });
-    const notificaciones = [];
-    for (const jefe of jefes) {
-      notificaciones.push(await this.db.notificacion.create({ data: {
-        id_usuario: jefe.id_usuario, id_alerta: alerta.id_alerta, tipo: 'ALERTA',
-        titulo: 'Incendio confirmado', mensaje: `Alerta #${alerta.id_alerta} en ${predio.nombre}.`, fecha_hora: ahora,
-      } }));
-    }
-    return { envios, notificaciones };
+    return distribuirAlerta(this.db, { alerta, ahora, titulo: 'Incendio confirmado',
+      mensaje: `Alerta #${alerta.id_alerta} en ${predio.nombre}.` });
   }
+
   async detalle(alerta) {
     const lecturas = await this.db.lectura.findMany({ where: { id_alerta: alerta.id_alerta }, orderBy: { fecha_hora: 'asc' } });
     const instituciones_notificadas = await this.db.envia.findMany({ where: { id_alerta: alerta.id_alerta }, include: { institucion: { select: { nombre: true } } } });
@@ -86,6 +76,25 @@ class TransaccionDeteccion {
 
 export class PrismaDeteccionRepository extends DeteccionRepository {
   constructor(prisma) { super(); this.prisma = prisma; }
+  async snapshot(id, configuracion = {}, ahora = new Date()) {
+    return this.prisma.$transaction(async (db) => {
+      const tx = new TransaccionDeteccion(db);
+      const contexto = await tx.contexto(id, ahora);
+      if (!contexto) return null;
+      const config = resolverConfiguracion(contexto.motor, configuracion);
+      const alerta = await tx.alertaActiva(id);
+      const { predio, motor, sensores } = contexto;
+      return {
+        id_predio: predio.id_predio, nombre: predio.nombre, activo: predio.activo,
+        actualizado_en: ahora, motor, configuracion: config,
+        alerta, evaluacion: evaluarPredio({ ...contexto, config, ahora, alerta }),
+        sensores: sensores.map(({ lecturas, ...sensor }) => ({
+          id_sensor: sensor.id_sensor, tipo_sensor: sensor.tipo_sensor,
+          ultima_lectura: lecturas.at(-1) ?? null, muestras: lecturas.length,
+        })),
+      };
+    }, { isolationLevel: 'RepeatableRead', timeout: 15000 });
+  }
   enPredio(id, trabajo) {
     return this.prisma.$transaction(async (db) => {
       // Serializa ingesta, timeout y multiples procesos sin columnas/indices nuevos.

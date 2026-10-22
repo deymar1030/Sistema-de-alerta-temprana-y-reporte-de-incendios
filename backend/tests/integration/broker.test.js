@@ -132,7 +132,7 @@ test('Mosquitto real: autenticacion, ACL, persistencia, reconexion, Python y Web
   const script = fileURLToPath(new URL('../../../docs/mqtt example/SENSORES/main.py', import.meta.url));
   // Tambien permite Python embebido (p. ej. pgAdmin), que ignora PYTHONPATH por defecto.
   const launcher = "import os,runpy,sys; sys.path[:0]=[os.path.dirname(sys.argv[1]), *filter(None,os.getenv('PYTHONPATH','').split(os.pathsep))]; sys.argv=sys.argv[1:]; runpy.run_path(sys.argv[0],run_name='__main__')";
-  const python = spawn(process.env.PYTHON_BIN, ['-c', launcher, script, '--broker', brokerUrl, '--credenciales', join(carpeta, 'publishers.json'), '--intervalo', '5', '--duracion', '6'],
+  const python = spawn(process.env.PYTHON_BIN, ['-c', launcher, script, '--manifiesto', fileURLToPath(new URL('../../../docs/mqtt example/SENSORES/simuladores.json', import.meta.url)), '--broker', brokerUrl, '--credenciales', join(carpeta, 'publishers.json'), '--intervalo', '5', '--duracion', '6'],
     { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
   let salidaPython = ''; python.stdout.on('data', (x) => { salidaPython += x; }); python.stderr.on('data', (x) => { salidaPython += x; });
   t.after(() => python.kill());

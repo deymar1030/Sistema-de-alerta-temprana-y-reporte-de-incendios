@@ -2,7 +2,8 @@ import prisma from "../../../infrastructure/prismaConfig/prismaClient.js";
 import { ReporteUService } from "./services.js";
 import { ReporteUController } from "./controller.js";
 import PrismaReporteURepository from "../../../infrastructure/features/reporteU/repositories/reporteU.repository.impl.js";
-import PrismaNotificacionRepository from "../../../infrastructure/features/notificacion/repositories/notificacion.repository.impl.js";
+import HttpClasificadorImagenRepository from "../../../infrastructure/features/deteccionImagen/repositories/httpClasificadorImagen.repository.impl.js";
+import PrismaAlertaDesdeReporteRepository from "../../../infrastructure/features/deteccionImagen/repositories/prismaAlertaDesdeReporte.repository.impl.js";
 import { RegistryRealtimeNotifier } from "../../../../websocketManager/notifierRegistry.js";
 import CreateReporteUUseCase from "../../../application/reporteU/useCases/createReporteU.useCase.js";
 import GetAllReporteUUseCase from "../../../application/reporteU/useCases/getAllReporteU.useCase.js";
@@ -13,16 +14,21 @@ import VincularAlertaReporteUUseCase from "../../../application/reporteU/useCase
 export class ReporteUDependencies {
   static createController() {
     const reporteURepository = new PrismaReporteURepository(prisma);
-    const notificacionRepository = new PrismaNotificacionRepository(prisma);
-    // RegistryRealtimeNotifier resuelve el notifier real recien al emitir
-    // (este router se construye antes de que exista -- ver notifierRegistry.js).
-    const realtimeNotifier = new RegistryRealtimeNotifier();
+    const clasificadorImagenRepository = new HttpClasificadorImagenRepository();
+    const alertaDesdeReporteRepository = new PrismaAlertaDesdeReporteRepository(prisma);
 
     const useCases = {
-      createReporteUUseCase: new CreateReporteUUseCase(reporteURepository, realtimeNotifier),
+      // RegistryRealtimeNotifier resuelve el notifier real recien al emitir
+      // (este router se construye antes de que exista -- ver notifierRegistry.js).
+      createReporteUUseCase: new CreateReporteUUseCase({
+        reporteURepository,
+        clasificadorImagenRepository,
+        alertaDesdeReporteRepository,
+        realtimeNotifier: new RegistryRealtimeNotifier(),
+      }),
       getAllReporteUUseCase: new GetAllReporteUUseCase(reporteURepository),
       getReporteUUseCase: new GetReporteUUseCase(reporteURepository),
-      updateEstadoReporteUUseCase: new UpdateEstadoReporteUUseCase(reporteURepository, notificacionRepository, realtimeNotifier),
+      updateEstadoReporteUUseCase: new UpdateEstadoReporteUUseCase(reporteURepository),
       vincularAlertaReporteUUseCase: new VincularAlertaReporteUUseCase(reporteURepository),
     };
 

@@ -62,33 +62,11 @@ export default class PrismaInstitucionRepository extends InstitucionRepository {
   async delete(id) {
     // Baja logica: borrarla de verdad fallaria en cuanto tenga informes de
     // atencion asociados (Restrict), y antes de eso arrastraria en cascada
-    // su historial de notificaciones (envia) y jurisdicciones.
+    // su historial de notificaciones (envia).
     return await this.prisma.institucion.update({
       where: { id_institucion: Number(id) },
       data: { estado: false },
     });
   }
 
-  async findJurisdicciones(id_institucion) {
-    const vinculos = await this.prisma.cubre_jurisdiccion.findMany({
-      where: { id_institucion: Number(id_institucion) },
-      include: { zona_geografica: true },
-    });
-
-    return vinculos.map((v) => v.zona_geografica);
-  }
-
-  async addJurisdiccion(id_institucion, id_zona) {
-    return await this.prisma.cubre_jurisdiccion.create({
-      data: { id_institucion: Number(id_institucion), id_zona: Number(id_zona) },
-    });
-  }
-
-  async removeJurisdiccion(id_institucion, id_zona) {
-    await this.prisma.cubre_jurisdiccion.delete({
-      where: {
-        id_zona_id_institucion: { id_zona: Number(id_zona), id_institucion: Number(id_institucion) },
-      },
-    });
-  }
 }

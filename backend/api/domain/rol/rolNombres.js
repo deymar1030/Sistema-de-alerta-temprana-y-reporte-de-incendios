@@ -3,7 +3,6 @@
 // usar. Si la fila real en la tabla `rol` no coincide exactamente con
 // estos strings, requireRole() rechaza con 403 a quien deberia pasar.
 export const RolNombres = Object.freeze({
-  ADMIN: "ADMIN",
   JEFE_INSTITUCION: "JEFE_INSTITUCION",
   OPERATIVO: "OPERATIVO",
   CIUDADANO: "CIUDADANO",

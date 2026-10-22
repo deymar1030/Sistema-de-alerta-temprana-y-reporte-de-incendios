@@ -100,13 +100,4 @@ export class AlertaController {
       res.status(400).json({ success: false, error: error.message });
     }
   };
-
-  despachar = async (req, res) => {
-    try {
-      const resultado = await this.alertaService.despachar(req.params.id, req.body.id_instituciones);
-      res.json({ success: true, data: resultado });
-    } catch (error) {
-      res.status(400).json({ success: false, error: error.message });
-    }
-  };
 }

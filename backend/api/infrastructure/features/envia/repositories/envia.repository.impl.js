@@ -35,25 +35,4 @@ export default class PrismaEnviaRepository extends EnviaRepository {
       return { ...envio, alerta_actualizada };
     });
   }
-
-  async crearMuchos(id_alerta, id_instituciones) {
-    const existentes = await this.prisma.envia.findMany({
-      where: { id_alerta: BigInt(id_alerta), id_institucion: { in: id_instituciones.map(BigInt) } },
-      select: { id_institucion: true },
-    });
-    const yaDespachadas = new Set(existentes.map((e) => String(e.id_institucion)));
-    const nuevas = id_instituciones.filter((id) => !yaDespachadas.has(String(id)));
-
-    const ahora = new Date();
-    const creados = await this.prisma.$transaction(
-      nuevas.map((id_institucion) =>
-        this.prisma.envia.create({
-          data: { id_alerta: BigInt(id_alerta), id_institucion: BigInt(id_institucion), estado: "ENVIADA", fecha_envio: ahora },
-          include: { institucion: true },
-        })
-      )
-    );
-
-    return { creados, omitidos: id_instituciones.filter((id) => yaDespachadas.has(String(id))) };
-  }
 }

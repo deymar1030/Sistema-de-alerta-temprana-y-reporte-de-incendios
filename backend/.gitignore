@@ -2,6 +2,8 @@ node_modules/
 .env
 npm-debug.log*
 uploads/
+__pycache__/
+*.pyc
 
 # Config local de Mosquitto (credenciales) -- solo se versiona el .example
 mqtt/mosquitto.conf

@@ -41,4 +41,12 @@ export const envs = {
 
   // Secreto compartido con Mosquitto para /internal/mqtt/* (va en auth_opt_http_user_agent).
   MQTT_AUTH_SECRET: process.env.MQTT_AUTH_SECRET || "",
+
+  // Microservicio FastAPI de deteccion de incendios por imagen (backend/ml-service).
+  ML_SERVICE_URL: process.env.ML_SERVICE_URL || "http://127.0.0.1:8000",
+  ML_SERVICE_TIMEOUT_MS: toNumber(process.env.ML_SERVICE_TIMEOUT_MS, 15000),
+
+  // Microservicio FastAPI de calculo de rutas (backend/routing-service).
+  ROUTING_SERVICE_URL: process.env.ROUTING_SERVICE_URL || "http://127.0.0.1:8001",
+  ROUTING_SERVICE_TIMEOUT_MS: toNumber(process.env.ROUTING_SERVICE_TIMEOUT_MS, 15000),
 };

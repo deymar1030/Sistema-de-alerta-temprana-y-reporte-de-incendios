@@ -1,8 +1,10 @@
 import { UpdateUsuarioDTO } from "../../../domain/usuario/dtos/updateUsuario.dto.js";
+import { Hash } from "../../../config/hash.js";
 
 export default class UpdateUsuarioUseCase {
-  constructor(usuarioRepository) {
+  constructor({ usuarioRepository, rolRepository }) {
     this.usuarioRepository = usuarioRepository;
+    this.rolRepository = rolRepository;
   }
 
   async execute(id, usuarioData) {
@@ -18,7 +20,17 @@ export default class UpdateUsuarioUseCase {
       throw new Error("Usuario not found");
     }
 
-    const usuarioDTO = new UpdateUsuarioDTO(usuarioData);
+    const { nombre_rol, ...datos } = usuarioData;
+    if (nombre_rol) {
+      const rol = await this.rolRepository.findOrCreateByNombre(nombre_rol);
+      datos.id_rol = rol.id_rol;
+    }
+
+    if (datos.contrasena) {
+      datos.contrasena = await Hash.hash(datos.contrasena);
+    }
+
+    const usuarioDTO = new UpdateUsuarioDTO(datos);
 
     return await this.usuarioRepository.update(id, usuarioDTO);
   }

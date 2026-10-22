@@ -16,7 +16,6 @@ model zona_geografica {
   densidad_poblacional Decimal? @db.Decimal(10, 2)
 
   predio             predio[]
-  cubre_jurisdiccion cubre_jurisdiccion[]
 }
 
 model rol {
@@ -68,7 +67,6 @@ model institucion {
   disponibilidad_operativa String?  @db.VarChar(30)
 
   usuario            usuario[]
-  cubre_jurisdiccion cubre_jurisdiccion[]
   envia              envia[]
   informe_atencion   informe_atencion[]
 }
@@ -109,15 +107,6 @@ model sesion {
   @@index([id_usuario], map: "idx_sesion_usuario")
 }
 
-model cubre_jurisdiccion {
-  id_zona        BigInt
-  id_institucion BigInt
-
-  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Cascade)
-  institucion     institucion     @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
-
-  @@id([id_zona, id_institucion], map: "pk_cubre_jurisdiccion")
-}
 
 model auditoria {
   id_auditoria BigInt   @id @default(autoincrement())
@@ -153,6 +142,7 @@ model reporte_u {
   longitud        Decimal? @db.Decimal(9, 6)
   indicador       String?
   foto_url        String?  @db.VarChar(500)
+  ubicacion_tipo  String?  @db.VarChar(20)
 
   usuario   usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
   genera_ru genera_ru[]

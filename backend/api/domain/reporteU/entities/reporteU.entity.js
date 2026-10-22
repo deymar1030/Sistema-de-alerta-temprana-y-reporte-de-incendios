@@ -11,6 +11,7 @@ export class ReporteUEntity {
     longitud,
     indicador,
     foto_url,
+    ubicacion_tipo,
   }) {
     this.id_reporte_u = id_reporte_u;
     this.id_usuario = id_usuario;
@@ -23,5 +24,6 @@ export class ReporteUEntity {
     this.longitud = longitud;
     this.indicador = indicador;
     this.foto_url = foto_url;
+    this.ubicacion_tipo = ubicacion_tipo;
   }
 }

@@ -245,7 +245,7 @@ model parametro_variable {
 model predio {
   id_predio             BigInt    @id @default(autoincrement())
   id_zona               BigInt
-  id_motordet           BigInt
+  id_motordet           BigInt?
   tipo_predio           String    @db.VarChar(20)
   nombre                String    @db.VarChar(100)
   direccion             String    @db.VarChar(200)
@@ -264,7 +264,7 @@ model predio {
   activo                Boolean   @default(true)
 
   zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Restrict)
-  motor_det       motor_det       @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Restrict)
+  motor_det       motor_det?      @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Restrict)
   sensor          sensor[]
 
   @@index([id_zona], map: "idx_predio_zona")

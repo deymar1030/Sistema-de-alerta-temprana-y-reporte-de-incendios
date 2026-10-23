@@ -14,7 +14,7 @@ export default class PrismaPredioRepository extends PredioRepository {
     return await this.prisma.predio.create({
       data: {
         id_zona: Number(predioData.id_zona),
-        id_motordet: Number(predioData.id_motordet),
+        id_motordet: predioData.id_motordet != null ? Number(predioData.id_motordet) : null,
         tipo_predio: predioData.tipo_predio,
         nombre: predioData.nombre,
         direccion: predioData.direccion,
@@ -68,7 +68,9 @@ export default class PrismaPredioRepository extends PredioRepository {
   async update(id, predioData) {
     const data = limpiar({
       id_zona: predioData.id_zona !== undefined ? Number(predioData.id_zona) : undefined,
-      id_motordet: predioData.id_motordet !== undefined ? Number(predioData.id_motordet) : undefined,
+      id_motordet: predioData.id_motordet !== undefined
+        ? (predioData.id_motordet != null ? Number(predioData.id_motordet) : null)
+        : undefined,
       tipo_predio: predioData.tipo_predio,
       nombre: predioData.nombre,
       direccion: predioData.direccion,

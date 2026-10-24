@@ -37,7 +37,8 @@ CREATE TABLE politica (
     activar_emergencia      BOOLEAN NOT NULL DEFAULT FALSE,
     ver_auditoria           BOOLEAN NOT NULL DEFAULT FALSE,
     gestionar_usuarios      BOOLEAN NOT NULL DEFAULT FALSE,
-    crear_admin             BOOLEAN NOT NULL DEFAULT FALSE
+    crear_admin             BOOLEAN NOT NULL DEFAULT FALSE,
+    puede_moderar_reportes  BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- ======================

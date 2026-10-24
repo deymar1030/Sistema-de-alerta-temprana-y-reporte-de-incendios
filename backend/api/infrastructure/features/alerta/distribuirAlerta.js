@@ -1,7 +1,8 @@
-// La zona del predio no limita los destinatarios. El flujo del empleado
-// queda pendiente: se conserva la notificacion personal a los jefes.
+// La zona del predio no limita los destinatarios: se envia a toda
+// institucion activa. La asignacion a personal OPERATIVO puntual la hace el
+// JEFE_INSTITUCION despues, via POST /api/notificaciones/asignaciones.
 export async function distribuirAlerta(db, { alerta, ahora, titulo, mensaje }) {
-  const instituciones = await db.institucion.findMany({ select: { id_institucion: true } });
+  const instituciones = await db.institucion.findMany({ where: { estado: true }, select: { id_institucion: true } });
   const envios = [];
   for (const institucion of instituciones) {
     envios.push(await db.envia.create({ data: {

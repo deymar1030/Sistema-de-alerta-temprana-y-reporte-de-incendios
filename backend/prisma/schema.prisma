@@ -39,6 +39,7 @@ model politica {
   ver_auditoria          Boolean   @default(false)
   gestionar_usuarios     Boolean   @default(false)
   crear_admin            Boolean   @default(false)
+  puede_moderar_reportes Boolean   @default(false)
 
   rol_politica rol_politica[]
 }

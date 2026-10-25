@@ -26,7 +26,8 @@ export default class PrismaInstitucionRepository extends InstitucionRepository {
   }
 
   async findAll(filters = {}) {
-    const where = {};
+    // Las instituciones con baja logica (estado: false) no deben llegar al frontend.
+    const where = { estado: true };
     if (filters.categoria) where.categoria = filters.categoria;
 
     return await this.prisma.institucion.findMany({

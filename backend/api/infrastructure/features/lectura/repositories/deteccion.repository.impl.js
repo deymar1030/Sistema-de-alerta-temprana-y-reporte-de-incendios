@@ -64,7 +64,8 @@ class TransaccionDeteccion {
   }
   async distribuir(alerta, predio, ahora) {
     return distribuirAlerta(this.db, { alerta, ahora, titulo: 'Incendio confirmado',
-      mensaje: `Alerta #${alerta.id_alerta} en ${predio.nombre}.` });
+      mensaje: `Alerta #${alerta.id_alerta} en ${predio.nombre}.`,
+      destino_latitud: predio.latitud, destino_longitud: predio.longitud });
   }
 
   async detalle(alerta) {

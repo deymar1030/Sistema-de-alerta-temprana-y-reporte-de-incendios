@@ -35,4 +35,11 @@ export default class PrismaEnviaRepository extends EnviaRepository {
       return { ...envio, alerta_actualizada };
     });
   }
+
+  async actualizarRuta(id_alerta, id_institucion, { ruta_json, ruta_error }) {
+    return this.prisma.envia.update({
+      where: { id_alerta_id_institucion: { id_alerta: BigInt(id_alerta), id_institucion: BigInt(id_institucion) } },
+      data: { ruta_json: ruta_json ?? null, ruta_error: ruta_error ?? null, ruta_calculada_en: new Date() },
+    });
+  }
 }

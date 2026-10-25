@@ -48,5 +48,8 @@ export const envs = {
 
   // Microservicio FastAPI de calculo de rutas (backend/routing-service).
   ROUTING_SERVICE_URL: process.env.ROUTING_SERVICE_URL || "http://127.0.0.1:8001",
-  ROUTING_SERVICE_TIMEOUT_MS: toNumber(process.env.ROUTING_SERVICE_TIMEOUT_MS, 15000),
+  // Mas alto que ML_SERVICE_TIMEOUT_MS: osmnx descarga la red vial de OSM en
+  // vivo, puede tardar bastante mas que una inferencia local. Corre en
+  // segundo plano, no bloquea la respuesta al cliente.
+  ROUTING_SERVICE_TIMEOUT_MS: toNumber(process.env.ROUTING_SERVICE_TIMEOUT_MS, 60000),
 };

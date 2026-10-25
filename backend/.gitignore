@@ -10,3 +10,6 @@ mqtt/mosquitto.conf
 mqtt/passwd
 mqtt/runtime/
 .runtime/
+
+# Cache local de osmnx (consultas a OpenStreetMap)
+routing-service/cache/

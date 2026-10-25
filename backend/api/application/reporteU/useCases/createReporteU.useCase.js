@@ -2,10 +2,17 @@ import { CreateReporteUDTO } from '../../../domain/reporteU/dtos/createReporteU.
 import { ReporteUEntity } from '../../../domain/reporteU/entities/reporteU.entity.js';
 import { ResponseAlertaDTO } from '../../../domain/alerta/dtos/responseAlerta.dto.js';
 import { sugerirNivelPrioridad, combinarNivelPrioridad, describirPrediccion, describirUbicacion } from '../../../domain/deteccionImagen/sugerirNivelPrioridad.js';
+import { calcularRutasEnvios } from '../../../application/alerta/calcularRutasEnvios.js';
 
 export default class CreateReporteUUseCase {
-  constructor({ reporteURepository, clasificadorImagenRepository = null, alertaDesdeReporteRepository = null, realtimeNotifier = null }) {
-    Object.assign(this, { reporteURepository, clasificadorImagenRepository, alertaDesdeReporteRepository, realtimeNotifier });
+  constructor({
+    reporteURepository, clasificadorImagenRepository = null, alertaDesdeReporteRepository = null,
+    realtimeNotifier = null, calculadoraRutasRepository = null, enviaRepository = null,
+  }) {
+    Object.assign(this, {
+      reporteURepository, clasificadorImagenRepository, alertaDesdeReporteRepository,
+      realtimeNotifier, calculadoraRutasRepository, enviaRepository,
+    });
   }
   async execute(data) {
     const errors = CreateReporteUDTO.validate(data);
@@ -36,6 +43,10 @@ export default class CreateReporteUUseCase {
       await this.emitir('emitAlertaConfirmada', { ...ResponseAlertaDTO.fromEntity(resultado.alerta), reporte_origen: creado });
       for (const envio of resultado.envios) await this.emitir('emitEnvioActualizado', envio);
       for (const notificacion of resultado.notificaciones) await this.emitir('emitNotificacion', notificacion);
+      calcularRutasEnvios(resultado.rutasPendientes, {
+        calculadoraRutasRepository: this.calculadoraRutasRepository,
+        enviaRepository: this.enviaRepository,
+      });
     }
     return creado;
   }

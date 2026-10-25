@@ -29,6 +29,7 @@ export default class PrismaAlertaDesdeReporteRepository extends AlertaDesdeRepor
     const distribucion = await distribuirAlerta(db, {
       alerta, ahora, titulo: tituloAlertaPorUbicacion(reporteU.ubicacion_tipo),
       mensaje: `Reporte ciudadano #${reporteU.id_reporte_u}: deteccion por imagen (${Math.round(prediccion.fire_probability * 100)}%). ${reporteU.ubicacion_tipo === 'CERCANA' ? 'Ubicacion aproximada del reportante.' : 'Ubicacion reportada por el ciudadano.'}`,
+      destino_latitud: reporteU.latitud, destino_longitud: reporteU.longitud,
     });
     return { alerta, ...distribucion };
   }

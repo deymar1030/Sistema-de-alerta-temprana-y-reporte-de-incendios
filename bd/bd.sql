@@ -258,6 +258,10 @@ CREATE TABLE envia (
     estado                VARCHAR(10) NOT NULL,
     fecha_envio           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion   TIMESTAMP,
+    -- NUEVO
+    ruta_json             TEXT,
+    ruta_calculada_en     TIMESTAMP,
+    ruta_error            VARCHAR(200),
 
     CONSTRAINT pk_envia PRIMARY KEY (id_alerta, id_institucion),
 

@@ -1,9 +1,11 @@
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 
 import { IonicVue } from '@ionic/vue'
+import 'leaflet/dist/leaflet.css'
 
 import '@ionic/vue/css/core.css'
 import '@ionic/vue/css/normalize.css'
@@ -15,6 +17,9 @@ import '@ionic/vue/css/text-alignment.css'
 import '@ionic/vue/css/text-transformation.css'
 import '@ionic/vue/css/flex-utils.css'
 import '@ionic/vue/css/display.css'
+
+// ALERTA utiliza un tema claro.
+// No importar dark.system.css.
 import './theme/variables.css'
 
 const app = createApp(App)

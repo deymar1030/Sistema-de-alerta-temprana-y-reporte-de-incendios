@@ -17,6 +17,7 @@ interface ApiUser {
   rol?: string | number | null
   role?: string | number | null
   id_rol?: string | number | null
+  nombre_rol?: string | null
   id_institucion?: string | number | null
   institucionId?: string | number | null
   institutionId?: string | number | null
@@ -121,12 +122,14 @@ const demoUsers: Array<{ email: string; password: string; user: User }> = [
 const mapApiUserToUser = (payload: ApiUser | null | undefined): User | null => {
   if (!payload || typeof payload !== 'object') return null
 
-  const roleValue = payload.id_rol ?? payload.rol ?? payload.role
+  // El servidor expone nombre_rol desde su catálogo; evitar depender de un ID local.
+  const roleValue = payload.nombre_rol ?? payload.rol ?? payload.role ?? (String(payload.id_rol) === '1' ? 'ADMIN' : null)
   if (roleValue === undefined || roleValue === null || roleValue === '') {
-    throw new Error('El backend no devolvió un id_rol válido para este usuario.')
+    throw new Error('El backend no devolvió nombre_rol ni un rol reconocible para este usuario.')
   }
 
   const role = normalizeRole(roleValue)
+  if (payload.id_usuario == null && payload.id == null) throw new Error('El backend no devolvió el identificador del usuario.')
   const institutionId = payload.id_institucion ?? payload.institucionId ?? payload.institutionId ?? null
   const status = normalizeStatus(payload.status ?? payload.estado ?? payload.activo ?? 'ACTIVE')
   const firstName = String(payload.nombre ?? '').trim()
@@ -135,7 +138,7 @@ const mapApiUserToUser = (payload: ApiUser | null | undefined): User | null => {
   const email = String(payload.correo ?? payload.email ?? '')
 
   return {
-    id: String(payload.id_usuario ?? payload.id ?? 'user-id'),
+    id: String(payload.id_usuario ?? payload.id),
     nombre,
     firstName: firstName || undefined,
     lastName: lastName || undefined,
@@ -253,7 +256,7 @@ export const authService = {
     confirmPassword: string
   }): Promise<User> {
     const body = {
-      nombre: `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim(),
+      nombre: payload.firstName.trim(),
       primer_apellido: payload.lastName.trim(),
       correo: payload.email.trim().toLowerCase(),
       telefono: payload.phone.trim(),

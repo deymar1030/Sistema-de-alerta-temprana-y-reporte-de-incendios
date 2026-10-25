@@ -1,68 +1,208 @@
-import { citizenReportsMock } from '../mocks/citizenReports'
-import { storageService } from './storage.service'
-import type { CitizenReport, CitizenReportStatus } from '../types'
 
-const STORAGE_KEY = 'alerta-mobile-citizen-reports'
-const reportStatuses: CitizenReportStatus[] = ['RECIBIDO', 'EN_REVISION', 'VALIDADO', 'DESCARTADO', 'ATENDIDO']
-const incidentTypes: CitizenReport['incidentType'][] = ['VIVIENDA', 'EDIFICIO', 'VEHICULO', 'VEGETACION', 'COMERCIO', 'OTRO']
+import { apiFetch } from './http'
+import type { CitizenReport } from '../types'
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
+function normalizeReport(payload: any): CitizenReport {
+  const id =
+    payload?.id_reporte_u ??
+    payload?.id
 
-const isCitizenReport = (value: unknown): value is CitizenReport =>
-  isRecord(value) &&
-  typeof value.id === 'string' &&
-  typeof value.description === 'string' &&
-  typeof value.type === 'string' &&
-  incidentTypes.includes(value.incidentType as CitizenReport['incidentType']) &&
-  typeof value.location === 'string' &&
-  typeof value.latitude === 'number' &&
-  Number.isFinite(value.latitude) &&
-  typeof value.longitude === 'number' &&
-  Number.isFinite(value.longitude) &&
-  typeof value.smokeVisible === 'boolean' &&
-  typeof value.fireVisible === 'boolean' &&
-  typeof value.peopleAtRisk === 'boolean' &&
-  typeof value.explosions === 'boolean' &&
-  (value.photo === undefined || typeof value.photo === 'string') &&
-  reportStatuses.includes(value.status as CitizenReportStatus) &&
-  typeof value.createdAt === 'string' &&
-  !Number.isNaN(Date.parse(value.createdAt))
+  if (id == null || id === '') {
+    throw new Error(
+      'El servidor devolvió un reporte sin identificador.'
+    )
+  }
 
-const isCitizenReportList = (value: unknown): value is CitizenReport[] =>
-  Array.isArray(value) && value.every(isCitizenReport)
+  const latitude = Number(
+    payload?.latitud ??
+    payload?.latitude ??
+    payload?.location?.coordinates?.latitude
+  )
 
-const mockSnapshot = (): CitizenReport[] => citizenReportsMock.map((report) => ({ ...report }))
-const readReports = (): CitizenReport[] => storageService.read(STORAGE_KEY, mockSnapshot(), isCitizenReportList)
+  const longitude = Number(
+    payload?.longitud ??
+    payload?.longitude ??
+    payload?.location?.coordinates?.longitude
+  )
+
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
+  ) {
+    throw new Error(
+      `El reporte ${id} no tiene coordenadas válidas.`
+    )
+  }
+
+  return {
+    id: String(id),
+
+    citizenId:
+      payload?.id_usuario == null
+        ? undefined
+        : String(payload.id_usuario),
+
+    description:
+      payload?.descripcion ??
+      payload?.description ??
+      '',
+
+    incidentType:
+      payload?.tipo ??
+      payload?.tipo_incidente ??
+      payload?.incidentType ??
+      'INCENDIO',
+
+    location: {
+      city:
+        payload?.ciudad ??
+        payload?.location?.city ??
+        'No especificada',
+
+      coordinates: {
+        latitude,
+        longitude,
+      },
+    },
+
+    photo:
+      payload?.foto_url ??
+      payload?.photo ??
+      undefined,
+
+    photoUrl:
+      payload?.foto_url ??
+      payload?.photoUrl ??
+      undefined,
+
+    smokeVisible: Boolean(
+      payload?.humo_visible ??
+      payload?.smokeVisible ??
+      false
+    ),
+
+    flamesVisible: Boolean(
+      payload?.llamas_visible ??
+      payload?.flamesVisible ??
+      false
+    ),
+
+    peopleAtRisk: Boolean(
+      payload?.personas_en_riesgo ??
+      payload?.peopleAtRisk ??
+      false
+    ),
+
+    explosions: Boolean(
+      payload?.explosiones ??
+      false
+    ),
+
+    status: (
+      payload?.estado ??
+      payload?.status ??
+      'PENDIENTE_DE_VALIDACION'
+    ) as CitizenReport['status'],
+
+    createdAt:
+      payload?.fecha_envio ??
+      payload?.createdAt ??
+      '',
+  }
+}
 
 export const citizenReportService = {
-  getInitialReports(): CitizenReport[] {
-    return readReports()
+  async createReport(
+    payload: Partial<CitizenReport> & {
+      latitude?: number
+      longitude?: number
+      id_institucion?: string
+      descripcion?: string
+      foto_url?: string
+    }
+  ): Promise<CitizenReport> {
+    const latitude =
+      payload.latitude ??
+      payload.location?.coordinates?.latitude
+
+    const longitude =
+      payload.longitude ??
+      payload.location?.coordinates?.longitude
+
+    if (
+      latitude == null ||
+      longitude == null ||
+      !Number.isFinite(Number(latitude)) ||
+      !Number.isFinite(Number(longitude)) ||
+      Math.abs(Number(latitude)) > 90 ||
+      Math.abs(Number(longitude)) > 180
+    ) {
+      throw new Error(
+        'Selecciona una ubicación válida antes de enviar el reporte.'
+      )
+    }
+
+    const body = {
+      descripcion:
+        payload.description ??
+        payload.descripcion,
+
+      tipo: payload.incidentType,
+
+      latitud: Number(latitude),
+      longitud: Number(longitude),
+
+      indicador: [
+        payload.smokeVisible ? 'HUMO' : null,
+        payload.flamesVisible ? 'LLAMAS' : null,
+        payload.peopleAtRisk
+          ? 'PERSONAS_EN_RIESGO'
+          : null,
+        payload.explosions ? 'EXPLOSIONES' : null,
+      ]
+        .filter(Boolean)
+        .join(','),
+
+      foto_url:
+        payload.photoUrl ??
+        payload.foto_url ??
+        payload.photo,
+    }
+
+    const result = await apiFetch<unknown>(
+      '/reportes-usuario',
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    )
+
+    // Solo confirmar éxito si el servidor devuelve
+    // un identificador real del reporte.
+    return normalizeReport(result)
   },
 
   async getReports(): Promise<CitizenReport[]> {
-    return readReports()
+    const data = await apiFetch<unknown>(
+      '/reportes-usuario'
+    )
+
+    if (!Array.isArray(data)) {
+      throw new Error(
+        'El servidor devolvió un listado de reportes inválido.'
+      )
+    }
+
+    return data.map(normalizeReport)
   },
 
-  async createReport(payload: Omit<CitizenReport, 'id' | 'status' | 'createdAt'> & { status?: CitizenReportStatus }): Promise<CitizenReport> {
-    const report: CitizenReport = {
-      id: `CR-${Date.now()}`,
-      status: payload.status ?? 'RECIBIDO',
-      createdAt: new Date().toISOString(),
-      ...payload,
-    }
-    if (!storageService.write(STORAGE_KEY, [report, ...readReports()])) throw new Error('STORAGE_UNAVAILABLE')
-    return report
-  },
+  async getReportById(
+    id: string
+  ): Promise<CitizenReport> {
+    const data = await apiFetch<unknown>(
+      `/reportes-usuario/${encodeURIComponent(id)}`
+    )
 
-  async updateStatus(id: string, status: CitizenReportStatus): Promise<CitizenReport | undefined> {
-    const reports = readReports()
-    const report = reports.find((item) => item.id === id)
-    if (!report) return undefined
-    const updated = { ...report, status }
-    if (!storageService.write(STORAGE_KEY, reports.map((item) => item.id === id ? updated : item))) {
-      throw new Error('STORAGE_UNAVAILABLE')
-    }
-    return updated
+    return normalizeReport(data)
   },
 }

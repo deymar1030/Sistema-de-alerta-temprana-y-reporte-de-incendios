@@ -1,23 +1,3 @@
-<script setup lang="ts">
-const logs = [
-  { id: 'AUD-001', action: 'CREATE_USER', performedBy: 'USR-SA-001', targetRole: 'ADMIN', timestamp: '2026-10-11T10:00:00Z' },
-  { id: 'AUD-002', action: 'EDIT_USER', performedBy: 'USR-SA-001', targetRole: 'JEFE_INSTITUCION', timestamp: '2026-10-11T09:15:00Z' },
-  { id: 'AUD-003', action: 'DEACTIVATE_USER', performedBy: 'USR-SA-001', targetRole: 'CIUDADANO', timestamp: '2026-10-10T18:20:00Z' },
-]
-</script>
-
 <template>
-  <div class="space-y-6 p-6">
-    <h1 class="text-3xl font-bold text-slate-900">Auditoría</h1>
-    <div class="space-y-3">
-      <div v-for="log in logs" :key="log.id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="flex items-center justify-between">
-          <p class="font-bold text-slate-900">{{ log.action }}</p>
-          <span class="rounded-full bg-orange-100 px-2 py-1 text-[10px] font-bold uppercase text-orange-700">{{ log.targetRole }}</span>
-        </div>
-        <p class="mt-2 text-sm text-slate-600">Realizado por: {{ log.performedBy }}</p>
-        <p class="mt-1 text-xs text-slate-500">{{ new Date(log.timestamp).toLocaleString() }}</p>
-      </div>
-    </div>
-  </div>
+  <div class="admin-page mx-auto max-w-[1100px] space-y-5"><header><p class="text-xs font-bold uppercase tracking-wider text-orange-600">Administración</p><h1 class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">Auditoría</h1></header><section class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><h2 class="text-lg font-bold text-slate-900">Historial de auditoría no conectado</h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">El contrato compartido todavía no especifica un endpoint para consultar registros de auditoría. Esta pantalla no muestra acciones inventadas; cuando backend publique el contrato se podrán consultar los eventos persistidos.</p></section></div>
 </template>

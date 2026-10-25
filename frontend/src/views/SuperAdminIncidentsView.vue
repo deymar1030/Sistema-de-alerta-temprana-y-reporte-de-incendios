@@ -1,22 +1,11 @@
 <script setup lang="ts">
-const incidents = [
-  { id: 'INC-01', location: 'La Paz centro', status: 'EN_VALIDACION' },
-  { id: 'INC-02', location: 'Cochabamba norte', status: 'DESPACHADA' },
-  { id: 'INC-03', location: 'Santa Cruz sur', status: 'FINALIZADA' },
-]
+import { computed, onMounted, ref } from 'vue'
+import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
+const alerts = ref<BackendAlert[]>([])
+const loading = ref(false)
+const error = ref('')
+const active = computed(() => alerts.value.filter(a => !['CERRADA', 'DESCARTADA'].includes(a.estado)))
+async function load() { loading.value = true; error.value = ''; try { alerts.value = await backendAlertsService.list() } catch (e) { alerts.value = []; error.value = e instanceof Error ? e.message : 'No se pudo consultar la información.' } finally { loading.value = false } }
+onMounted(() => { void load() })
 </script>
-
-<template>
-  <div class="space-y-6 p-6">
-    <h1 class="text-3xl font-bold text-slate-900">Incidentes</h1>
-    <div class="space-y-3">
-      <div v-for="incident in incidents" :key="incident.id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="flex items-center justify-between">
-          <p class="text-lg font-bold text-slate-900">{{ incident.id }}</p>
-          <span class="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase text-amber-700">{{ incident.status }}</span>
-        </div>
-        <p class="mt-2 text-sm text-slate-600">{{ incident.location }}</p>
-      </div>
-    </div>
-  </div>
-</template>
+<template><div class="admin-page mx-auto max-w-[1500px] space-y-5"><header class="flex flex-wrap items-end justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-wider text-orange-600">Seguimiento operativo</p><h1 class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">Incidentes y alertas</h1><p class="mt-2 text-sm text-slate-600">El backend no documenta una entidad de incidente separada: se presenta el estado de las alertas reales.</p></div><button type="button" class="min-h-11 rounded-xl bg-orange-600 px-4 font-bold text-white disabled:opacity-40" :disabled="loading" @click="load">Actualizar</button></header><section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div class="flex items-center justify-between gap-2"><h2 class="text-lg font-bold text-slate-900">En seguimiento</h2><span class="rounded-xl bg-orange-50 px-3 py-1 font-bold text-orange-800">{{ error ? '—' : active.length }}</span></div><p v-if="loading" class="mt-4 text-sm text-slate-600">Cargando...</p><p v-else-if="error" role="alert" class="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{{ error }}</p><p v-else-if="!active.length" class="mt-4 text-sm text-slate-500">No hay alertas en seguimiento.</p><div v-else class="mt-4 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3"><article v-for="alert in active" :key="String(alert.id_alerta)" class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4"><p class="break-all font-bold text-slate-900">Alerta #{{ alert.id_alerta }}</p><p class="mt-2 break-words text-sm text-slate-700">{{ alert.clasificacion ?? 'Sin clasificar' }}</p><p class="mt-1 text-sm text-slate-600">{{ alert.fecha }} {{ alert.hora }}</p><p class="mt-3 inline-block rounded-lg bg-orange-100 px-2 py-1 text-xs font-semibold text-orange-800">{{ alert.estado }}</p></article></div></section></div></template>

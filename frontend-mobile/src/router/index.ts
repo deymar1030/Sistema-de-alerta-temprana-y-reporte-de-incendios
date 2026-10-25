@@ -1,47 +1,124 @@
-import { createRouter, createWebHistory } from '@ionic/vue-router'
-import type { RouteRecordRaw } from 'vue-router'
+import {
+  createRouter,
+  createWebHistory,
+} from '@ionic/vue-router'
+
+import type {
+  RouteRecordRaw,
+} from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
 
-import DemoSelectionView from '../views/DemoSelectionView.vue'
-import InstitutionLayout from '../layouts/InstitutionLayout.vue'
-import InstitutionHomeView from '../views/institution/InstitutionHomeView.vue'
-import InstitutionAlertsView from '../views/institution/InstitutionAlertsView.vue'
-import InstitutionEmergencyDetailView from '../views/institution/InstitutionEmergencyDetailView.vue'
-import InstitutionHistoryView from '../views/institution/InstitutionHistoryView.vue'
-import CitizenLayout from '../layouts/CitizenLayout.vue'
-import CitizenHomeView from '../views/citizen/CitizenHomeView.vue'
-import CitizenReportView from '../views/citizen/CitizenReportView.vue'
-import CitizenReportsView from '../views/citizen/CitizenReportsView.vue'
-import CitizenNotificationsView from '../views/citizen/CitizenNotificationsView.vue'
-import CitizenInstructionsView from '../views/citizen/CitizenInstructionsView.vue'
-
 const routes: Array<RouteRecordRaw> = [
-  { path: '/', redirect: '/demo' },
-  { path: '/demo', component: DemoSelectionView },
   {
-    path: '/institucion',
-    component: InstitutionLayout,
-    children: [
-      { path: '', redirect: '/institucion/inicio' },
-      { path: 'inicio', component: InstitutionHomeView },
-      { path: 'alertas', component: InstitutionAlertsView },
-      { path: 'emergencia/:id', component: InstitutionEmergencyDetailView },
-      { path: 'historial', component: InstitutionHistoryView },
-    ],
+    path: '/',
+    redirect: '/login',
   },
   {
-    path: '/ciudadano',
-    component: CitizenLayout,
-    children: [
-      { path: '', redirect: '/ciudadano/inicio' },
-      { path: 'inicio', component: CitizenHomeView },
-      { path: 'reportar', component: CitizenReportView },
-      { path: 'mis-reportes', component: CitizenReportsView },
-      { path: 'notificaciones', component: CitizenNotificationsView },
-      { path: 'instrucciones', component: CitizenInstructionsView },
-    ],
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/LoginView.vue'),
+    meta: { requiresAuth: false },
   },
-  { path: '/:pathMatch(.*)*', redirect: '/demo' },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/RegisterView.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: '/citizen/home',
+    name: 'CitizenHomeAlias',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenHomeView.vue'),
+  },
+  {
+    path: '/ciudadano/inicio',
+    name: 'CitizenHome',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenHomeView.vue'),
+  },
+  {
+    path: '/citizen/report',
+    name: 'CitizenReportAlias',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenReportView.vue'),
+  },
+  {
+    path: '/ciudadano/reportar',
+    name: 'CitizenReport',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenReportView.vue'),
+  },
+  {
+    path: '/citizen/reports',
+    name: 'CitizenReportsAlias',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenReportsView.vue'),
+  },
+  {
+    path: '/ciudadano/reportes',
+    name: 'CitizenReports',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenReportsView.vue'),
+  },
+  {
+    path: '/citizen/reports/:id',
+    name: 'CitizenReportDetailAlias',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenReportDetailView.vue'),
+  },
+  {
+    path: '/ciudadano/reportes/:id',
+    name: 'CitizenReportDetail',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenReportDetailView.vue'),
+  },
+  {
+    path: '/citizen/notifications',
+    name: 'CitizenNotificationsAlias',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/NotificationsView.vue'),
+  },
+  {
+    path: '/ciudadano/notificaciones',
+    name: 'CitizenNotifications',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/NotificationsView.vue'),
+  },
+  {
+    path: '/citizen/profile',
+    name: 'CitizenProfileAlias',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenProfileView.vue'),
+  },
+  {
+    path: '/ciudadano/perfil',
+    name: 'CitizenProfile',
+    meta: { requiresAuth: true, allowedRoles: ['CIUDADANO'] },
+    component: () => import('../views/CitizenProfileView.vue'),
+  },
+  {
+    path: '/institucion/inicio',
+    name: 'InstitutionHome',
+    meta: { requiresAuth: true, allowedRoles: ['OPERATIVO', 'JEFE_INSTITUCION'] },
+    component: () => import('../views/InstitutionHomeView.vue'),
+  },
+  {
+    path: '/institucion/notificaciones',
+    name: 'InstitutionNotifications',
+    meta: { requiresAuth: true, allowedRoles: ['OPERATIVO', 'JEFE_INSTITUCION'] },
+    component: () => import('../views/NotificationsView.vue'),
+  },
+  {
+    path: '/institucion/emergencias/:id',
+    name: 'InstitutionEmergencyDetail',
+    meta: { requiresAuth: true, allowedRoles: ['OPERATIVO', 'JEFE_INSTITUCION'] },
+    component: () => import('../views/InstitutionEmergencyDetailView.vue'),
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/login',
+  },
 ]
 
 const router = createRouter({
@@ -49,23 +126,49 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
-  const role = authStore.role
+  const user = await authStore.initialize()
 
-  if (!role && to.path !== '/demo') {
-    return '/demo'
+  if (to.path === '/login' || to.path === '/register') {
+    if (user && user.role === 'CIUDADANO') {
+      next('/citizen/home')
+      return
+    }
+
+    if (user && (user.role === 'OPERATIVO' || user.role === 'JEFE_INSTITUCION')) {
+      next('/institucion/inicio')
+      return
+    }
+
+    next()
+    return
   }
 
-  if (to.path.startsWith('/institucion') && role !== 'INSTITUTION_USER') {
-    return role === 'CITIZEN' ? '/ciudadano/inicio' : '/demo'
+  const requiresAuth = Boolean(to.meta.requiresAuth)
+  if (!requiresAuth) {
+    next()
+    return
   }
 
-  if (to.path.startsWith('/ciudadano') && role !== 'CITIZEN') {
-    return role === 'INSTITUTION_USER' ? '/institucion/inicio' : '/demo'
+  if (!user) {
+    next('/login')
+    return
   }
 
-  return true
+  const allowedRoles = Array.isArray(to.meta.allowedRoles) ? to.meta.allowedRoles as string[] : []
+  if (allowedRoles.length && !allowedRoles.includes(user.role)) {
+    if (user.role === 'ADMIN' || user.role === 'JEFE_INSTITUCION' || user.role === 'OPERATIVO') {
+      authStore.setError('Este usuario debe ingresar desde la plataforma web.')
+      next('/login')
+      return
+    }
+
+    next(user.role === 'CIUDADANO' ? '/citizen/home' : '/institucion/inicio')
+    return
+  }
+
+  next()
 })
 
 export default router

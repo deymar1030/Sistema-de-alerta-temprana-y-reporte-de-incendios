@@ -1,1307 +1,1465 @@
-<script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { MapPin, Pencil, Plus, Trash2, X } from 'lucide-vue-next'
 
-import LoadingSpinner from '../components/common/LoadingSpinner.vue'
-import { useToast } from '../composables/useToast'
+<script setup lang="ts">
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+} from 'vue'
+
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  ChevronDown,
+  Eye,
+  MapPin,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-vue-next'
+
+import LocationPicker from '../components/common/LocationPicker.vue'
+import { usePredioStore } from '../stores/predio.store'
+
 import {
   locationService,
   type GeographicZone,
 } from '../services/location.service'
-import { usePredioStore } from '../stores/predio.store'
+
 import {
-  motorService,
-  type MotorDeteccion,
-} from '../services/motor.service'
+  predioService,
+  type CreatePredioInput,
+  type PredioDetail,
+} from '../services/predio.service'
 
-const predioStore = usePredioStore()
-const { showToast } = useToast()
+type ScoreKey =
+  | 'estado_electrico'
+  | 'estado_gas'
+  | 'fuentes_calor'
+  | 'carga_combustible'
+  | 'material_construccion'
+  | 'ocupacion'
+  | 'nivel_proteccion'
 
-const zoneOptions = ref<GeographicZone[]>([])
-const motorOptions = ref<MotorDeteccion[]>([])
-const showForm = ref(false)
+type PredioForm = {
+  id_zona: string
+  nombre: string
+  tipo_predio: string
+  direccion: string
+  fecha_evaluacion: string
+  contrasena_mqtt: string
+  latitud: number | null
+  longitud: number | null
+} & Record<ScoreKey, string>
+
+const tiposPredio = [
+  'VIVIENDA',
+  'CASA',
+  'DEPARTAMENTO',
+  'EDIFICIO',
+  'GARAJE',
+  'ESTACIONAMIENTO',
+  'TALLER',
+  'ALMACEN',
+  'DEPOSITO',
+  'BODEGA',
+  'MERCADO',
+  'TIENDA',
+  'LOCAL_COMERCIAL',
+  'OFICINA',
+  'RESTAURANTE',
+  'HOTEL',
+  'HOSPITAL',
+  'CENTRO_DE_SALUD',
+  'ESCUELA',
+  'UNIVERSIDAD',
+  'FABRICA',
+  'GALPON',
+  'OTRO',
+]
+
+const scoreFields: Array<{
+  key: ScoreKey
+  label: string
+}> = [
+  { key: 'estado_electrico', label: 'Estado eléctrico' },
+  { key: 'estado_gas', label: 'Estado del gas' },
+  { key: 'fuentes_calor', label: 'Fuentes de calor' },
+  { key: 'carga_combustible', label: 'Carga combustible' },
+  {
+    key: 'material_construccion',
+    label: 'Material de construcción',
+  },
+  { key: 'ocupacion', label: 'Ocupación' },
+  { key: 'nivel_proteccion', label: 'Nivel de protección' },
+]
+
+function emptyForm(): PredioForm {
+  return {
+    id_zona: '',
+    nombre: '',
+    tipo_predio: 'VIVIENDA',
+    direccion: '',
+    fecha_evaluacion: '',
+    contrasena_mqtt: '',
+    latitud: null,
+    longitud: null,
+    estado_electrico: '',
+    estado_gas: '',
+    fuentes_calor: '',
+    carga_combustible: '',
+    material_construccion: '',
+    ocupacion: '',
+    nivel_proteccion: '',
+  }
+}
+
+const store = usePredioStore()
+const form = reactive<PredioForm>(emptyForm())
+
+const zones = ref<GeographicZone[]>([])
+const zonesError = ref('')
+const loadingZones = ref(false)
+const manualZone = ref(false)
+const search = ref('')
+
+const formOpen = ref(false)
+const saving = ref(false)
 const editingId = ref<string | null>(null)
+const originalDetail = ref<PredioDetail | null>(null)
 
-/*
-|--------------------------------------------------------------------------
-| DETALLE DEL PREDIO
-|--------------------------------------------------------------------------
-| Guarda temporalmente el predio seleccionado para mostrarlo en el modal.
-| No realiza ninguna petición nueva al backend.
-*/
-const selectedPredio = ref<any | null>(null)
+const formError = ref('')
+const pageMessage = ref('')
+const pageError = ref(false)
 
-const createEmptyForm = () => ({
-  id_zona: '',
-  id_motordet: '',
-  tipo_predio: 'VIVIENDA',
-  nombre: '',
-  direccion: '',
-  latitud: '',
-  longitud: '',
-  contrasena_mqtt: '',
-  fecha_evaluacion: new Date().toISOString().slice(0, 10),
+const showMap = ref(false)
+const showScores = ref(false)
 
-  estado_electrico: 1,
-  estado_gas: 1,
-  fuentes_calor: 1,
-  carga_combustible: 1,
-  material_construccion: 1,
-  ocupacion: 1,
-  nivel_proteccion: 1,
+const selected = ref<PredioDetail | null>(null)
+const loadingDetail = ref(false)
+
+const formDialog = ref<HTMLElement | null>(null)
+const detailDialog = ref<HTMLElement | null>(null)
+const firstInput = ref<HTMLInputElement | null>(null)
+
+let savedOverflow = ''
+let priorFocus: HTMLElement | null = null
+
+function zoneName(id: string): string {
+  const match = zones.value.find(
+    (zone) => String(zone.id_zona) === String(id)
+  )
+
+  return match?.nombre || (id ? `Zona #${id}` : 'Sin zona')
+}
+
+const filtered = computed(() => {
+  const query = search.value.trim().toLowerCase()
+
+  if (!query) return store.prediosDetail
+
+  return store.prediosDetail.filter((item) =>
+    [
+      item.nombre,
+      item.tipo_predio,
+      item.direccion,
+      item.id_predio,
+      zoneName(item.id_zona),
+    ].some((part) =>
+      String(part ?? '').toLowerCase().includes(query)
+    )
+  )
 })
 
-const form = ref(createEmptyForm())
-
-const scoreFields = [
-  'estado_electrico',
-  'estado_gas',
-  'fuentes_calor',
-  'carga_combustible',
-  'material_construccion',
-  'ocupacion',
-  'nivel_proteccion',
-] as const
-
-/*
-|--------------------------------------------------------------------------
-| ZONA
-|--------------------------------------------------------------------------
-*/
-const zoneLabel = (idZona: string | number) => {
-  const match = zoneOptions.value.find(
-    (zone) => String(zone.id_zona) === String(idZona),
-  )
-
-  return match?.nombre ?? `Zona ${idZona}`
+function errorText(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : 'Ocurrió un error inesperado.'
 }
 
-/*
-|--------------------------------------------------------------------------
-| VALIDACIÓN DE VALORES 1 - 5
-|--------------------------------------------------------------------------
-*/
-const isValidScore = (value: number | string) => {
-  const numeric = Number(value)
-
-  return (
-    Number.isInteger(numeric) &&
-    numeric >= 1 &&
-    numeric <= 5
-  )
+function showValue(value: unknown): string {
+  return value === null ||
+    value === undefined ||
+    value === ''
+    ? 'Sin dato'
+    : String(value)
 }
 
-/*
-|--------------------------------------------------------------------------
-| FORMULARIO
-|--------------------------------------------------------------------------
-*/
-const resetForm = () => {
-  form.value = createEmptyForm()
+function openOverlay() {
+  priorFocus =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+
+  savedOverflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+}
+
+function closeOverlay() {
+  document.body.style.overflow = savedOverflow
+
+  void nextTick(() => priorFocus?.focus())
+}
+
+function resetForm() {
+  Object.assign(form, emptyForm())
+
   editingId.value = null
+  originalDetail.value = null
+  manualZone.value = false
+  formError.value = ''
+  showMap.value = false
+  showScores.value = false
 }
 
-const validateForm = () => {
-  if (!form.value.id_zona) {
-    throw new Error('Debe seleccionar la zona del predio.')
+function openCreateForm() {
+  resetForm()
+  pageMessage.value = ''
+
+  openOverlay()
+  formOpen.value = true
+
+  void nextTick(() => firstInput.value?.focus())
+}
+
+async function openEditForm(id: string) {
+  pageMessage.value = ''
+  loadingDetail.value = true
+
+  try {
+    const detail = await predioService.getPredioById(id)
+
+    resetForm()
+
+    originalDetail.value = detail
+    editingId.value = detail.id_predio
+
+    form.id_zona = detail.id_zona
+    form.nombre = detail.nombre
+    form.tipo_predio = detail.tipo_predio
+    form.direccion = detail.direccion
+
+    form.fecha_evaluacion =
+      detail.fecha_evaluacion?.slice(0, 10) || ''
+
+    form.latitud = detail.latitud
+    form.longitud = detail.longitud
+
+    // Nunca mostrar la contraseña MQTT guardada.
+    form.contrasena_mqtt = ''
+
+    for (const field of scoreFields) {
+      form[field.key] =
+        detail[field.key] === null
+          ? ''
+          : String(detail[field.key])
+    }
+
+    manualZone.value =
+      zones.value.length > 0 &&
+      !zones.value.some(
+        (zone) =>
+          String(zone.id_zona) === detail.id_zona
+      )
+
+    showMap.value =
+      detail.latitud !== null &&
+      detail.longitud !== null
+
+    showScores.value = scoreFields.some(
+      (field) => detail[field.key] !== null
+    )
+
+    openOverlay()
+    formOpen.value = true
+
+    void nextTick(() => firstInput.value?.focus())
+  } catch (error) {
+    pageMessage.value = errorText(error)
+    pageError.value = true
+  } finally {
+    loadingDetail.value = false
   }
+}
 
-  if (!form.value.id_motordet) {
-    throw new Error('Debe indicar el ID del motor de detección.')
+async function openDetail(id: string) {
+  pageMessage.value = ''
+  loadingDetail.value = true
+
+  try {
+    const detail = await predioService.getPredioById(id)
+
+    openOverlay()
+    selected.value = detail
+  } catch (error) {
+    pageMessage.value = errorText(error)
+    pageError.value = true
+  } finally {
+    loadingDetail.value = false
   }
+}
 
-  if (!form.value.nombre.trim()) {
-    throw new Error('Debe ingresar el nombre del predio.')
-  }
+function closeForm() {
+  if (saving.value) return
 
-  if (!form.value.direccion.trim()) {
-    throw new Error('Debe ingresar la dirección del predio.')
-  }
+  formOpen.value = false
+  closeOverlay()
+}
 
-  if (!form.value.tipo_predio.trim()) {
-    throw new Error('Debe indicar el tipo de predio.')
-  }
+function closeDetail() {
+  selected.value = null
+  closeOverlay()
+}
 
-  const lat = Number(form.value.latitud)
-  const lng = Number(form.value.longitud)
+function validId(value: unknown, label: string): number {
+  const text = String(value ?? '').trim()
+  const number = Number(text)
 
-  if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+  if (
+    !/^\d+$/.test(text) ||
+    !Number.isSafeInteger(number) ||
+    number < 1
+  ) {
     throw new Error(
-      'La latitud debe ser un valor válido entre -90 y 90.',
+      `Selecciona un ID de ${label} válido.`
     )
   }
 
-  if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+  return number
+}
+
+function makePayload(): CreatePredioInput {
+  const name = String(form.nombre ?? '').trim()
+
+  if (!name) {
     throw new Error(
-      'La longitud debe ser un valor válido entre -180 y 180.',
+      'Debes escribir el nombre del predio.'
     )
+  }
+
+  const payload: CreatePredioInput = {
+    id_zona: validId(form.id_zona, 'zona'),
+    nombre: name,
+  }
+
+  const type = String(form.tipo_predio ?? '').trim()
+  const address = String(form.direccion ?? '').trim()
+  const date = String(form.fecha_evaluacion ?? '').trim()
+
+  if (originalDetail.value) {
+    const old = originalDetail.value
+
+    if (!type && old.tipo_predio) {
+      throw new Error(
+        'No se ha confirmado cómo borrar el tipo de predio.'
+      )
+    }
+
+    if (!address && old.direccion) {
+      throw new Error(
+        'No se ha confirmado cómo borrar la dirección guardada.'
+      )
+    }
+
+    if (!date && old.fecha_evaluacion) {
+      throw new Error(
+        'No se ha confirmado cómo borrar la fecha de evaluación.'
+      )
+    }
+  }
+
+  if (type) payload.tipo_predio = type
+  if (address) payload.direccion = address
+  if (date) payload.fecha_evaluacion = date
+
+  if (form.contrasena_mqtt.trim()) {
+    payload.contrasena_mqtt = form.contrasena_mqtt
+  }
+
+  const { latitud, longitud } = form
+
+  if ((latitud === null) !== (longitud === null)) {
+    throw new Error(
+      'Debes indicar latitud y longitud juntas.'
+    )
+  }
+
+  if (
+    originalDetail.value &&
+    originalDetail.value.latitud !== null &&
+    latitud === null
+  ) {
+    throw new Error(
+      'Para modificar la ubicación, selecciona otro punto; aún no se ha confirmado cómo quitarla.'
+    )
+  }
+
+  if (latitud !== null && longitud !== null) {
+    if (
+      !Number.isFinite(latitud) ||
+      latitud < -90 ||
+      latitud > 90 ||
+      !Number.isFinite(longitud) ||
+      longitud < -180 ||
+      longitud > 180
+    ) {
+      throw new Error(
+        'Las coordenadas están fuera del rango permitido.'
+      )
+    }
+
+    payload.latitud = latitud
+    payload.longitud = longitud
   }
 
   for (const field of scoreFields) {
-    if (!isValidScore(form.value[field] ?? 0)) {
-      const label = field.replace(/_/g, ' ')
+    const raw = String(form[field.key] ?? '').trim()
 
+    if (!raw) {
+      if (
+        originalDetail.value?.[field.key] !== null &&
+        originalDetail.value?.[field.key] !== undefined
+      ) {
+        throw new Error(
+          `No se ha confirmado cómo quitar el valor de ${field.label}.`
+        )
+      }
+
+      continue
+    }
+
+    const number = Number(raw)
+
+    if (!Number.isFinite(number)) {
       throw new Error(
-        `El campo ${label} solo acepta valores entre 1 y 5.`,
+        `Revisa el valor de ${field.label}.`
       )
     }
-  }
-}
 
-/*
-|--------------------------------------------------------------------------
-| PAYLOAD DEL BACKEND
-|--------------------------------------------------------------------------
-*/
-const normalizePayload = () => ({
-  id_zona: Number(form.value.id_zona),
-  id_motordet: Number(form.value.id_motordet),
-
-  tipo_predio: form.value.tipo_predio.trim(),
-  nombre: form.value.nombre.trim(),
-  direccion: form.value.direccion.trim(),
-
-  latitud: Number(form.value.latitud),
-  longitud: Number(form.value.longitud),
-
-  contrasena_mqtt: form.value.contrasena_mqtt.trim(),
-
-  fecha_evaluacion: form.value.fecha_evaluacion,
-
-  estado_electrico: Number(form.value.estado_electrico),
-  estado_gas: Number(form.value.estado_gas),
-  fuentes_calor: Number(form.value.fuentes_calor),
-  carga_combustible: Number(form.value.carga_combustible),
-  material_construccion: Number(
-    form.value.material_construccion,
-  ),
-  ocupacion: Number(form.value.ocupacion),
-  nivel_proteccion: Number(form.value.nivel_proteccion),
-})
-
-/*
-|--------------------------------------------------------------------------
-| CREAR
-|--------------------------------------------------------------------------
-*/
-const openCreateForm = () => {
-  resetForm()
-  showForm.value = true
-}
-
-/*
-|--------------------------------------------------------------------------
-| EDITAR
-|--------------------------------------------------------------------------
-*/
-const openEditForm = (predio: any) => {
-  editingId.value = String(predio.id_predio)
-
-  form.value = {
-    id_zona: predio.id_zona ?? '',
-    id_motordet: predio.id_motordet ?? '',
-
-    tipo_predio: predio.tipo_predio ?? 'VIVIENDA',
-    nombre: predio.nombre ?? '',
-    direccion: predio.direccion ?? '',
-
-    latitud: predio.latitud ?? '',
-    longitud: predio.longitud ?? '',
-
-    contrasena_mqtt: predio.contrasena_mqtt ?? '',
-
-    fecha_evaluacion:
-      predio.fecha_evaluacion ??
-      new Date().toISOString().slice(0, 10),
-
-    estado_electrico: predio.estado_electrico ?? 1,
-    estado_gas: predio.estado_gas ?? 1,
-    fuentes_calor: predio.fuentes_calor ?? 1,
-    carga_combustible: predio.carga_combustible ?? 1,
-    material_construccion:
-      predio.material_construccion ?? 1,
-    ocupacion: predio.ocupacion ?? 1,
-    nivel_proteccion: predio.nivel_proteccion ?? 1,
+    // Conservamos 0 como valor numérico válido.
+    payload[field.key] = number
   }
 
-  showForm.value = true
+  // id_motordet no se envía: lo gestiona el backend.
+  return payload
 }
 
-/*
-|--------------------------------------------------------------------------
-| DETALLE
-|--------------------------------------------------------------------------
-*/
-const openDetail = (predio: any) => {
-  selectedPredio.value = predio
-}
+async function save() {
+  if (saving.value) return
 
-const closeDetail = () => {
-  selectedPredio.value = null
-}
+  formError.value = ''
 
-/*
-|--------------------------------------------------------------------------
-| GUARDAR
-|--------------------------------------------------------------------------
-*/
-const submit = async () => {
+  let payload: CreatePredioInput
+
   try {
-    validateForm()
+    payload = makePayload()
+  } catch (error) {
+    formError.value = errorText(error)
+    return
+  }
 
-    const payload = normalizePayload()
+  saving.value = true
 
-    if (editingId.value) {
-      await predioStore.updatePredio(
-        editingId.value,
-        payload,
-      )
+  try {
+    const updating = editingId.value !== null
 
-      showToast({
-        type: 'success',
-        title: 'Predio actualizado',
-        description:
-          'Los cambios se sincronizaron con el backend.',
-      })
+    if (updating) {
+      await store.updatePredio(editingId.value!, payload)
     } else {
-      await predioStore.createPredio(payload)
-
-      showToast({
-        type: 'success',
-        title: 'Predio creado',
-        description:
-          'Se registró el nuevo predio correctamente.',
-      })
+      await store.createPredio(payload)
     }
 
-    await predioStore.fetchPredios()
+    formOpen.value = false
+    closeOverlay()
 
-    showForm.value = false
-    resetForm()
+    await store.fetchPredios()
+
+    pageError.value = Boolean(store.error)
+
+    pageMessage.value = store.error
+      ? 'El servidor confirmó el guardado, pero no se pudo actualizar el listado. Pulsa Actualizar.'
+      : updating
+        ? 'Predio actualizado correctamente.'
+        : 'Predio creado correctamente.'
   } catch (error) {
-    showToast({
-      type: 'error',
-      title: 'No se pudo guardar el predio',
-      description:
-        error instanceof Error
-          ? error.message
-          : 'Revisa los datos e intenta nuevamente.',
-    })
+    formError.value = errorText(error)
+  } finally {
+    saving.value = false
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| ELIMINAR
-|--------------------------------------------------------------------------
-*/
-const handleDelete = async (id: string) => {
-  const confirmed = window.confirm(
-    '¿Deseas eliminar este predio?',
-  )
-
-  if (!confirmed) {
+async function remove(id: string) {
+  if (
+    !window.confirm(
+      '¿Eliminar este predio? Esta acción puede ser irreversible.'
+    )
+  ) {
     return
   }
 
   try {
-    await predioStore.deletePredio(id)
+    await store.deletePredio(id)
+    await store.fetchPredios()
 
-    await predioStore.fetchPredios()
+    pageError.value = Boolean(store.error)
 
-    showToast({
-      type: 'info',
-      title: 'Predio eliminado',
-      description:
-        'Se eliminó el registro del backend.',
-    })
+    pageMessage.value = store.error
+      ? 'Se eliminó el predio, pero no se pudo recargar el listado.'
+      : 'Predio eliminado correctamente.'
   } catch (error) {
-    showToast({
-      type: 'error',
-      title: 'No se pudo eliminar el predio',
-      description:
-        error instanceof Error
-          ? error.message
-          : 'La eliminación falló.',
-    })
+    pageMessage.value = errorText(error)
+    pageError.value = true
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| LISTADO
-|--------------------------------------------------------------------------
-*/
-const loadedPredios = computed(
-  () => predioStore.prediosDetail,
-)
+async function loadZones() {
+  loadingZones.value = true
 
-/*
-|--------------------------------------------------------------------------
-| CARGA INICIAL
-|--------------------------------------------------------------------------
-*/
-onMounted(async () => {
-  const [locations, motors] =
-    await Promise.all([
-      locationService.getLocations(),
-      motorService.getMotors(),
-    ])
+  try {
+    zones.value = await locationService.getLocations()
+    zonesError.value = ''
+  } catch (error) {
+    zones.value = []
+    zonesError.value = errorText(error)
+  } finally {
+    loadingZones.value = false
+  }
+}
 
-  zoneOptions.value = locations
-  motorOptions.value = motors
+function onKeydown(event: KeyboardEvent) {
+  const active = formOpen.value
+    ? formDialog.value
+    : selected.value
+      ? detailDialog.value
+      : null
 
-  await predioStore.fetchPredios()
+  if (!active) return
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+
+    if (formOpen.value) closeForm()
+    else closeDetail()
+
+    return
+  }
+
+  if (event.key !== 'Tab') return
+
+  const items = Array.from(
+    active.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]'
+    )
+  ).filter(
+    (element) => element.getClientRects().length > 0
+  )
+
+  if (!items.length) return
+
+  if (
+    event.shiftKey &&
+    document.activeElement === items[0]
+  ) {
+    event.preventDefault()
+    items[items.length - 1]?.focus()
+  } else if (
+    !event.shiftKey &&
+    document.activeElement === items[items.length - 1]
+  ) {
+    event.preventDefault()
+    items[0]?.focus()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', onKeydown)
+
+  void store.fetchPredios()
+  void loadZones()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
+
+  if (formOpen.value || selected.value) {
+    document.body.style.overflow = savedOverflow
+  }
 })
 </script>
 
 <template>
-  <div class="space-y-5 p-6">
-    <!-- ======================================================
-         CABECERA
-    ======================================================= -->
-    <div
-      class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+  <main
+    class="admin-page mx-auto w-full max-w-[1500px] space-y-5 p-0 sm:p-2 lg:p-4"
+  >
+    <header
+      class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
     >
-      <div>
+      <div class="min-w-0">
         <p
-          class="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-500"
+          class="text-xs font-bold uppercase tracking-widest text-orange-600"
         >
           Administración
         </p>
 
         <h1
-          class="mt-2 text-3xl font-bold text-slate-900"
+          class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl"
         >
           Predios
         </h1>
+
+        <p class="mt-2 max-w-2xl text-sm text-slate-600">
+          Registra y administra los predios. El motor de detección es
+          gestionado por el backend.
+        </p>
       </div>
 
       <button
         type="button"
-        class="inline-flex items-center gap-2 rounded-xl bg-[#f24a23] px-4 py-2.5 font-semibold text-white shadow-sm transition hover:bg-[#e24016]"
+        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white hover:bg-orange-700"
         @click="openCreateForm"
       >
-        <Plus class="h-4 w-4" />
+        <Plus class="h-5 w-5" aria-hidden="true" />
+        Crear predio
+      </button>
+    </header>
 
-        <span>Crear predio</span>
+    <div
+      v-if="pageMessage"
+      role="status"
+      class="flex min-w-0 items-center gap-3 rounded-xl border p-4 text-sm"
+      :class="
+        pageError
+          ? 'border-red-200 bg-red-50 text-red-800'
+          : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+      "
+    >
+      <AlertCircle
+        v-if="pageError"
+        class="h-5 w-5 shrink-0"
+        aria-hidden="true"
+      />
+
+      <CheckCircle2
+        v-else
+        class="h-5 w-5 shrink-0"
+        aria-hidden="true"
+      />
+
+      <span class="min-w-0 flex-1 break-words">
+        {{ pageMessage }}
+      </span>
+
+      <button
+        type="button"
+        class="min-h-11 min-w-11 rounded-lg"
+        aria-label="Ocultar mensaje"
+        @click="pageMessage = ''"
+      >
+        <X class="mx-auto h-4 w-4" />
       </button>
     </div>
 
-    <!-- ======================================================
-         FORMULARIO CREAR / EDITAR
-    ======================================================= -->
-    <div
-      v-if="showForm"
-      class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+    <section
+      aria-label="Directorio de predios"
+      class="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
     >
       <div
-        class="mb-4 flex items-center justify-between"
+        class="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
       >
-        <h2
-          class="text-xl font-bold text-slate-900"
-        >
-          {{
-            editingId
-              ? 'Editar predio'
-              : 'Crear predio'
-          }}
-        </h2>
-
-        <button
-          type="button"
-          class="text-sm font-medium text-slate-500 hover:text-slate-700"
-          @click="showForm = false"
-        >
-          Cerrar
-        </button>
-      </div>
-
-      <div class="grid gap-4 md:grid-cols-2">
-        <!-- ZONA -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
+        <div>
+          <h2
+            class="flex items-center gap-2 text-lg font-bold text-slate-900"
           >
-            Zona
-          </span>
+            <Building2
+              class="h-5 w-5 text-orange-600"
+              aria-hidden="true"
+            />
+            Directorio
+          </h2>
 
-          <select
-            v-model="form.id_zona"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option value="">
-              Seleccione una zona
-            </option>
-
-            <option
-              v-for="zone in zoneOptions"
-              :key="zone.id_zona"
-              :value="zone.id_zona"
-            >
-              {{ zone.nombre }}
-            </option>
-          </select>
-        </label>
-
-        <!-- MOTOR -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Motor de detección
-          </span>
-
-          <select
-            v-model="form.id_motordet"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option value="">
-              Seleccione un motor
-            </option>
-
-            <option
-              v-for="motor in motorOptions"
-              :key="motor.id_motordet"
-              :value="motor.id_motordet"
-            >
-              Motor #{{ motor.id_motordet }}
-            </option>
-          </select>
-
-          <p
-            v-if="motorOptions.length === 0"
-            class="mt-1 text-xs text-slate-500"
-          >
-            No hay motores de detección disponibles.
+          <p class="mt-1 text-sm text-slate-600">
+            {{ store.prediosDetail.length }} predios
           </p>
-        </label>
+        </div>
 
-        <!-- TIPO -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
+        <div class="flex min-w-0 flex-wrap gap-2">
+          <label
+            class="relative min-w-0 flex-1 sm:w-72 sm:flex-none"
           >
-            Tipo de predio
-          </span>
+            <span class="sr-only">Buscar predios</span>
 
-          <input
-            v-model="form.tipo_predio"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-            placeholder="VIVIENDA"
-          />
-        </label>
+            <Search
+              class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+              aria-hidden="true"
+            />
 
-        <!-- NOMBRE -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
+            <input
+              v-model="search"
+              type="search"
+              placeholder="Buscar predio, zona o tipo"
+              class="form-input pl-10"
+            />
+          </label>
+
+          <button
+            type="button"
+            class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-slate-700"
+            aria-label="Actualizar predios"
+            :disabled="store.loading"
+            @click="store.fetchPredios()"
           >
-            Nombre
-          </span>
-
-          <input
-            v-model="form.nombre"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-            placeholder="Ej: Vivienda Familiar Obrajes"
-          />
-        </label>
-
-        <!-- DIRECCIÓN -->
-        <label class="block md:col-span-2">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Dirección
-          </span>
-
-          <input
-            v-model="form.direccion"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-            placeholder="Calle 21 #123"
-          />
-        </label>
-
-        <!-- LATITUD -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Latitud
-          </span>
-
-          <input
-            v-model.number="form.latitud"
-            type="number"
-            step="0.0001"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-            placeholder="-16.541"
-          />
-        </label>
-
-        <!-- LONGITUD -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Longitud
-          </span>
-
-          <input
-            v-model.number="form.longitud"
-            type="number"
-            step="0.0001"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-            placeholder="-68.123"
-          />
-        </label>
-
-        <!-- MQTT -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Contraseña MQTT
-          </span>
-
-          <input
-            v-model="form.contrasena_mqtt"
-            type="password"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-            placeholder="Ingrese la contraseña MQTT"
-          />
-        </label>
-
-        <!-- FECHA -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Fecha de evaluación
-          </span>
-
-          <input
-            v-model="form.fecha_evaluacion"
-            type="date"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          />
-        </label>
-
-        <!-- ESTADO ELÉCTRICO -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Estado eléctrico
-          </span>
-
-          <select
-            v-model.number="form.estado_electrico"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option
-              v-for="value in [1, 2, 3, 4, 5]"
-              :key="value"
-              :value="value"
-            >
-              {{ value }}
-            </option>
-          </select>
-        </label>
-
-        <!-- GAS -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Estado gas
-          </span>
-
-          <select
-            v-model.number="form.estado_gas"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option
-              v-for="value in [1, 2, 3, 4, 5]"
-              :key="value"
-              :value="value"
-            >
-              {{ value }}
-            </option>
-          </select>
-        </label>
-
-        <!-- FUENTES CALOR -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Fuentes de calor
-          </span>
-
-          <select
-            v-model.number="form.fuentes_calor"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option
-              v-for="value in [1, 2, 3, 4, 5]"
-              :key="value"
-              :value="value"
-            >
-              {{ value }}
-            </option>
-          </select>
-        </label>
-
-        <!-- CARGA COMBUSTIBLE -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Carga combustible
-          </span>
-
-          <select
-            v-model.number="form.carga_combustible"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option
-              v-for="value in [1, 2, 3, 4, 5]"
-              :key="value"
-              :value="value"
-            >
-              {{ value }}
-            </option>
-          </select>
-        </label>
-
-        <!-- MATERIAL -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Material construcción
-          </span>
-
-          <select
-            v-model.number="form.material_construccion"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option
-              v-for="value in [1, 2, 3, 4, 5]"
-              :key="value"
-              :value="value"
-            >
-              {{ value }}
-            </option>
-          </select>
-        </label>
-
-        <!-- OCUPACIÓN -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Ocupación
-          </span>
-
-          <select
-            v-model.number="form.ocupacion"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option
-              v-for="value in [1, 2, 3, 4, 5]"
-              :key="value"
-              :value="value"
-            >
-              {{ value }}
-            </option>
-          </select>
-        </label>
-
-        <!-- PROTECCIÓN -->
-        <label class="block">
-          <span
-            class="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Nivel protección
-          </span>
-
-          <select
-            v-model.number="form.nivel_proteccion"
-            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-orange-300"
-          >
-            <option
-              v-for="value in [1, 2, 3, 4, 5]"
-              :key="value"
-              :value="value"
-            >
-              {{ value }}
-            </option>
-          </select>
-        </label>
+            <RefreshCw
+              class="mx-auto h-4 w-4"
+              :class="{ 'animate-spin': store.loading }"
+              aria-hidden="true"
+            />
+          </button>
+        </div>
       </div>
 
-      <!-- BOTONES FORMULARIO -->
       <div
-        class="mt-5 flex justify-end gap-3"
+        v-if="store.loading"
+        role="status"
+        class="p-10 text-center text-sm text-slate-600"
       >
-        <button
-          type="button"
-          class="rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-50"
-          @click="showForm = false"
-        >
-          Cancelar
-        </button>
+        Cargando predios...
+      </div>
+
+      <div
+        v-else-if="store.error"
+        role="alert"
+        class="m-4 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800"
+      >
+        <p class="break-words">
+          {{ store.error }}
+        </p>
 
         <button
           type="button"
-          class="rounded-xl bg-[#f24a23] px-4 py-2.5 font-semibold text-white transition hover:bg-[#e24016]"
-          @click="submit"
+          class="mt-3 min-h-11 rounded-xl border border-red-300 bg-white px-4 font-semibold"
+          @click="store.fetchPredios()"
         >
-          Guardar
+          Reintentar
         </button>
       </div>
-    </div>
 
-    <!-- ======================================================
-         LOADING
-    ======================================================= -->
-    <div
-      v-if="predioStore.loading"
-      class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-    >
-      <LoadingSpinner />
-    </div>
+      <div
+        v-else-if="filtered.length === 0"
+        class="p-10 text-center text-sm text-slate-600"
+      >
+        {{
+          search
+            ? 'No se encontraron coincidencias.'
+            : 'Aún no hay predios registrados.'
+        }}
+      </div>
 
-    <!-- ======================================================
-         ERROR
-    ======================================================= -->
-    <div
-      v-else-if="predioStore.error"
-      class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm"
-    >
-      {{ predioStore.error }}
-    </div>
-
-    <!-- ======================================================
-         TABLA
-    ======================================================= -->
-    <div
-      v-else
-      class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-    >
-      <div class="overflow-x-auto">
-        <table
-          class="min-w-full text-left text-sm text-slate-700"
+      <template v-else>
+        <!-- Tarjetas en móvil y tablet -->
+        <div
+          class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:hidden"
         >
-          <thead
-            class="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500"
+          <article
+            v-for="item in filtered"
+            :key="item.id_predio"
+            class="min-w-0 space-y-3 rounded-xl border border-slate-200 p-4"
           >
-            <tr>
-              <th class="px-4 py-3">
-                Nombre
-              </th>
-
-              <th class="px-4 py-3">
-                Tipo
-              </th>
-
-              <th class="px-4 py-3">
-                Dirección
-              </th>
-
-              <th class="px-4 py-3">
-                Zona
-              </th>
-
-              <th class="px-4 py-3">
-                Detalle
-              </th>
-
-              <th
-                class="px-4 py-3 text-right"
-              >
-                Acciones
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr
-              v-for="predio in loadedPredios"
-              :key="String(predio.id_predio)"
-              class="border-t border-slate-200 align-middle"
-            >
-              <!-- NOMBRE -->
-              <td class="px-4 py-3">
-                <div
-                  class="flex items-center gap-3"
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <h3
+                  class="break-words font-bold text-slate-900"
                 >
-                  <div
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600"
-                  >
-                    <MapPin class="h-4 w-4" />
-                  </div>
+                  {{
+                    item.nombre ||
+                    `Predio #${item.id_predio}`
+                  }}
+                </h3>
 
-                  <div>
-                    <div
-                      class="font-semibold text-slate-900"
+                <p class="break-words text-sm text-slate-600">
+                  {{ item.tipo_predio || 'Sin tipo' }}
+                </p>
+              </div>
+
+              <span
+                class="shrink-0 rounded-full bg-orange-50 px-2 py-1 text-xs text-orange-700"
+              >
+                #{{ item.id_predio }}
+              </span>
+            </div>
+
+            <p class="break-words text-sm text-slate-700">
+              {{ item.direccion || 'Sin dirección' }}
+            </p>
+
+            <p class="break-words text-sm text-slate-600">
+              {{ zoneName(item.id_zona) }}
+            </p>
+
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="min-h-11 rounded-lg border border-slate-200 px-3 text-sm text-slate-700"
+                @click="openDetail(item.id_predio)"
+              >
+                Ver
+              </button>
+
+              <button
+                type="button"
+                class="min-h-11 rounded-lg border border-slate-200 px-3 text-sm text-orange-700"
+                @click="openEditForm(item.id_predio)"
+              >
+                Editar
+              </button>
+
+              <button
+                type="button"
+                class="min-h-11 rounded-lg border border-red-200 px-3 text-sm text-red-700"
+                @click="remove(item.id_predio)"
+              >
+                Eliminar
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <!-- Tabla en escritorio -->
+        <div class="hidden overflow-x-auto lg:block">
+          <table
+            class="w-full min-w-[760px] text-left text-sm text-slate-700"
+          >
+            <thead
+              class="bg-slate-50 text-xs uppercase text-slate-600"
+            >
+              <tr>
+                <th scope="col" class="px-4 py-3">
+                  Nombre
+                </th>
+                <th scope="col" class="px-4 py-3">
+                  Tipo
+                </th>
+                <th scope="col" class="px-4 py-3">
+                  Dirección
+                </th>
+                <th scope="col" class="px-4 py-3">
+                  Zona
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 text-right"
+                >
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr
+                v-for="item in filtered"
+                :key="item.id_predio"
+                class="border-t border-slate-100 hover:bg-slate-50"
+              >
+                <td
+                  class="max-w-56 break-words px-4 py-4 font-semibold text-slate-900"
+                >
+                  {{
+                    item.nombre ||
+                    `Predio #${item.id_predio}`
+                  }}
+                </td>
+
+                <td class="max-w-40 break-words px-4 py-4">
+                  {{ item.tipo_predio || 'Sin tipo' }}
+                </td>
+
+                <td class="max-w-56 break-words px-4 py-4">
+                  {{ item.direccion || 'Sin dirección' }}
+                </td>
+
+                <td class="max-w-40 break-words px-4 py-4">
+                  {{ zoneName(item.id_zona) }}
+                </td>
+
+                <td class="px-4 py-4">
+                  <div class="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-slate-700"
+                      aria-label="Ver detalle"
+                      title="Ver detalle"
+                      @click="openDetail(item.id_predio)"
                     >
-                      {{ predio.nombre }}
-                    </div>
+                      <Eye class="mx-auto h-4 w-4" />
+                    </button>
 
-                    <div
-                      class="text-xs text-slate-500"
+                    <button
+                      type="button"
+                      class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-orange-700"
+                      aria-label="Editar predio"
+                      title="Editar predio"
+                      @click="openEditForm(item.id_predio)"
                     >
-                      {{ predio.id_predio }}
-                    </div>
+                      <Pencil class="mx-auto h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      class="min-h-11 min-w-11 rounded-xl border border-red-200 text-red-700"
+                      aria-label="Eliminar predio"
+                      title="Eliminar predio"
+                      @click="remove(item.id_predio)"
+                    >
+                      <Trash2 class="mx-auto h-4 w-4" />
+                    </button>
                   </div>
-                </div>
-              </td>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </section>
 
-              <!-- TIPO -->
-              <td class="px-4 py-3">
-                {{ predio.tipo_predio }}
-              </td>
+    <p
+      v-if="loadingDetail"
+      role="status"
+      class="text-sm text-slate-600"
+    >
+      Consultando detalle...
+    </p>
 
-              <!-- DIRECCIÓN -->
-              <td class="px-4 py-3">
-                {{ predio.direccion || '—' }}
-              </td>
+    <!-- Formulario de creación y edición -->
+    <Teleport to="body">
+      <div
+        v-if="formOpen"
+        class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/65 p-2 sm:p-5"
+        @click.self="closeForm"
+      >
+        <div
+          ref="formDialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="predio-form-title"
+          class="flex max-h-[calc(100dvh-1rem)] w-full max-w-4xl min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]"
+        >
+          <header
+            class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-6"
+          >
+            <div class="min-w-0">
+              <p
+                class="text-xs font-bold uppercase tracking-widest text-orange-600"
+              >
+                Predios
+              </p>
 
-              <!-- ZONA -->
-              <td class="px-4 py-3">
-                {{ zoneLabel(predio.id_zona) }}
-              </td>
+              <h2
+                id="predio-form-title"
+                class="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl"
+              >
+                {{
+                  editingId
+                    ? 'Editar predio'
+                    : 'Crear predio'
+                }}
+              </h2>
 
-              <!-- DETALLE -->
-              <td class="px-4 py-3">
+              <p class="mt-1 text-sm text-slate-600">
+                La zona es obligatoria. El backend gestiona
+                el motor de detección.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="min-h-11 min-w-11 shrink-0 rounded-xl border border-slate-200 text-slate-700"
+              aria-label="Cerrar formulario"
+              :disabled="saving"
+              @click="closeForm"
+            >
+              <X class="mx-auto h-5 w-5" />
+            </button>
+          </header>
+
+          <form
+            class="flex min-h-0 flex-1 flex-col"
+            @submit.prevent="save"
+          >
+            <div
+              class="min-h-0 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6"
+            >
+              <div
+                v-if="formError"
+                role="alert"
+                class="break-words rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+              >
+                {{ formError }}
+              </div>
+
+              <div
+                v-if="zonesError"
+                role="alert"
+                class="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+              >
+                <p class="break-words">
+                  No se pudieron cargar las zonas:
+                  {{ zonesError }}
+                </p>
+
                 <button
                   type="button"
-                  class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
-                  @click="openDetail(predio)"
+                  class="min-h-11 rounded-xl border border-amber-300 bg-white px-4 font-semibold"
+                  :disabled="loadingZones"
+                  @click="loadZones"
                 >
-                  Ver detalle
+                  Reintentar
                 </button>
-              </td>
+              </div>
 
-              <!-- ACCIONES -->
-              <td class="px-4 py-3">
-                <div
-                  class="flex justify-end gap-2"
-                >
-                  <button
-                    type="button"
-                    class="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
-                    aria-label="Editar predio"
-                    @click="openEditForm(predio)"
+              <div
+                class="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2"
+              >
+                <div class="min-w-0">
+                  <div
+                    class="mb-1 flex items-center justify-between gap-2"
                   >
-                    <Pencil
-                      class="h-4 w-4"
-                    />
-                  </button>
+                    <label
+                      for="predio-zona"
+                      class="text-sm font-semibold text-slate-700"
+                    >
+                      Zona geográfica
+                      <span class="text-orange-600">*</span>
+                    </label>
 
-                  <button
-                    type="button"
-                    class="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600"
-                    aria-label="Eliminar predio"
-                    @click="
-                      handleDelete(
-                        String(predio.id_predio),
-                      )
-                    "
+                    <button
+                      v-if="zones.length"
+                      type="button"
+                      class="text-xs font-semibold text-orange-700 underline"
+                      @click="manualZone = !manualZone"
+                    >
+                      {{
+                        manualZone
+                          ? 'Ver lista'
+                          : 'Introducir ID'
+                      }}
+                    </button>
+                  </div>
+
+                  <input
+                    v-if="manualZone || !zones.length"
+                    id="predio-zona"
+                    v-model="form.id_zona"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputmode="numeric"
+                    required
+                    placeholder="ID de zona existente"
+                    class="form-input"
+                  />
+
+                  <select
+                    v-else
+                    id="predio-zona"
+                    v-model="form.id_zona"
+                    required
+                    class="form-input"
                   >
-                    <Trash2
-                      class="h-4 w-4"
-                    />
-                  </button>
+                    <option value="">
+                      Selecciona una zona
+                    </option>
+
+                    <option
+                      v-for="zone in zones"
+                      :key="zone.id_zona"
+                      :value="String(zone.id_zona)"
+                    >
+                      {{ zone.nombre }} (#{{ zone.id_zona }})
+                    </option>
+                  </select>
+
+                  <p
+                    v-if="!zones.length && !zonesError"
+                    class="mt-1 text-sm text-slate-600"
+                  >
+                    {{
+                      loadingZones
+                        ? 'Cargando zonas...'
+                        : 'No hay zonas registradas. Crea una en Zonas o indica un ID existente.'
+                    }}
+                  </p>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
 
-      <!-- SIN DATOS -->
-      <div
-        v-if="loadedPredios.length === 0"
-        class="px-4 py-8 text-center text-sm text-slate-500"
-      >
-        No hay predios registrados.
-      </div>
-    </div>
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Nombre del predio
+                  <span class="text-orange-600">*</span>
 
-    <!-- ======================================================
-         MODAL DETALLE DEL PREDIO
-    ======================================================= -->
-    <div
-      v-if="selectedPredio"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
-      @click.self="closeDetail"
-    >
-      <div
-        class="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl"
-      >
-        <!-- CABECERA MODAL -->
-        <div
-          class="flex items-start justify-between border-b border-slate-200 px-6 py-5"
-        >
-          <div>
-            <p
-              class="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-500"
+                  <input
+                    ref="firstInput"
+                    v-model="form.nombre"
+                    type="text"
+                    required
+                    maxlength="200"
+                    placeholder="Ej. Mercado Rodríguez"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Tipo de predio
+
+                  <input
+                    v-model="form.tipo_predio"
+                    type="text"
+                    list="tipos-predio"
+                    maxlength="100"
+                    autocomplete="off"
+                    placeholder="Elige o escribe otro tipo"
+                    class="form-input mt-1 font-normal"
+                  />
+
+                  <datalist id="tipos-predio">
+                    <option
+                      v-for="tipo in tiposPredio"
+                      :key="tipo"
+                      :value="tipo"
+                    />
+                  </datalist>
+
+                  <span
+                    class="mt-1 block text-xs font-normal text-slate-500"
+                  >
+                    Puedes escribir un tipo personalizado.
+                  </span>
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Fecha de evaluación
+
+                  <input
+                    v-model="form.fecha_evaluacion"
+                    type="date"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700 md:col-span-2"
+                >
+                  Dirección
+
+                  <input
+                    v-model="form.direccion"
+                    type="text"
+                    maxlength="255"
+                    placeholder="Calle, número y zona"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700 md:col-span-2"
+                >
+                  {{
+                    editingId
+                      ? 'Nueva contraseña MQTT (opcional)'
+                      : 'Contraseña MQTT (si aplica)'
+                  }}
+
+                  <input
+                    v-model="form.contrasena_mqtt"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="No se mostrará la contraseña guardada"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+              </div>
+
+              <div
+                class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4"
+              >
+                <button
+                  type="button"
+                  class="flex min-h-11 w-full items-center justify-between gap-3 text-left text-sm font-bold text-slate-800"
+                  :aria-expanded="showMap"
+                  @click="showMap = !showMap"
+                >
+                  <span class="flex items-center gap-2">
+                    <MapPin
+                      class="h-5 w-5 text-orange-600"
+                      aria-hidden="true"
+                    />
+                    Ubicación en el mapa
+                  </span>
+
+                  <ChevronDown
+                    class="h-4 w-4 shrink-0"
+                    :class="{ 'rotate-180': showMap }"
+                  />
+                </button>
+
+                <p class="mb-2 text-sm text-slate-600">
+                  La ubicación es opcional. El centro del
+                  mapa no se guardará hasta que selecciones
+                  un punto.
+                </p>
+
+                <LocationPicker
+                  v-if="showMap"
+                  v-model:latitud="form.latitud"
+                  v-model:longitud="form.longitud"
+                />
+
+                <p
+                  v-else-if="
+                    form.latitud !== null &&
+                    form.longitud !== null
+                  "
+                  class="break-words text-sm text-emerald-700"
+                >
+                  Ubicación seleccionada:
+                  {{ form.latitud }}, {{ form.longitud }}
+                </p>
+              </div>
+
+              <div
+                class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4"
+              >
+                <button
+                  type="button"
+                  class="flex min-h-11 w-full items-center justify-between gap-3 text-left text-sm font-bold text-slate-800"
+                  :aria-expanded="showScores"
+                  @click="showScores = !showScores"
+                >
+                  <span>
+                    Condiciones y evaluación
+                  </span>
+
+                  <ChevronDown
+                    class="h-4 w-4 shrink-0"
+                    :class="{ 'rotate-180': showScores }"
+                  />
+                </button>
+
+                <p class="mb-2 text-sm text-slate-600">
+                  Campos opcionales; deja en blanco si no
+                  fueron evaluados. El valor 0 es válido.
+                </p>
+
+                <div
+                  v-if="showScores"
+                  class="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2"
+                >
+                  <label
+                    v-for="field in scoreFields"
+                    :key="field.key"
+                    class="min-w-0 text-sm font-semibold text-slate-700"
+                  >
+                    {{ field.label }}
+
+                    <input
+                      v-model="form[field.key]"
+                      type="number"
+                      step="any"
+                      inputmode="decimal"
+                      placeholder="Sin evaluar"
+                      class="form-input mt-1 font-normal"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <footer
+              class="flex shrink-0 flex-col gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:justify-end sm:px-6"
             >
-              Detalle del predio
-            </p>
+              <button
+                type="button"
+                class="min-h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700"
+                :disabled="saving"
+                @click="closeForm"
+              >
+                Cancelar
+              </button>
 
-            <h2
-              class="mt-1 text-2xl font-bold text-slate-900"
-            >
-              {{ selectedPredio.nombre }}
-            </h2>
-
-            <p
-              class="mt-1 text-sm text-slate-500"
-            >
-              ID {{ selectedPredio.id_predio }}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Cerrar detalle"
-            @click="closeDetail"
-          >
-            <X class="h-5 w-5" />
-          </button>
+              <button
+                type="submit"
+                class="min-h-11 rounded-xl bg-orange-600 px-5 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-50"
+                :disabled="saving"
+              >
+                {{
+                  saving
+                    ? 'Guardando...'
+                    : editingId
+                      ? 'Guardar cambios'
+                      : 'Crear predio'
+                }}
+              </button>
+            </footer>
+          </form>
         </div>
+      </div>
+    </Teleport>
 
-        <!-- CONTENIDO -->
+    <!-- Detalle de predio -->
+    <Teleport to="body">
+      <div
+        v-if="selected"
+        class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/65 p-2 sm:p-5"
+        @click.self="closeDetail"
+      >
         <div
-          class="max-h-[75vh] overflow-y-auto p-6"
+          ref="detailDialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="predio-detail-title"
+          class="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         >
-          <!-- DATOS GENERALES -->
+          <header
+            class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 p-4 sm:p-5"
+          >
+            <div class="min-w-0">
+              <p
+                class="text-xs font-bold uppercase tracking-widest text-orange-600"
+              >
+                Detalle del predio
+              </p>
+
+              <h2
+                id="predio-detail-title"
+                class="mt-1 break-words text-xl font-extrabold text-slate-900"
+              >
+                {{
+                  selected.nombre ||
+                  `Predio #${selected.id_predio}`
+                }}
+              </h2>
+            </div>
+
+            <button
+              type="button"
+              class="min-h-11 min-w-11 shrink-0 rounded-xl border border-slate-200"
+              aria-label="Cerrar detalle"
+              @click="closeDetail"
+            >
+              <X class="mx-auto h-5 w-5" />
+            </button>
+          </header>
+
           <div
-            class="grid gap-4 sm:grid-cols-2"
+            class="min-h-0 space-y-4 overflow-y-auto p-4 text-sm sm:p-5"
           >
             <div
-              class="rounded-xl bg-slate-50 p-4"
+              class="grid grid-cols-1 gap-3 sm:grid-cols-2"
             >
-              <p
-                class="text-xs font-semibold uppercase tracking-wide text-slate-500"
+              <div
+                v-for="entry in [
+                  {
+                    label: 'ID',
+                    value: selected.id_predio,
+                  },
+                  {
+                    label: 'Tipo',
+                    value: selected.tipo_predio,
+                  },
+                  {
+                    label: 'Zona',
+                    value: zoneName(selected.id_zona),
+                  },
+                  {
+                    label: 'Motor interno',
+                    value: selected.id_motordet,
+                  },
+                  {
+                    label: 'Dirección',
+                    value: selected.direccion,
+                  },
+                  {
+                    label: 'Fecha de evaluación',
+                    value: selected.fecha_evaluacion,
+                  },
+                  {
+                    label: 'Latitud',
+                    value: selected.latitud,
+                  },
+                  {
+                    label: 'Longitud',
+                    value: selected.longitud,
+                  },
+                  {
+                    label: 'IRP del backend',
+                    value: selected.irp,
+                  },
+                  {
+                    label: 'Sensores vinculados',
+                    value: selected.sensores.length,
+                  },
+                ]"
+                :key="entry.label"
+                class="min-w-0 rounded-xl bg-slate-50 p-3"
               >
-                Tipo
-              </p>
+                <p
+                  class="text-xs font-bold uppercase text-slate-600"
+                >
+                  {{ entry.label }}
+                </p>
 
-              <p
-                class="mt-1 font-medium text-slate-900"
-              >
-                {{
-                  selectedPredio.tipo_predio ||
-                  '—'
-                }}
-              </p>
+                <p
+                  class="mt-1 break-words font-semibold text-slate-900"
+                >
+                  {{ showValue(entry.value) }}
+                </p>
+              </div>
             </div>
 
-            <div
-              class="rounded-xl bg-slate-50 p-4"
-            >
-              <p
-                class="text-xs font-semibold uppercase tracking-wide text-slate-500"
-              >
-                Zona
-              </p>
-
-              <p
-                class="mt-1 font-medium text-slate-900"
-              >
-                {{
-                  zoneLabel(
-                    selectedPredio.id_zona,
-                  )
-                }}
-              </p>
-            </div>
+            <h3 class="font-bold text-slate-900">
+              Evaluación
+            </h3>
 
             <div
-              class="rounded-xl bg-slate-50 p-4 sm:col-span-2"
+              class="grid grid-cols-1 gap-3 sm:grid-cols-2"
             >
-              <p
-                class="text-xs font-semibold uppercase tracking-wide text-slate-500"
+              <div
+                v-for="field in scoreFields"
+                :key="field.key"
+                class="rounded-xl border border-slate-200 p-3"
               >
-                Dirección
-              </p>
+                <p class="text-sm text-slate-600">
+                  {{ field.label }}
+                </p>
 
-              <p
-                class="mt-1 font-medium text-slate-900"
-              >
-                {{
-                  selectedPredio.direccion ||
-                  '—'
-                }}
-              </p>
-            </div>
-
-            <div
-              class="rounded-xl bg-slate-50 p-4"
-            >
-              <p
-                class="text-xs font-semibold uppercase tracking-wide text-slate-500"
-              >
-                Fecha de evaluación
-              </p>
-
-              <p
-                class="mt-1 font-medium text-slate-900"
-              >
-                {{
-                  selectedPredio.fecha_evaluacion ||
-                  '—'
-                }}
-              </p>
-            </div>
-
-            <div
-              class="rounded-xl bg-slate-50 p-4"
-            >
-              <p
-                class="text-xs font-semibold uppercase tracking-wide text-slate-500"
-              >
-                Motor de detección
-              </p>
-
-              <p
-                class="mt-1 font-medium text-slate-900"
-              >
-                {{
-                  selectedPredio.id_motordet ??
-                  '—'
-                }}
-              </p>
-            </div>
-
-            <div
-              class="rounded-xl bg-slate-50 p-4"
-            >
-              <p
-                class="text-xs font-semibold uppercase tracking-wide text-slate-500"
-              >
-                Latitud
-              </p>
-
-              <p
-                class="mt-1 font-medium text-slate-900"
-              >
-                {{
-                  selectedPredio.latitud ??
-                  '—'
-                }}
-              </p>
-            </div>
-
-            <div
-              class="rounded-xl bg-slate-50 p-4"
-            >
-              <p
-                class="text-xs font-semibold uppercase tracking-wide text-slate-500"
-              >
-                Longitud
-              </p>
-
-              <p
-                class="mt-1 font-medium text-slate-900"
-              >
-                {{
-                  selectedPredio.longitud ??
-                  '—'
-                }}
-              </p>
+                <p class="mt-1 font-bold text-slate-900">
+                  {{ showValue(selected[field.key]) }}
+                </p>
+              </div>
             </div>
           </div>
 
-          <!-- EVALUACIÓN -->
-          <div class="mt-6">
-            <div class="mb-3">
-              <p
-                class="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-500"
-              >
-                Evaluación
-              </p>
-
-              <h3
-                class="mt-1 text-lg font-bold text-slate-900"
-              >
-                Condiciones del predio
-              </h3>
-
-              <p
-                class="mt-1 text-sm text-slate-500"
-              >
-                Valores registrados en una escala
-                del 1 al 5.
-              </p>
-            </div>
-
-            <div
-              class="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200"
-            >
-              <div
-                class="flex items-center justify-between px-4 py-3"
-              >
-                <span
-                  class="text-sm text-slate-600"
-                >
-                  Estado eléctrico
-                </span>
-
-                <span
-                  class="font-semibold text-slate-900"
-                >
-                  {{
-                    selectedPredio.estado_electrico ??
-                    '—'
-                  }}
-                  / 5
-                </span>
-              </div>
-
-              <div
-                class="flex items-center justify-between px-4 py-3"
-              >
-                <span
-                  class="text-sm text-slate-600"
-                >
-                  Estado del gas
-                </span>
-
-                <span
-                  class="font-semibold text-slate-900"
-                >
-                  {{
-                    selectedPredio.estado_gas ??
-                    '—'
-                  }}
-                  / 5
-                </span>
-              </div>
-
-              <div
-                class="flex items-center justify-between px-4 py-3"
-              >
-                <span
-                  class="text-sm text-slate-600"
-                >
-                  Fuentes de calor
-                </span>
-
-                <span
-                  class="font-semibold text-slate-900"
-                >
-                  {{
-                    selectedPredio.fuentes_calor ??
-                    '—'
-                  }}
-                  / 5
-                </span>
-              </div>
-
-              <div
-                class="flex items-center justify-between px-4 py-3"
-              >
-                <span
-                  class="text-sm text-slate-600"
-                >
-                  Carga combustible
-                </span>
-
-                <span
-                  class="font-semibold text-slate-900"
-                >
-                  {{
-                    selectedPredio.carga_combustible ??
-                    '—'
-                  }}
-                  / 5
-                </span>
-              </div>
-
-              <div
-                class="flex items-center justify-between px-4 py-3"
-              >
-                <span
-                  class="text-sm text-slate-600"
-                >
-                  Material de construcción
-                </span>
-
-                <span
-                  class="font-semibold text-slate-900"
-                >
-                  {{
-                    selectedPredio.material_construccion ??
-                    '—'
-                  }}
-                  / 5
-                </span>
-              </div>
-
-              <div
-                class="flex items-center justify-between px-4 py-3"
-              >
-                <span
-                  class="text-sm text-slate-600"
-                >
-                  Ocupación
-                </span>
-
-                <span
-                  class="font-semibold text-slate-900"
-                >
-                  {{
-                    selectedPredio.ocupacion ??
-                    '—'
-                  }}
-                  / 5
-                </span>
-              </div>
-
-              <div
-                class="flex items-center justify-between px-4 py-3"
-              >
-                <span
-                  class="text-sm text-slate-600"
-                >
-                  Nivel de protección
-                </span>
-
-                <span
-                  class="font-semibold text-slate-900"
-                >
-                  {{
-                    selectedPredio.nivel_proteccion ??
-                    '—'
-                  }}
-                  / 5
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- PIE DEL MODAL -->
-        <div
-          class="flex justify-end border-t border-slate-200 bg-slate-50 px-6 py-4"
-        >
-          <button
-            type="button"
-            class="rounded-xl bg-[#f24a23] px-5 py-2.5 font-semibold text-white transition hover:bg-[#e24016]"
-            @click="closeDetail"
+          <footer
+            class="shrink-0 border-t border-slate-200 bg-slate-50 p-4 text-right"
           >
-            Cerrar
-          </button>
+            <button
+              type="button"
+              class="min-h-11 rounded-xl bg-orange-600 px-5 text-sm font-bold text-white"
+              @click="closeDetail"
+            >
+              Cerrar
+            </button>
+          </footer>
         </div>
       </div>
-    </div>
-  </div>
+    </Teleport>
+  </main>
 </template>

@@ -103,6 +103,9 @@ const getFileName = (
 const mapApiReport = (
   report: ApiCitizenReport,
 ): CitizenReport => {
+  if (report?.id_reporte_u == null || String(report.id_reporte_u).trim() === '') {
+    throw new Error('El servidor no confirmó el identificador del reporte; verifica su estado antes de reenviar.')
+  }
   const factores =
     report.indicador
       ?.split(',')
@@ -202,6 +205,7 @@ export const citizenReportService = {
         `${API_URL}/reportes-usuario`,
       )
 
+    if (!Array.isArray(data)) throw new Error('El servidor no devolvió una lista de reportes válida.')
     return data.map(mapApiReport)
   },
 

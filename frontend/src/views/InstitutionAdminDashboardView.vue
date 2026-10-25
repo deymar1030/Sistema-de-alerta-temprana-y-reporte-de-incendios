@@ -1,67 +1,34 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { AlertTriangle, FileText, ShieldCheck, Users } from 'lucide-vue-next'
-import MetricCard from '../components/common/MetricCard.vue'
-import StatusBadge from '../components/common/StatusBadge.vue'
-import MonitoringMap from '../components/dashboard/MonitoringMap.vue'
+import { computed, onMounted, ref } from 'vue'
+import { AlertTriangle, Building2, CheckCircle2, RefreshCw } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth.store'
-import { useDispatchStore } from '../stores/dispatch.store'
-import { useIncidentStore } from '../stores/incident.store'
-import { useReportStore } from '../stores/report.store'
 import { useInstitutionStore } from '../stores/institution.store'
-
-const authStore = useAuthStore()
-const dispatchStore = useDispatchStore()
-const incidentStore = useIncidentStore()
-const reportStore = useReportStore()
-const institutionStore = useInstitutionStore()
-
-const institutionId = computed(() => authStore.user?.institucionId ?? 'INS-001')
-const institution = computed(() => institutionStore.institutions.find((item) => item.id === institutionId.value))
-const myDispatches = computed(() => dispatchStore.dispatches.filter((item) => item.institutionId === institutionId.value))
-const active = computed(() => myDispatches.value.filter((item) => !['FINALIZADA', 'RECHAZADA'].includes(item.status)))
-const myReports = computed(() => reportStore.reports.filter((item) => item.institutionId === institutionId.value))
-const pendingReports = computed(() => myDispatches.value.filter((dispatch) => dispatch.status === 'FINALIZADA' && !myReports.value.some((report) => report.incidentId === dispatch.incidentId)))
-
-const metrics = computed(() => [
-  { title: 'Alertas recibidas', value: String(myDispatches.value.length), detail: 'Despachos dirigidos a la institución', trend: `${active.value.length} activas`, tone: 'warning' as const, icon: AlertTriangle },
-  { title: 'Emergencias activas', value: String(active.value.length), detail: 'Requieren seguimiento', trend: institution.value?.disponibilidad ?? 'Demo', tone: active.value.length ? 'danger' as const : 'success' as const, icon: ShieldCheck },
-  { title: 'Informes pendientes', value: String(pendingReports.value.length), detail: 'Atenciones sin informe final', trend: `${myReports.value.length} registrados`, tone: pendingReports.value.length ? 'warning' as const : 'success' as const, icon: FileText },
-])
-
-const incidentFor = (id: string) => incidentStore.incidents.find((item) => item.id === id)
-const fmt = (value: string) => new Intl.DateTimeFormat('es-BO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-
-onMounted(async () => { await Promise.all([dispatchStore.fetchDispatches(), incidentStore.fetchIncidents(), reportStore.fetchReports(), institutionStore.fetchInstitutions()]) })
+import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
+import MonitoringMap from '../components/dashboard/MonitoringMap.vue'
+const auth = useAuthStore()
+const institutions = useInstitutionStore()
+const id = computed(() => auth.user?.institutionId ?? auth.user?.institucionId ?? null)
+const institution = computed(() => institutions.institutions.find((v) => v.id === id.value))
+const alerts = ref<BackendAlert[]>([])
+const loading = ref(false)
+const error = ref('')
+const active = computed(() => alerts.value.filter((a) => !['CERRADA', 'DESCARTADA'].includes(a.estado)))
+const closed = computed(() => alerts.value.filter((a) => a.instituciones_notificadas?.some((v) => String(v.id_institucion) === String(id.value) && v.estado === 'CERRADA')).length)
+const fmt = (date: string) => { const parsed = new Date(date); return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleString('es-BO') }
+async function load() {
+  error.value = ''
+  if (!id.value) { error.value = 'Tu usuario no tiene una institución asignada.'; return }
+  loading.value = true
+  await institutions.fetchInstitutions()
+  try { alerts.value = await backendAlertsService.byInstitution(id.value) }
+  catch (cause) { alerts.value = []; error.value = cause instanceof Error ? cause.message : 'No se pudieron cargar alertas.' }
+  finally { loading.value = false }
+}
+onMounted(() => { void load() })
 </script>
-
 <template>
-  <div class="space-y-6">
-    <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div><p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500">Administración institucional</p><h2 class="mt-2 text-2xl font-semibold text-slate-900">{{ institution?.nombre || 'Institución' }}</h2><p class="mt-2 text-sm text-slate-600">Resumen exclusivo de la institución. No se muestran despachos de otras entidades.</p></div>
-      <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"><Users class="h-4 w-4" /> Institución activa</div>
-    </section>
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><MetricCard v-for="metric in metrics" :key="metric.title" v-bind="metric" /></section>
-    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div class="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mapa operativo</p>
-          <h3 class="mt-1 text-lg font-semibold text-slate-900">Ubicación de la institución y alertas asignadas</h3>
-        </div>
-      </div>
-      <MonitoringMap
-        :show-sensors="false"
-        :show-incidents="true"
-        :show-institutions="true"
-        :show-reports="false"
-        :mode="'institution'"
-        :institution-id="institutionId"
-        height-class="h-[350px]"
-      />
-    </section>
-    <section class="grid gap-6 xl:grid-cols-[1fr_0.55fr]">
-      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div class="flex items-center justify-between"><div><p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Actividad reciente</p><h3 class="mt-1 text-lg font-semibold text-slate-900">Alertas asignadas a la institución</h3></div><RouterLink to="/admin-institucion/alertas" class="text-sm font-semibold text-orange-600">Ver todas</RouterLink></div><div class="mt-4 space-y-3"><div v-for="dispatch in myDispatches.slice(0,5)" :key="dispatch.id" class="rounded-xl border border-slate-200 bg-slate-50 p-4"><div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="font-semibold text-slate-900">{{ incidentFor(dispatch.incidentId)?.ubicacion || dispatch.incidentId }}</p><p class="mt-1 text-xs text-slate-500">{{ dispatch.incidentId }} · {{ fmt(dispatch.sentAt) }}</p></div><StatusBadge :state="dispatch.status" :tone="dispatch.status === 'FINALIZADA' ? 'success' : 'info'">{{ dispatch.status.replaceAll('_',' ') }}</StatusBadge></div></div><p v-if="myDispatches.length === 0" class="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Aún no hay despachos para esta institución.</p></div></div>
-      <aside class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pendientes administrativos</p><h3 class="mt-1 text-lg font-semibold text-slate-900">Informes de atención</h3><div class="mt-4 rounded-xl bg-[#f6efe7] p-4"><p class="text-3xl font-semibold text-slate-900">{{ pendingReports.length }}</p><p class="mt-1 text-sm text-slate-600">intervenciones finalizadas sin informe estructurado</p></div><RouterLink to="/admin-institucion/informes" class="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#f24a23] px-4 py-3 text-sm font-semibold text-white">Gestionar informes</RouterLink></aside>
-    </section>
+  <div class="admin-page mx-auto max-w-[1600px] space-y-6"><header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div class="min-w-0"><p class="text-xs font-bold uppercase tracking-wider text-orange-600">Administración institucional</p><h1 class="mt-1 break-words text-2xl font-extrabold text-slate-900 sm:text-3xl">{{ institution?.nombre ?? 'Mi institución' }}</h1><p class="mt-2 max-w-xl text-sm text-slate-600">Alertas dirigidas a tu institución y estados persistidos en el backend.</p></div><button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50" :disabled="loading" @click="load"><RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" /> Actualizar</button></header><p v-if="error" role="alert" class="break-words rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ error }}</p>
+    <section class="grid grid-cols-1 gap-4 sm:grid-cols-3"><div v-for="item in [{ label: 'Alertas recibidas', value: error ? '—' : alerts.length, icon: AlertTriangle }, {label: 'En seguimiento', value: error ? '—' : active.length, icon: Building2}, {label:'Envíos cerrados', value: error ? '—' : closed, icon: CheckCircle2}]" :key="item.label" class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div class="flex items-center justify-between gap-2"><span class="text-sm font-semibold text-slate-600">{{ item.label }}</span><component :is="item.icon" class="h-5 w-5 shrink-0 text-orange-600" /></div><p class="mt-3 text-3xl font-extrabold text-slate-900">{{ item.value }}</p></div></section>
+    <div class="grid min-w-0 gap-5 xl:grid-cols-2"><section class="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div class="flex flex-wrap justify-between gap-2"><h2 class="text-lg font-extrabold text-slate-900">Actividad reciente</h2><RouterLink to="/institucion/alertas" class="text-sm font-bold text-orange-700">Ver todas</RouterLink></div><p v-if="loading" class="mt-4 text-sm text-slate-600">Cargando...</p><p v-else-if="!alerts.length" class="mt-4 rounded-xl bg-slate-50 p-5 text-sm text-slate-600">No se registran alertas de esta institución.</p><ul v-else class="mt-4 divide-y divide-slate-100"><li v-for="alert in alerts.slice(0,5)" :key="String(alert.id_alerta)" class="flex min-w-0 flex-wrap justify-between gap-2 py-3"><div class="min-w-0"><RouterLink :to="`/institucion/alertas/${encodeURIComponent(String(alert.id_alerta))}`" class="break-words font-bold text-slate-900 hover:text-orange-700">Alerta #{{ alert.id_alerta }}</RouterLink><p class="text-xs text-slate-500">{{ fmt(`${alert.fecha}T${alert.hora}Z`) }}</p></div><span class="max-w-full break-all rounded-full bg-orange-50 px-2 py-1 text-xs font-bold text-orange-800">{{ alert.instituciones_notificadas?.find(d => String(d.id_institucion) === String(id))?.estado ?? 'Sin estado' }}</span></li></ul></section><section class="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><h2 class="mb-4 text-lg font-extrabold text-slate-900">Ubicación de la institución</h2><MonitoringMap :show-sensors="false" :show-incidents="false" :show-institutions="true" :show-reports="false" height-class="h-[300px]" /></section></div>
   </div>
 </template>

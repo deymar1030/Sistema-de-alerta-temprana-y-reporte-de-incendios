@@ -103,6 +103,10 @@ const riskFromIrp = (
   return 'normal'
 }
 
+const escapeHtml = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+})[character] ?? character)
+
 const popup = (
   title: string,
   rows: Array<[string, string]>,
@@ -116,7 +120,7 @@ const popup = (
     "
   >
     <strong style="font-size:14px">
-      ${title}
+      ${escapeHtml(title)}
     </strong>
 
     ${rows
@@ -135,10 +139,10 @@ const popup = (
                 color:#17212b;
               "
             >
-              ${label}:
+              ${escapeHtml(label)}:
             </span>
 
-            ${value}
+            ${escapeHtml(value)}
           </div>
         `,
       )

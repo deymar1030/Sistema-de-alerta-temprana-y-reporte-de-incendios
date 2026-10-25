@@ -57,9 +57,9 @@ const openEdit = (user: User) => {
   const nombreGenerado = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
   const nombreBase = user.nombre ?? (nombreGenerado || user.email)
   Object.assign(form, {
-    nombre: nombreBase.split(' ')[0] ?? '',
-    primer_apellido: '',
-    segundo_apellido: '',
+    nombre: user.firstName ?? nombreBase.split(' ')[0] ?? '',
+    primer_apellido: user.primerApellido ?? user.lastName ?? '',
+    segundo_apellido: user.segundoApellido ?? '',
     correo: user.email,
     telefono: user.telefono ?? '',
     contrasena: '',
@@ -92,7 +92,7 @@ const save = async () => {
 
   try {
     const payload = {
-      id_rol: 3,
+      role: 'OPERATIVO' as const,
       id_institucion: institutionId.value,
       nombre: form.nombre.trim(),
       primer_apellido: form.primer_apellido.trim(),
@@ -103,7 +103,7 @@ const save = async () => {
     }
 
     if (editingId.value) {
-      await userStore.updateUser(editingId.value, payload)
+      await userStore.updateUser(editingId.value, { ...payload, id_institucion: institutionId.value })
       showToast({ type: 'success', title: 'Operativo actualizado', description: 'Se guardaron los cambios del usuario.' })
     } else {
       await userStore.createUser(payload)
@@ -208,8 +208,8 @@ onMounted(async () => {
       </div>
     </section>
 
-    <div v-if="modalOpen" class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/25 p-4 backdrop-blur-sm" @click.self="modalOpen = false">
-      <form class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" @submit.prevent="save">
+    <div v-if="modalOpen" class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 p-2 backdrop-blur-sm sm:p-4" @click.self="modalOpen = false">
+      <form class="max-h-[94dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-6" @submit.prevent="save">
         <div class="flex items-center justify-between">
           <h3 class="text-xl font-semibold text-slate-900">{{ editingId ? 'Editar operativo' : 'Nuevo operativo' }}</h3>
           <button type="button" class="rounded-lg p-2 text-slate-500" @click="modalOpen = false"><X class="h-5 w-5" /></button>

@@ -1,25 +1,31 @@
-import type { AttentionReport, ReportStatus } from '../types'
 
-const API_URL = import.meta.env.VITE_API_URL ?? '/api'
+import { apiFetch } from './http'
 
-interface ApiAttentionReport {
+export type InformeEstado = 'BORRADOR' | 'COMPLETADO'
+
+export const INFORME_ESTADOS: readonly InformeEstado[] = [
+  'BORRADOR',
+  'COMPLETADO',
+]
+
+export interface InformeAtencion {
   id_informe_atencion: string
   id_alerta: string
   id_institucion: string
   id_usuario: string
   estado: string
-  fecha_incidente: string
-  hora_recepcion: string
+  fecha_incidente: string | null
+  hora_recepcion: string | null
   hora_salida: string | null
   hora_llegada: string | null
   hora_control: string | null
   hora_finalizacion: string | null
-  personal: number
-  vehiculos: number
-  personas_afectadas: number
-  personas_evacuadas: number
-  heridos: number
-  fallecidos: number
+  personal: number | null
+  vehiculos: number | null
+  personas_afectadas: number | null
+  personas_evacuadas: number | null
+  heridos: number | null
+  fallecidos: number | null
   danos_materiales: string | null
   causa: string | null
   acciones: string | null
@@ -28,39 +34,8 @@ interface ApiAttentionReport {
   fecha_envio: string | null
 }
 
-interface ApiResponse<T> {
-  success: boolean
-  data: T
-  error?: string
-  code?: string
-}
-
-export interface CreateAttentionReportInput {
-  id_alerta: string
-  id_institucion: string
-  id_usuario: string
-  estado: ReportStatus
-  fecha_incidente: string
-  hora_recepcion: string
-  hora_salida?: string
-  hora_llegada?: string
-  hora_control?: string
-  hora_finalizacion?: string
-  personal: number
-  vehiculos: number
-  personas_afectadas: number
-  personas_evacuadas: number
-  heridos: number
-  fallecidos: number
-  danos_materiales: string
-  causa: string
-  acciones: string
-  observaciones: string
-  recomendaciones: string
-}
-
-export interface UpdateAttentionReportInput {
-  estado?: ReportStatus
+export interface InformeCampos {
+  estado?: InformeEstado
   fecha_incidente?: string
   hora_recepcion?: string
   hora_salida?: string
@@ -80,136 +55,192 @@ export interface UpdateAttentionReportInput {
   recomendaciones?: string
 }
 
-const mapStatus = (status: string): ReportStatus => {
-  switch (status) {
-    case 'BORRADOR':
-      return 'BORRADOR'
-    case 'COMPLETADO':
-      return 'COMPLETADO'
-    case 'REVISADO':
-      return 'REVISADO'
-    case 'PENDIENTE':
-      return 'PENDIENTE'
-    default:
-      return 'BORRADOR'
+export type CreateAttentionReportInput = {
+  id_alerta: string
+  id_institucion: string
+  id_usuario: string
+} & InformeCampos
+
+export type UpdateAttentionReportInput = InformeCampos
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value)
+  ) {
+    throw new Error(
+      'La API devolvió un informe con formato inesperado.'
+    )
   }
+
+  return value as Record<string, unknown>
 }
 
-const mapApiReport = (
-  report: ApiAttentionReport,
-): AttentionReport => {
+function requiredId(value: unknown, label: string): string {
+  const id = String(value ?? '').trim()
+
+  if (!id) {
+    throw new Error(`El informe no incluye ${label}.`)
+  }
+
+  return id
+}
+
+function textOrNull(value: unknown): string | null {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null
+  }
+
+  if (
+    typeof value !== 'string' &&
+    typeof value !== 'number'
+  ) {
+    throw new Error(
+      'La API devolvió un campo de texto inválido.'
+    )
+  }
+
+  return String(value)
+}
+
+function numberOrNull(value: unknown): number | null {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null
+  }
+
+  if (
+    (typeof value !== 'number' &&
+      typeof value !== 'string') ||
+    !Number.isFinite(Number(value))
+  ) {
+    throw new Error(
+      'La API devolvió un valor numérico inválido.'
+    )
+  }
+
+  return Number(value)
+}
+
+function mapReport(value: unknown): InformeAtencion {
+  const r = asRecord(value)
+
   return {
-    id: report.id_informe_atencion,
-    incidentId: report.id_alerta,
-    institutionId: report.id_institucion,
-    status: mapStatus(report.estado),
+    id_informe_atencion: requiredId(
+      r.id_informe_atencion,
+      'id_informe_atencion'
+    ),
 
-    fechaIncidente: report.fecha_incidente,
-    horaRecepcion: report.hora_recepcion,
-    horaSalida: report.hora_salida ?? '',
-    horaLlegada: report.hora_llegada ?? '',
-    horaControl: report.hora_control ?? '',
-    horaFinalizacion: report.hora_finalizacion ?? '',
+    id_alerta: requiredId(r.id_alerta, 'id_alerta'),
 
-    personal: report.personal,
-    vehiculos: report.vehiculos,
-    personasAfectadas: report.personas_afectadas,
-    personasEvacuadas: report.personas_evacuadas,
-    heridos: report.heridos,
-    fallecidos: report.fallecidos,
+    id_institucion: requiredId(
+      r.id_institucion,
+      'id_institucion'
+    ),
 
-    danosMateriales: report.danos_materiales ?? '',
-    causa: report.causa ?? '',
-    acciones: report.acciones ?? '',
-    observaciones: report.observaciones ?? '',
-    recomendaciones: report.recomendaciones ?? '',
+    id_usuario: requiredId(r.id_usuario, 'id_usuario'),
 
-    // El backend no devuelve adjuntos dentro del informe.
-    attachments: [],
+    // Conservar estados reales, incluso si son desconocidos.
+    estado: String(r.estado ?? 'SIN_ESTADO'),
+
+    fecha_incidente: textOrNull(r.fecha_incidente),
+    hora_recepcion: textOrNull(r.hora_recepcion),
+    hora_salida: textOrNull(r.hora_salida),
+    hora_llegada: textOrNull(r.hora_llegada),
+    hora_control: textOrNull(r.hora_control),
+    hora_finalizacion: textOrNull(r.hora_finalizacion),
+
+    personal: numberOrNull(r.personal),
+    vehiculos: numberOrNull(r.vehiculos),
+    personas_afectadas: numberOrNull(r.personas_afectadas),
+    personas_evacuadas: numberOrNull(r.personas_evacuadas),
+    heridos: numberOrNull(r.heridos),
+    fallecidos: numberOrNull(r.fallecidos),
+
+    danos_materiales: textOrNull(r.danos_materiales),
+    causa: textOrNull(r.causa),
+    acciones: textOrNull(r.acciones),
+    observaciones: textOrNull(r.observaciones),
+    recomendaciones: textOrNull(r.recomendaciones),
+
+    fecha_envio: textOrNull(r.fecha_envio),
   }
-}
-
-const request = async <T>(
-  url: string,
-  options: RequestInit = {},
-): Promise<T> => {
-  const response = await fetch(url, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers ?? {}),
-    },
-    ...options,
-  })
-
-  if (response.status === 401) {
-    throw new Error(
-      'La sesión ha expirado. Inicia sesión nuevamente.',
-    )
-  }
-
-  const result: ApiResponse<T> =
-    await response.json()
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.error ??
-        'No fue posible procesar el informe de atención.',
-    )
-  }
-
-  return result.data
 }
 
 export const reportService = {
-  async getReports(): Promise<AttentionReport[]> {
-    const data =
-      await request<ApiAttentionReport[]>(
-        `${API_URL}/informes-atencion`,
-      )
+  async getReports(): Promise<InformeAtencion[]> {
+    const value = await apiFetch<unknown>(
+      '/informes-atencion'
+    )
 
-    return data.map(mapApiReport)
+    const rows = Array.isArray(value)
+      ? value
+      : (
+          value && typeof value === 'object'
+            ? (value as { items?: unknown }).items
+            : undefined
+        )
+
+    if (!Array.isArray(rows)) {
+      throw new Error(
+        'El listado de informes no tiene el formato esperado.'
+      )
+    }
+
+    return rows.map(mapReport)
   },
 
   async getReportById(
-    id: string,
-  ): Promise<AttentionReport> {
-    const data =
-      await request<ApiAttentionReport>(
-        `${API_URL}/informes-atencion/${id}`,
-      )
+    id: string
+  ): Promise<InformeAtencion> {
+    const value = await apiFetch<unknown>(
+      `/informes-atencion/${encodeURIComponent(id)}`
+    )
 
-    return mapApiReport(data)
+    return mapReport(value)
   },
 
   async createReport(
-    input: CreateAttentionReportInput,
-  ): Promise<AttentionReport> {
-    const data =
-      await request<ApiAttentionReport>(
-        `${API_URL}/informes-atencion`,
-        {
-          method: 'POST',
-          body: JSON.stringify(input),
-        },
-      )
+    input: CreateAttentionReportInput
+  ): Promise<string | null> {
+    const value = await apiFetch<unknown>(
+      '/informes-atencion',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    )
 
-    return mapApiReport(data)
+    if (value == null) {
+      return null
+    }
+
+    const record = asRecord(value)
+    const id = record.id_informe_atencion
+
+    return id == null || String(id).trim() === ''
+      ? null
+      : String(id)
   },
 
   async updateReport(
     id: string,
-    input: UpdateAttentionReportInput,
-  ): Promise<AttentionReport> {
-    const data =
-      await request<ApiAttentionReport>(
-        `${API_URL}/informes-atencion/${id}`,
-        {
-          method: 'PUT',
-          body: JSON.stringify(input),
-        },
-      )
-
-    return mapApiReport(data)
+    input: UpdateAttentionReportInput
+  ): Promise<void> {
+    await apiFetch(
+      `/informes-atencion/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }
+    )
   },
 }

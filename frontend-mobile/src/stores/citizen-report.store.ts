@@ -1,39 +1,58 @@
-import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import type { CitizenReport } from '../types'
 import { citizenReportService } from '../services/citizen-report.service'
-import type { CitizenReport, CitizenReportStatus } from '../types'
 
 export const useCitizenReportStore = defineStore('citizenReport', () => {
-  const reports = ref<CitizenReport[]>(citizenReportService.getInitialReports())
-  const isLoading = ref(false)
+  const reports = ref<CitizenReport[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-  const fetchReports = async () => {
-    isLoading.value = true
+  async function fetchReports() {
+    loading.value = true
+    error.value = null
+
     try {
       reports.value = await citizenReportService.getReports()
+      return reports.value
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudieron cargar los reportes.'
+      error.value = message
+      throw err
     } finally {
-      isLoading.value = false
+      loading.value = false
     }
   }
 
-  const createReport = async (report: Omit<CitizenReport, 'id' | 'createdAt' | 'status'> & { status?: CitizenReportStatus }) => {
-    const created = await citizenReportService.createReport(report)
-    reports.value = [created, ...reports.value]
-    return created
+  async function createReport(payload: Partial<CitizenReport> & { latitude?: number; longitude?: number; id_institucion?: string }) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const item = await citizenReportService.createReport(payload)
+      reports.value = [item, ...reports.value]
+      return item
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo registrar el reporte.'
+      error.value = message
+      throw err
+    } finally {
+      loading.value = false
+    }
   }
 
-  const updateStatus = async (id: string, status: CitizenReportStatus) => {
-    const updated = await citizenReportService.updateStatus(id, status)
-    if (!updated) return
-    const index = reports.value.findIndex((item) => item.id === id)
-    if (index >= 0) reports.value[index] = updated
+  function clear() {
+    reports.value = []
+    loading.value = false
+    error.value = null
   }
 
   return {
     reports,
-    isLoading,
+    loading,
+    error,
+    clear,
     fetchReports,
     createReport,
-    updateStatus,
   }
 })

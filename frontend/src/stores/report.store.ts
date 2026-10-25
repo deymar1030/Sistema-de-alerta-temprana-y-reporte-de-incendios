@@ -1,71 +1,62 @@
+
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import {
   reportService,
   type CreateAttentionReportInput,
+  type InformeAtencion,
   type UpdateAttentionReportInput,
 } from '../services/report.service'
 
-import type { AttentionReport } from '../types'
+export const useReportStore = defineStore('report', () => {
+  const reports = ref<InformeAtencion[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-export const useReportStore = defineStore(
-  'report',
-  () => {
-    const reports = ref<AttentionReport[]>([])
-    const loading = ref(false)
-    const error = ref<string | null>(null)
+  async function fetchReports(): Promise<void> {
+    loading.value = true
+    error.value = null
 
-    const fetchReports = async () => {
-      loading.value = true
-      error.value = null
+    try {
+      reports.value = await reportService.getReports()
+    } catch (cause) {
+      reports.value = []
 
-      try {
-        reports.value =
-          await reportService.getReports()
-      } catch (err) {
-        error.value =
-          err instanceof Error
-            ? err.message
-            : 'No fue posible obtener los informes.'
-      } finally {
-        loading.value = false
-      }
+      error.value =
+        cause instanceof Error
+          ? cause.message
+          : 'No fue posible consultar los informes.'
+    } finally {
+      loading.value = false
     }
+  }
 
-    const createReport = async (
-      input: CreateAttentionReportInput,
-    ) => {
-      const report =
-        await reportService.createReport(input)
+  async function createReport(
+    input: CreateAttentionReportInput
+  ): Promise<string | null> {
+    return reportService.createReport(input)
+  }
 
-      await fetchReports()
+  async function updateReport(
+    id: string,
+    input: UpdateAttentionReportInput
+  ): Promise<void> {
+    return reportService.updateReport(id, input)
+  }
 
-      return report
-    }
+  function clear(): void {
+    reports.value = []
+    error.value = null
+  }
 
-    const updateReport = async (
-      id: string,
-      input: UpdateAttentionReportInput,
-    ) => {
-      const report =
-        await reportService.updateReport(
-          id,
-          input,
-        )
-
-      await fetchReports()
-
-      return report
-    }
-
-    return {
-      reports,
-      loading,
-      error,
-      fetchReports,
-      createReport,
-      updateReport,
-    }
-  },
-)
+  return {
+    reports,
+    loading,
+    error,
+    fetchReports,
+    createReport,
+    updateReport,
+    clear,
+  }
+})

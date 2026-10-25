@@ -209,6 +209,9 @@ model envia {
   estado              String    @db.VarChar(10)
   fecha_envio         DateTime  @default(now()) @db.Timestamp(6)
   fecha_actualizacion DateTime? @db.Timestamp(6)
+  ruta_json           String?
+  ruta_calculada_en   DateTime? @db.Timestamp(6)
+  ruta_error          String?   @db.VarChar(200)
 
   alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
   institucion institucion @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)

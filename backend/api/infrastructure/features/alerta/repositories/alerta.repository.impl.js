@@ -46,6 +46,26 @@ export default class PrismaAlertaRepository extends AlertaRepository {
     return await this.prisma.alerta.findUnique({ where: { id_alerta: id } });
   }
 
+  async findMapa(filters) {
+    const where = buildWhere(filters);
+    where.estado = { in: ESTADOS_ACTIVOS };
+
+    return await this.prisma.alerta.findMany({
+      where,
+      orderBy: [{ fecha: "desc" }, { hora: "desc" }],
+      include: {
+        lectura: {
+          take: 1,
+          include: { sensor: { include: { predio: true } } },
+        },
+        genera_ru: {
+          take: 1,
+          include: { reporte_u: true },
+        },
+      },
+    });
+  }
+
   async findLecturasByAlerta(id_alerta) {
     return await this.prisma.lectura.findMany({
       where: { id_alerta },

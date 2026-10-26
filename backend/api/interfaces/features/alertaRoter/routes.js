@@ -8,6 +8,7 @@ export class AlertaRouter {
     const alertaController = AlertaDependencies.createController();
 
     router.get("/activas", alertaController.activas);
+    router.get("/mapa", alertaController.mapa);
     router.get("/", alertaController.list);
     router.get("/:id", alertaController.getById);
     router.patch("/:id/instituciones/:id_institucion/recibir", alertaController.recibir);

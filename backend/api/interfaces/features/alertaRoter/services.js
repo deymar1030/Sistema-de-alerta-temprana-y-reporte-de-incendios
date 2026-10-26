@@ -5,6 +5,7 @@ export class AlertaService {
   constructor({
     getAllAlertaUseCase,
     getActivasAlertaUseCase,
+    getMapaAlertaUseCase,
     getAlertaUseCase,
     recibirEnvioUseCase,
     atenderEnvioUseCase,
@@ -13,6 +14,7 @@ export class AlertaService {
   }) {
     this.getAllAlertaUseCase = getAllAlertaUseCase;
     this.getActivasAlertaUseCase = getActivasAlertaUseCase;
+    this.getMapaAlertaUseCase = getMapaAlertaUseCase;
     this.getAlertaUseCase = getAlertaUseCase;
     this.recibirEnvioUseCase = recibirEnvioUseCase;
     this.atenderEnvioUseCase = atenderEnvioUseCase;
@@ -26,6 +28,10 @@ export class AlertaService {
 
   async getActivas(filters) {
     return await this.getActivasAlertaUseCase.execute(filters);
+  }
+
+  async getMapa(filters) {
+    return await this.getMapaAlertaUseCase.execute(filters);
   }
 
   async getById(id) {

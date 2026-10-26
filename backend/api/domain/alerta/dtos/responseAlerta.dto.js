@@ -48,3 +48,56 @@ export class ResponseAlertaDetalleDTO extends ResponseAlertaDTO {
     return new ResponseAlertaDetalleDTO({ ...base, predio, lecturas, instituciones_notificadas, reporte_origen });
   }
 }
+
+function toNumber(v) {
+  return v === null || v === undefined ? null : Number(v);
+}
+
+// Ubicaciones de una alerta para el mapa: la del predio del sensor que la
+// genero (via lectura) y/o la del reporte ciudadano que la origino (via
+// genera_ru), segun cual de los dos exista.
+export class ResponseAlertaMapaDTO {
+  constructor({ id_alerta, estado, clasificacion, fecha, hora, ubicaciones }) {
+    this.id_alerta = id_alerta;
+    this.estado = estado;
+    this.clasificacion = clasificacion;
+    this.fecha = fecha;
+    this.hora = hora;
+    this.ubicaciones = ubicaciones;
+  }
+
+  static fromEntity(alerta) {
+    const ubicaciones = [];
+
+    const predio = alerta.lectura?.[0]?.sensor?.predio;
+    if (predio?.latitud != null && predio?.longitud != null) {
+      ubicaciones.push({
+        origen: "PREDIO",
+        id_predio: predio.id_predio,
+        nombre: predio.nombre,
+        latitud: toNumber(predio.latitud),
+        longitud: toNumber(predio.longitud),
+      });
+    }
+
+    const reporte = alerta.genera_ru?.[0]?.reporte_u;
+    if (reporte?.latitud != null && reporte?.longitud != null) {
+      ubicaciones.push({
+        origen: "REPORTE",
+        id_reporte_u: reporte.id_reporte_u,
+        ubicacion_tipo: reporte.ubicacion_tipo,
+        latitud: toNumber(reporte.latitud),
+        longitud: toNumber(reporte.longitud),
+      });
+    }
+
+    return new ResponseAlertaMapaDTO({
+      id_alerta: alerta.id_alerta,
+      estado: alerta.estado,
+      clasificacion: alerta.clasificacion,
+      fecha: toFechaString(alerta.fecha),
+      hora: toHoraString(alerta.hora),
+      ubicaciones,
+    });
+  }
+}

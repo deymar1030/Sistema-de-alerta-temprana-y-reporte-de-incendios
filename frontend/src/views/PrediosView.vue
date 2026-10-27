@@ -268,7 +268,7 @@ function makePayload(): CreatePredioInput {
   }
 
   for (const field of scoreFields) {
-    const raw = form[field.key].trim()
+    const raw = String(form[field.key] ?? '').trim()
 
     if (!raw) {
       if (originalDetail.value?.[field.key] != null) {

@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import { Server } from 'socket.io';
+import { io as conectar } from 'socket.io-client';
+import { once } from 'node:events';
+import { createSocketAuth } from '../websocketManager/auth.js';
+import { registerConnectionManager } from '../websocketManager/connectionManager.js';
+import { SocketIoRealtimeNotifier } from '../websocketManager/notifier.js';
+import { SESSION_COOKIE_NAME } from '../api/config/sessionCookie.js';
+import '../api/config/bigintJson.js';
+
+test('WebSocket exige sesion, admite rooms existentes y no duplica lecturas', async (t) => {
+  const httpServer = http.createServer();
+  const io = new Server(httpServer);
+  let valida = true;
+  const validateSesion = { async execute(token) {
+    if (token !== 'token-prueba' || !valida) throw new Error('No autenticado');
+    return { usuario: { id_usuario: 1n, id_rol: 1n, id_institucion: 2n }, sesion: { expira_en: new Date(Date.now() + 60000) } };
+  } };
+  io.use(createSocketAuth(validateSesion));
+  registerConnectionManager(io, { validateSesion, existeRecurso: async (tipo, id) => (tipo === 'predio' && id === 8n) || (tipo === 'sensor' && id === 31n) });
+  await new Promise((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${httpServer.address().port}`;
+  const sockets = [];
+  t.after(async () => { sockets.forEach((s) => s.disconnect()); await new Promise((resolve) => io.close(resolve)); });
+  const sinSesion = conectar(url, { transports: ['websocket'], reconnection: false }); sockets.push(sinSesion);
+  const [error] = await once(sinSesion, 'connect_error'); assert.match(error.message, /No autenticado/);
+  const malformada = conectar(url, { transports: ['websocket'], reconnection: false, extraHeaders: { Cookie: `${SESSION_COOKIE_NAME}=%ZZ` } }); sockets.push(malformada);
+  await once(malformada, 'connect_error');
+  const socket = conectar(url, { transports: ['websocket'], reconnection: false, extraHeaders: { Cookie: `${SESSION_COOKIE_NAME}=token-prueba` } }); sockets.push(socket);
+  await once(socket, 'connect');
+  assert.equal((await socket.emitWithAck('predio:suscribir', { id_predio: 8 })).ok, true);
+  assert.equal((await socket.emitWithAck('sensor:suscribir', { id_sensor: '31' })).ok, true);
+  assert.equal((await socket.emitWithAck('sensor:suscribir', { id_sensor: 999 })).ok, false);
+  assert.equal((await socket.emitWithAck('predio:suscribir', { id_predio: '8/+' })).ok, false);
+  const recibidas = [];
+  socket.on('lectura:nueva', (l) => recibidas.push(l));
+  const evento = once(socket, 'lectura:nueva');
+  await new SocketIoRealtimeNotifier(io).emitLecturaNueva({ id_lectura: 1n, id_predio: 8n, id_sensor: 31n, valor: 20, estado_lectura: 'VALIDA' });
+  await evento;
+  await socket.emitWithAck('sensor:desuscribir', { id_sensor: 31 });
+  assert.equal(recibidas.length, 1); assert.equal(recibidas[0].id_lectura, '1');
+  valida = false;
+  assert.equal((await socket.emitWithAck('predio:suscribir', { id_predio: 8 })).ok, false);
+});

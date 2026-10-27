@@ -1,0 +1,12 @@
+{
+  "minLecturasBase": 6,
+  "variables": {
+    "CO2": { "peso": 0.30, "bmax": 300, "madMin": 15 },
+    "GAS_LEL": { "peso": 0.25, "bmax": 5, "madMin": 0.6 }
+  },
+  "confirmacion": {
+    "variablesEvidencia": ["HUMO", "CO"],
+    "permitirGasesSimulados": false
+  },
+  "motores": {}
+}

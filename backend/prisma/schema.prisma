@@ -1,0 +1,375 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model zona_geografica {
+  id_zona              BigInt   @id @default(autoincrement())
+  nombre               String   @db.VarChar(100)
+  departamento         String   @db.VarChar(40)
+  municipio            String   @db.VarChar(80)
+  descripcion          String?
+  estado               Boolean  @default(true)
+  densidad_poblacional Decimal? @db.Decimal(10, 2)
+
+  predio             predio[]
+  cubre_jurisdiccion cubre_jurisdiccion[]
+}
+
+model rol {
+  id_rol          BigInt  @id @default(autoincrement())
+  nombre_rol      String  @unique @db.VarChar(50)
+  mfa_obligatorio Boolean @default(false)
+
+  usuario      usuario[]
+  rol_politica rol_politica[]
+}
+
+model politica {
+  id_politica            BigInt    @id @default(autoincrement())
+  max_intentos_fallidos  Int       @default(5) @db.SmallInt
+  tiempo_bloqueo_minutos Int       @default(15) @db.SmallInt
+  horario_inicio         DateTime? @db.Time(6)
+  horario_fin            DateTime? @db.Time(6)
+  ip_permitida           String?
+  ip_bloqueado           String?
+  activar_emergencia     Boolean   @default(false)
+  ver_auditoria          Boolean   @default(false)
+  gestionar_usuarios     Boolean   @default(false)
+  crear_admin            Boolean   @default(false)
+
+  rol_politica rol_politica[]
+}
+
+model rol_politica {
+  id_rol      BigInt
+  id_politica BigInt
+
+  rol      rol      @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Cascade)
+  politica politica @relation(fields: [id_politica], references: [id_politica], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([id_rol, id_politica], map: "pk_rol_politica")
+}
+
+model institucion {
+  id_institucion           BigInt   @id @default(autoincrement())
+  categoria                String   @db.VarChar(30)
+  nombre                   String   @db.VarChar(150)
+  razon_social             String?  @db.VarChar(150)
+  detalle                  String?
+  direccion                String?  @db.VarChar(200)
+  telefono_ins             String?  @db.VarChar(20)
+  latitud                  Decimal? @db.Decimal(8, 6)
+  longitud                 Decimal? @db.Decimal(9, 6)
+  estado                   Boolean  @default(true)
+  disponibilidad_operativa String?  @db.VarChar(30)
+
+  usuario            usuario[]
+  cubre_jurisdiccion cubre_jurisdiccion[]
+  envia              envia[]
+  informe_atencion   informe_atencion[]
+}
+
+model usuario {
+  id_usuario        BigInt    @id @default(autoincrement())
+  id_rol            BigInt
+  id_institucion    BigInt?
+  nombre            String    @db.VarChar(100)
+  primer_apellido   String    @db.VarChar(50)
+  segundo_apellido  String?   @db.VarChar(50)
+  telefono          String?   @db.VarChar(20)
+  contrasena        String    @db.VarChar(60)
+  correo            String    @unique @db.VarChar(254)
+  fecha_eliminacion DateTime? @db.Timestamp(6)
+  estado            Boolean   @default(true)
+
+  rol         rol          @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Restrict)
+  institucion institucion? @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: SetNull)
+
+  sesion               sesion[]
+  auditoriau           auditoriau[]
+  reporte_u            reporte_u[]
+  recepciona           recepciona[]
+  informe_atencion     informe_atencion[]
+  notificacion         notificacion[]     @relation("NotificacionDestinatario")
+  notificacion_enviada notificacion[]     @relation("NotificacionEmisor")
+}
+
+model sesion {
+  id_sesion  BigInt   @id @default(autoincrement())
+  id_usuario BigInt
+  token_hash String   @unique @db.Char(64)
+  expira_en  DateTime @db.Timestamp(6)
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
+
+  @@index([id_usuario], map: "idx_sesion_usuario")
+}
+
+model cubre_jurisdiccion {
+  id_zona        BigInt
+  id_institucion BigInt
+
+  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Cascade)
+  institucion     institucion     @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([id_zona, id_institucion], map: "pk_cubre_jurisdiccion")
+}
+
+model auditoria {
+  id_auditoria BigInt   @id @default(autoincrement())
+  evento       String   @db.VarChar(100)
+  fecha_hora   DateTime @default(now()) @db.Timestamp(6)
+  detalle      String?
+
+  realiza_audi realiza_audi[]
+}
+
+model auditoriau {
+  id_auditoriau BigInt   @id @default(autoincrement())
+  id_usuario    BigInt
+  accion        String   @db.VarChar(100)
+  detalle       String?
+  fecha_hora    DateTime @default(now()) @db.Timestamp(6)
+  ip_origen     String?  @db.VarChar(45)
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([id_usuario], map: "idx_auditoriau_usuario")
+}
+
+model reporte_u {
+  id_reporte_u    BigInt   @id @default(autoincrement())
+  id_usuario      BigInt
+  descripcion     String
+  tipo            String?  @db.VarChar(30)
+  nivel_prioridad String?  @db.VarChar(10)
+  estado          String   @default("RECIBIDO") @db.VarChar(20)
+  fecha_envio     DateTime @default(now()) @db.Timestamp(6)
+  latitud         Decimal? @db.Decimal(8, 6)
+  longitud        Decimal? @db.Decimal(9, 6)
+  indicador       String?
+  foto_url        String?  @db.VarChar(500)
+
+  usuario   usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
+  genera_ru genera_ru[]
+
+  @@index([id_usuario], map: "idx_reporte_usuario")
+}
+
+model alerta {
+  id_alerta          BigInt    @id @default(autoincrement())
+  fecha              DateTime  @db.Date
+  hora               DateTime  @db.Time(6)
+  estado             String    @db.VarChar(20)
+  puntaje            Decimal?  @db.Decimal(4, 3)
+  clasificacion      String?   @db.VarChar(20)
+  fecha_confirmacion DateTime? @db.Timestamp(6)
+  fecha_cierre       DateTime? @db.Timestamp(6)
+
+  recepciona       recepciona[]
+  realiza_audi     realiza_audi[]
+  genera_ru        genera_ru[]
+  envia            envia[]
+  lectura          lectura[]
+  informe_atencion informe_atencion[]
+  notificacion     notificacion[]
+
+  @@index([fecha], map: "idx_alerta_fecha")
+  @@index([estado], map: "idx_alerta_estado")
+}
+
+model recepciona {
+  id_usuario BigInt
+  id_alerta  BigInt
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
+  alerta  alerta  @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([id_usuario, id_alerta], map: "pk_recepciona")
+}
+
+model realiza_audi {
+  id_auditoria BigInt
+  id_alerta    BigInt
+
+  auditoria auditoria @relation(fields: [id_auditoria], references: [id_auditoria], onUpdate: Cascade, onDelete: Cascade)
+  alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([id_auditoria, id_alerta], map: "pk_realiza_audi")
+}
+
+model genera_ru {
+  id_alerta    BigInt
+  id_reporte_u BigInt
+
+  alerta    alerta    @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
+  reporte_u reporte_u @relation(fields: [id_reporte_u], references: [id_reporte_u], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([id_alerta, id_reporte_u], map: "pk_genera_ru")
+}
+
+model envia {
+  id_alerta           BigInt
+  id_institucion      BigInt
+  estado              String    @db.VarChar(10)
+  fecha_envio         DateTime  @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @db.Timestamp(6)
+
+  alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
+  institucion institucion @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
+
+  @@id([id_alerta, id_institucion], map: "pk_envia")
+  @@index([id_alerta], map: "idx_envia_alerta")
+  @@index([id_institucion], map: "idx_envia_institucion")
+}
+
+model motor_det {
+  id_motordet               BigInt  @id @default(autoincrement())
+  ventana_base_min          Int     @db.SmallInt
+  umbral_z                  Decimal @db.Decimal(3, 1)
+  cusum_h                   Decimal @db.Decimal(3, 1)
+  umbral_confirmacion       Decimal @db.Decimal(3, 2)
+  umbral_descarte           Decimal @db.Decimal(3, 2)
+  tiempo_max_evaluacion_min Int     @db.SmallInt
+  radio_vecindad_m          Int
+
+  parametro_variable parametro_variable[]
+  predio             predio[]
+}
+
+model parametro_variable {
+  id_parametro_variable BigInt   @id @default(autoincrement())
+  id_motordet           BigInt
+  tipo_variable         String   @db.VarChar(20)
+  umbral_critico        Decimal? @db.Decimal(8, 2)
+
+  motor_det motor_det @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Cascade)
+
+  @@unique([id_motordet, tipo_variable], map: "uq_parametro_variable_motor_tipo")
+}
+
+model predio {
+  id_predio             BigInt    @id @default(autoincrement())
+  id_zona               BigInt
+  id_motordet           BigInt
+  tipo_predio           String    @db.VarChar(20)
+  nombre                String    @db.VarChar(100)
+  direccion             String    @db.VarChar(200)
+  latitud               Decimal   @db.Decimal(8, 6)
+  longitud              Decimal   @db.Decimal(9, 6)
+  fecha_evaluacion      DateTime? @db.Date
+  irp                   Decimal?  @db.Decimal(4, 3)
+  estado_electrico      Int?      @db.SmallInt
+  estado_gas            Int?      @db.SmallInt
+  fuentes_calor         Int?      @db.SmallInt
+  carga_combustible     Int?      @db.SmallInt
+  material_construccion Int?      @db.SmallInt
+  ocupacion             Int?      @db.SmallInt
+  nivel_proteccion      Int?      @db.SmallInt
+  contrasena_mqtt       String?   @db.VarChar(60)
+  activo                Boolean   @default(true)
+
+  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Restrict)
+  motor_det       motor_det       @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Restrict)
+  sensor          sensor[]
+
+  @@index([id_zona], map: "idx_predio_zona")
+  @@index([id_motordet], map: "idx_predio_motor")
+  @@index([tipo_predio], map: "idx_predio_tipo")
+}
+
+model sensor {
+  id_sensor         BigInt    @id @default(autoincrement())
+  id_predio         BigInt
+  nombre            String    @db.VarChar(100)
+  tipo_sensor       String    @db.VarChar(20)
+  unidad_medida     String?   @db.VarChar(15)
+  modelo            String?   @db.VarChar(50)
+  fabricante        String?   @db.VarChar(100)
+  fecha_instalacion DateTime? @db.Date
+  estado            String    @default("ACTIVO") @db.VarChar(20)
+  rango_min         Decimal   @db.Decimal(8, 2)
+  rango_max         Decimal   @db.Decimal(8, 2)
+
+  predio  predio    @relation(fields: [id_predio], references: [id_predio], onUpdate: Cascade, onDelete: Restrict)
+  lectura lectura[]
+
+  @@index([id_predio], map: "idx_sensor_predio")
+}
+
+model lectura {
+  id_lectura     BigInt   @id @default(autoincrement())
+  id_sensor      BigInt
+  id_alerta      BigInt?
+  valor          Decimal  @db.Decimal(10, 4)
+  fecha_hora     DateTime @db.Timestamp(6)
+  estado_lectura String   @db.VarChar(10)
+  tipo_variable  String   @db.VarChar(20)
+
+  sensor sensor  @relation(fields: [id_sensor], references: [id_sensor], onUpdate: Cascade, onDelete: Restrict)
+  alerta alerta? @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([id_sensor, fecha_hora], map: "idx_lectura_sensor_fecha")
+  @@index([id_alerta], map: "idx_lectura_alerta")
+}
+
+model informe_atencion {
+  id_informe_atencion BigInt @id @default(autoincrement())
+  id_alerta           BigInt
+  id_institucion      BigInt
+  id_usuario          BigInt
+  estado              String @default("BORRADOR") @db.VarChar(20)
+
+  fecha_incidente   DateTime? @db.Date
+  hora_recepcion    DateTime? @db.Time(6)
+  hora_salida       DateTime? @db.Time(6)
+  hora_llegada      DateTime? @db.Time(6)
+  hora_control      DateTime? @db.Time(6)
+  hora_finalizacion DateTime? @db.Time(6)
+
+  personal           Int? @db.SmallInt
+  vehiculos          Int? @db.SmallInt
+  personas_afectadas Int? @db.SmallInt
+  personas_evacuadas Int? @db.SmallInt
+  heridos            Int? @db.SmallInt
+  fallecidos         Int? @db.SmallInt
+
+  danos_materiales String?
+  causa            String?
+  acciones         String?
+  observaciones    String?
+  recomendaciones  String?
+
+  fecha_envio DateTime @default(now()) @db.Timestamp(6)
+
+  alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Restrict)
+  institucion institucion @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Restrict)
+  usuario     usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([id_alerta], map: "idx_informe_atencion_alerta")
+  @@index([id_institucion], map: "idx_informe_atencion_institucion")
+}
+
+model notificacion {
+  id_notificacion   BigInt   @id @default(autoincrement())
+  id_usuario        BigInt
+  id_usuario_emisor BigInt?
+  id_alerta         BigInt?
+  tipo              String   @db.VarChar(20)
+  titulo            String   @db.VarChar(150)
+  mensaje           String
+  fecha_hora        DateTime @default(now()) @db.Timestamp(6)
+  leida             Boolean  @default(false)
+
+  usuario       usuario  @relation("NotificacionDestinatario", fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
+  usuarioEmisor usuario? @relation("NotificacionEmisor", fields: [id_usuario_emisor], references: [id_usuario], onUpdate: Cascade, onDelete: SetNull)
+  alerta        alerta?  @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: SetNull)
+
+  @@index([id_usuario, leida], map: "idx_notificacion_usuario")
+  @@index([id_alerta], map: "idx_notificacion_alerta")
+  @@index([id_usuario_emisor], map: "idx_notificacion_emisor")
+}

@@ -13,6 +13,7 @@ import { ArchivoRouter } from "./features/archivoRoter/routes.js";
 import { InformeAtencionRouter } from "./features/informeAtencionRoter/routes.js";
 import { AuthRouter } from "./features/authRoter/routes.js";
 import { AuthDependencies } from "./features/authRoter/dependencies.js";
+import { DeteccionImagenRouter } from "./features/deteccionImagen/routes.js";
 
 export class AppRouter {
   static get routes() {
@@ -39,6 +40,7 @@ export class AppRouter {
     router.use("/lecturas", requireAuth, LecturaRouter.routes);
     router.use("/alertas", requireAuth, AlertaRouter.routes);
     router.use("/archivos", requireAuth, ArchivoRouter.routes);
+    router.use("/detecciones-imagen", requireAuth, DeteccionImagenRouter.routes);
     router.use("/informes-atencion", requireAuth, InformeAtencionRouter.routes);
 
     return router;

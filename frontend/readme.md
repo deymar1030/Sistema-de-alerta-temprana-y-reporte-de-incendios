@@ -41,9 +41,10 @@ npm run dev
 
 ## Detección de imágenes
 
-En **Administrador de institución → Motor de detección** se puede seleccionar
-una imagen JPG, PNG o WEBP. La interfaz la envía a `POST /api/detections/image`
-y muestra la clasificación y probabilidad entregadas por el modelo.
+En **Superadministrador → Motor de detección** se puede seleccionar una imagen
+JPG, PNG o WEBP. La interfaz la guarda en el backend y llama a
+`POST /api/detecciones-imagen`; después muestra la clasificación y probabilidad
+entregadas por el modelo.
 
 Para desarrollo local, inicia el backend en el puerto 3000 y el servicio del
 modelo en el 8000. Copia `.env.example` como `.env` si necesitas cambiar

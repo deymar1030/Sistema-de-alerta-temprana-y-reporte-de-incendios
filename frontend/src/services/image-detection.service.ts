@@ -8,18 +8,19 @@ export interface ImageDetectionResult {
   filename?: string
 }
 
-const apiUrl = import.meta.env.VITE_IMAGE_DETECTION_API_URL ?? 'http://127.0.0.1:3000/api'
+const apiUrl = import.meta.env.VITE_IMAGE_DETECTION_API_URL ?? '/api'
 
 export const imageDetectionService = {
   async analyze(image: File): Promise<ImageDetectionResult> {
     const form = new FormData()
-    form.append('image', image)
+    form.append('archivo', image)
 
     let response: Response
     try {
-      response = await fetch(`${apiUrl}/detections/image`, {
+      response = await fetch(`${apiUrl}/detecciones-imagen`, {
         method: 'POST',
         body: form,
+        credentials: 'include',
       })
     } catch {
       throw new Error('No se pudo conectar con el servicio de detección.')
@@ -32,6 +33,10 @@ export const imageDetectionService = {
           ? payload.error
           : 'No se pudo analizar la imagen.'
       throw new Error(message)
+    }
+
+    if (payload && typeof payload === 'object' && 'data' in payload) {
+      return payload.data as ImageDetectionResult
     }
 
     return payload as ImageDetectionResult

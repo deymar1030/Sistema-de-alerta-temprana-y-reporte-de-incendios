@@ -1,23 +1,39 @@
-/// <reference types="vitest" />
 
-import legacy from '@vitejs/plugin-legacy'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import path from 'path'
-import { defineConfig } from 'vite'
+import legacy from '@vitejs/plugin-legacy'
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [
-    vue(),
-    legacy()
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+
+  const target = (
+    env.API_PROXY_TARGET ||
+    'https://alertaincendios.duckdns.org'
+  ).replace(/\/+$/, '')
+
+  return {
+    plugins: [
+      vue(),
+      legacy(),
+    ],
+
+    server: {
+      port: 5174,
+
+      proxy: {
+        '/api': {
+          target,
+          changeOrigin: true,
+          cookieDomainRewrite: '',
+        },
+
+        '/socket.io': {
+          target,
+          changeOrigin: true,
+          ws: true,
+          cookieDomainRewrite: '',
+        },
+      },
     },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom'
   }
 })

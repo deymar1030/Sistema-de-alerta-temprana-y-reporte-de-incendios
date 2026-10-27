@@ -1,97 +1,155 @@
-<script setup lang="ts">
-import { IonButton, IonCard, IonContent, IonHeader, IonIcon, IonPage, IonTitle, IonToolbar } from '@ionic/vue'
-import { businessOutline, personOutline } from 'ionicons/icons'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth.store'
-import type { UserRole } from '../types'
-
-const router = useRouter()
-const authStore = useAuthStore()
-
-const chooseRole = async (role: UserRole) => {
-  await authStore.setRole(role)
-  if (role === 'INSTITUTION_USER') {
-    await router.push('/institucion/inicio')
-    return
-  }
-  await router.push('/ciudadano/inicio')
-}
-</script>
-
 <template>
   <ion-page>
-    <ion-header class="app-header">
-      <ion-toolbar>
-        <ion-title>ALERTA</ion-title>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content>
-      <div class="container">
-        <div class="logo-block">
-          <div class="brand">ALERTA</div>
-          <h1>Prevención de Incendios</h1>
-          <p>Selecciona el modo de demostración para continuar.</p>
+    <ion-content class="ion-padding">
+      <div class="login-shell">
+        <div class="brand-wrap">
+          <img class="brand-logo" src="/logo-alerta-ave.svg" alt="ALERTA logo" />
+          <h1>ALERTA</h1>
+          <p>Acceso seguro para personal operativo y ciudadanía.</p>
         </div>
 
-        <ion-card class="hero-card">
-          <div class="card-inner">
-            <span class="icon-circle"><ion-icon :icon="businessOutline" /></span>
-            <h2>Modo de demostración</h2>
-            <p>Este flujo simula la experiencia de los dos roles móviles del sistema.</p>
-          </div>
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Iniciar sesión</ion-card-title>
+          </ion-card-header>
+
+          <ion-card-content>
+            <form @submit.prevent="submitLogin">
+              <ion-item class="input-item">
+                <ion-label position="stacked">Correo</ion-label>
+                <ion-input v-model="email" type="email" required autocomplete="email" placeholder="usuario@correo.com" />
+              </ion-item>
+
+              <ion-item class="input-item">
+                <ion-label position="stacked">Contraseña</ion-label>
+                <ion-input v-model="password" type="password" required autocomplete="current-password" placeholder="********" />
+              </ion-item>
+
+              <ion-button expand="block" type="submit" :disabled="authStore.loading || !email || !password">
+                <ion-spinner v-if="authStore.loading" name="crescent" />
+                <span v-else>Ingresar</span>
+              </ion-button>
+
+              <p v-if="authStore.error" class="error-text">{{ authStore.error }}</p>
+            </form>
+          </ion-card-content>
         </ion-card>
 
-        <div class="stack">
-          <ion-button expand="block" size="large" @click="chooseRole('INSTITUTION_USER')">
-            <ion-icon slot="start" :icon="businessOutline" aria-hidden="true" />
-            Usuario de Institución
-          </ion-button>
-          <ion-button expand="block" size="large" color="medium" fill="outline" @click="chooseRole('CITIZEN')">
-            <ion-icon slot="start" :icon="personOutline" aria-hidden="true" />
-            Ciudadano
-          </ion-button>
-        </div>
+        <ion-list class="info-list">
+          <ion-item>
+            <ion-label>
+              <h3>Acceso móvil</h3>
+              <p>Solo usuarios con rol operativo o ciudadano pueden entrar a la app móvil.</p>
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label>
+              <h3>Roles web</h3>
+              <p>Los roles 1 y 2 quedan bloqueados con un mensaje de acceso web.</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
       </div>
     </ion-content>
   </ion-page>
 </template>
 
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  IonButton,
+  IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonCardTitle,
+  IonContent,
+  IonInput,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonPage,
+  IonSpinner,
+  toastController,
+} from '@ionic/vue'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { useAuthStore } from '../stores/auth.store'
+
+const authStore = useAuthStore()
+const router = useRouter()
+const email = ref('')
+const password = ref('')
+
+async function notify(message: string, duration = 1800) {
+  const toast = await toastController.create({
+    message,
+    duration,
+    position: 'bottom',
+  })
+  await toast.present()
+}
+
+async function submitLogin() {
+  try {
+    const user = await authStore.login(email.value.trim(), password.value)
+
+    if (user.role === 'CIUDADANO') {
+      await router.push('/ciudadano/inicio')
+    } else if (user.role === 'OPERATIVO') {
+      await router.push('/institucion/inicio')
+    } else {
+      await router.push('/login')
+    }
+
+    Haptics.impact({ style: ImpactStyle.Medium })
+    await notify('Inicio de sesión correcto', 1800)
+  } catch (error) {
+    await notify(error instanceof Error ? error.message : 'Error al iniciar sesión', 2200)
+  }
+}
+</script>
+
 <style scoped>
-.container {
-  max-width: 480px;
+.login-shell {
+  max-width: 420px;
   margin: 0 auto;
-  padding-top: 1.25rem;
+  padding-top: 2rem;
 }
-.logo-block {
-  margin-bottom: 1.25rem;
+
+.brand-wrap {
+  text-align: center;
+  margin-bottom: 1.5rem;
 }
-.logo-block h1 {
-  margin-top: 0.4rem;
-  font-size: 22px;
-  line-height: 1.1;
+
+.brand-logo {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 0.5rem;
 }
-.logo-block p {
-  margin-top: 0.75rem;
-  color: #596773;
+
+.brand-wrap h1 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: 0.12em;
 }
-.card-inner {
-  display: grid;
-  justify-items: start;
-  gap: 12px;
-  padding: 18px;
+
+.brand-wrap p {
+  margin-top: 0.5rem;
+  color: #666;
 }
-.card-inner h2 {
-  font-size: 18px;
-  margin-bottom: 0.3rem;
+
+.input-item {
+  margin-bottom: 0.75rem;
 }
-.card-inner p {
-  color: #596773;
-  line-height: 1.45;
+
+.error-text {
+  margin-top: 1rem;
+  color: #c62828;
+  text-align: center;
+  font-size: 0.9rem;
 }
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 1.2rem;
+
+.info-list {
+  margin-top: 1rem;
 }
 </style>

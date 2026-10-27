@@ -1,42 +1,110 @@
-import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { defineStore } from 'pinia'
+import type { User } from '../types'
 import { authService } from '../services/auth.service'
-import { storageService } from '../services/storage.service'
-import type { User, UserRole } from '../types'
-
-const STORAGE_KEY = 'alerta-mobile-role'
 
 export const useAuthStore = defineStore('auth', () => {
-  const isUserRole = (value: unknown): value is UserRole => value === 'INSTITUTION_USER' || value === 'CITIZEN'
-  const role = ref<UserRole | null>(storageService.read(STORAGE_KEY, null, isUserRole))
   const user = ref<User | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  const initialized = ref(false)
 
-  if (role.value) {
-    void authService.loginDemo(role.value).then((match) => {
-      user.value = match ?? null
-    })
+  const isAuthenticated = computed(() => Boolean(user.value))
+  const role = computed(() => user.value?.role ?? null)
+
+  function setError(message: string | null) {
+    error.value = message
   }
 
-  const currentRole = computed(() => role.value)
+  async function initialize() {
+    if (initialized.value) return user.value
 
-  const setRole = async (nextRole: UserRole) => {
-    role.value = nextRole
-    storageService.write(STORAGE_KEY, nextRole)
-    const match = await authService.loginDemo(nextRole)
-    user.value = match ?? null
+    initialized.value = true
+    loading.value = true
+
+    try {
+      user.value = await authService.getCurrentUser()
+      return user.value
+    } catch (err) {
+      user.value = null
+      return null
+    } finally {
+      loading.value = false
+    }
   }
 
-  const clearRole = () => {
-    role.value = null
-    user.value = null
-    storageService.remove(STORAGE_KEY)
+  async function login(email: string, password: string) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await authService.login(email, password)
+      user.value = response
+      return response
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo iniciar sesión.'
+      error.value = message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function register(payload: {
+    nombre?: string
+    firstName?: string
+    lastName?: string
+    secondLastName?: string
+    primerApellido?: string
+    segundoApellido?: string | null
+    email: string
+    phone: string
+    city?: string
+    password: string
+    confirmPassword: string
+  }) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const newUser = await authService.register(payload)
+      return newUser
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo crear la cuenta.'
+      error.value = message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function logout() {
+    try {
+      await authService.logout()
+    } finally {
+      user.value = null
+      initialized.value = false
+      error.value = null
+      // Evitar datos privados de la cuenta anterior en una sesión posterior.
+      const [{ useAlertStore }, { useCitizenReportStore }, { useNotificationStore }] = await Promise.all([
+        import('./alert.store'), import('./citizen-report.store'), import('./notification.store'),
+      ])
+      useAlertStore().clear()
+      useCitizenReportStore().clear()
+      useNotificationStore().clear()
+    }
   }
 
   return {
-    role,
     user,
-    currentRole,
-    setRole,
-    clearRole,
+    loading,
+    error,
+    isAuthenticated,
+    role,
+    setError,
+    initialize,
+    login,
+    register,
+    logout,
   }
 })

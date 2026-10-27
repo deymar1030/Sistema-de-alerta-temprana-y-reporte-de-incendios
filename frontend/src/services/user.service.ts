@@ -1,36 +1,22 @@
 import { normalizeRole, normalizeStatus, type User, type UserRole } from '../types'
-
-const API_URL = import.meta.env.VITE_API_URL ?? '/api'
+import { apiFetch } from './http'
 
 interface ApiUser {
-  id_usuario?: number | string
-  id?: number | string
-  nombre?: string
+  id_usuario?: string | number
+  id?: string | number
+  nombre?: string | null
   primer_apellido?: string | null
   segundo_apellido?: string | null
-  correo?: string
-  email?: string
+  correo?: string | null
   telefono?: string | null
-  phone?: string | null
-  city?: string | null
-  ciudad?: string | null
-  id_rol?: number | string | null
-  rol?: number | string | null
-  role?: UserRole | string | null
-  id_institucion?: number | string | null
-  institutionId?: number | string | null
-  institucionId?: number | string | null
-  estado?: boolean | number | string | null
-  activo?: boolean | number | string | null
-  status?: 'ACTIVE' | 'INACTIVE' | string | null
-  createdAt?: string
+  nombre_rol?: string | null
+  id_rol?: string | number | null
+  id_institucion?: string | number | null
+  estado?: boolean | string | number | null
+  fecha_eliminacion?: string | null
 }
 
 export interface CreateUserInput {
-  id_rol?: number | string
-  role?: UserRole
-  id_institucion?: number | string | null
-  institutionId?: number | string | null
   nombre?: string
   firstName?: string
   lastName?: string
@@ -42,174 +28,124 @@ export interface CreateUserInput {
   phone?: string
   contrasena?: string
   password?: string
-  activo?: boolean
-  status?: 'ACTIVE' | 'INACTIVE'
+  role?: UserRole
+  nombre_rol?: UserRole
+  id_institucion?: string | number | null
+  institutionId?: string | number | null
 }
 
-export interface UpdateUserInput extends Partial<CreateUserInput> {}
+export type UpdateUserInput = Partial<CreateUserInput>
 
-const getStoredToken = (): string | null => {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem('alerta_token')
-}
+function toUser(data: ApiUser): User {
+  if (!data || (data.id_usuario == null && data.id == null)) {
+    throw new Error('El backend devolvió un usuario sin identificador.')
+  }
 
-const formatFullName = (user: ApiUser) => {
-  const parts = [user.nombre, user.primer_apellido, user.segundo_apellido].filter(Boolean)
-  if (parts.length) return parts.join(' ').trim()
-  if (user.email || user.correo) return user.email || user.correo || 'Usuario'
-  return 'Usuario'
-}
+  // El contrato confirmado devuelve nombre_rol. No inferir roles desde ID 2, 3, etc.
+  if (!data.nombre_rol?.trim()) {
+    throw new Error(`El usuario ${data.id_usuario ?? data.id} no tiene nombre_rol en la respuesta.`)
+  }
 
-const toUser = (user: Partial<ApiUser> | null): User => {
-  const id = String(user?.id_usuario ?? user?.id ?? crypto.randomUUID())
-  const institutionId = user?.institutionId ?? user?.institucionId ?? user?.id_institucion ?? null
-  const roleValue = user?.id_rol ?? user?.rol ?? user?.role
-  const statusValue = user?.status ?? user?.estado ?? user?.activo ?? 'ACTIVE'
-  const normalizedRole = normalizeRole(roleValue as number | string | UserRole | null | undefined)
-  const normalizedStatus = normalizeStatus(statusValue)
+  const role = normalizeRole(data.nombre_rol)
+  const firstName = String(data.nombre ?? '').trim()
+  const primerApellido = String(data.primer_apellido ?? '').trim()
+  const segundoApellido = String(data.segundo_apellido ?? '').trim()
+  const institutionId = data.id_institucion == null ? null : String(data.id_institucion)
+  const status = normalizeStatus(data.estado ?? 'ACTIVE')
 
   return {
-    id,
-    nombre: user?.nombre ?? formatFullName(user as ApiUser),
-    firstName: user?.nombre?.split(' ')[0],
-    lastName: user?.nombre?.split(' ').slice(1).join(' '),
-    email: user?.email ?? user?.correo ?? 'sin-email@alerta.bo',
-    phone: user?.phone ?? user?.telefono ?? undefined,
-    city: user?.city ?? user?.ciudad ?? undefined,
-    role: normalizedRole,
-    rol: normalizedRole,
-    institutionId: institutionId === null || institutionId === undefined || institutionId === '' ? null : String(institutionId),
-    institucionId: institutionId === null || institutionId === undefined || institutionId === '' ? null : String(institutionId),
-    activo: normalizedStatus === 'ACTIVE',
-    status: normalizedStatus,
-    createdAt: user?.createdAt ?? new Date().toISOString(),
+    id: String(data.id_usuario ?? data.id),
+    nombre: [firstName, primerApellido, segundoApellido].filter(Boolean).join(' ') || 'Usuario',
+    firstName,
+    lastName: [primerApellido, segundoApellido].filter(Boolean).join(' '),
+    primerApellido,
+    segundoApellido,
+    email: String(data.correo ?? ''),
+    phone: data.telefono ?? undefined,
+    telefono: data.telefono ?? undefined,
+    role,
+    rol: role,
+    institutionId,
+    institucionId: institutionId,
+    activo: status === 'ACTIVE',
+    status,
   }
 }
 
-const readData = <T>(payload: unknown): T => {
-  if (payload && typeof payload === 'object' && 'data' in payload) {
-    return (payload as { data: T }).data
-  }
-  return payload as T
-}
+function accountFields(input: CreateUserInput, creating: boolean): Record<string, unknown> {
+  const nombre = (input.firstName ?? input.nombre ?? '').trim()
+  const primerApellido = (input.primer_apellido ?? input.lastName ?? '').trim()
+  const correo = (input.correo ?? input.email ?? '').trim()
+  const password = input.contrasena ?? input.password
 
-const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
-  const token = getStoredToken()
-
-  const response = await fetch(`${API_URL}${path}`, {
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-    ...init,
-  })
-
-  if (response.status === 401) {
-    throw new Error('La sesión ha expirado. Inicia sesión nuevamente.')
+  const fields: Record<string, unknown> = {
+    ...(input.firstName !== undefined || input.nombre !== undefined ? { nombre } : {}),
+    ...(input.primer_apellido !== undefined || input.lastName !== undefined ? { primer_apellido: primerApellido } : {}),
+    ...(input.segundo_apellido !== undefined ? { segundo_apellido: input.segundo_apellido.trim() } : {}),
+    ...(input.correo !== undefined || input.email !== undefined ? { correo } : {}),
+    ...(input.telefono !== undefined || input.phone !== undefined
+      ? { telefono: (input.telefono ?? input.phone ?? '').trim() }
+      : {}),
+    ...(input.nombre_rol !== undefined || input.role !== undefined
+      ? { nombre_rol: input.nombre_rol ?? input.role }
+      : {}),
+    ...(input.id_institucion !== undefined || input.institutionId !== undefined
+      ? { id_institucion: input.id_institucion !== undefined ? input.id_institucion : input.institutionId }
+      : {}),
   }
 
-  const payload = await response.json().catch(() => null)
-  const data = readData<T>(payload)
+  // Si no se cambia contraseña al editar, no se envía ese campo.
+  if (password?.trim()) fields.contrasena = password
 
-  if (!response.ok) {
-    const message =
-      typeof payload === 'object' && payload && 'message' in payload && typeof payload.message === 'string'
-        ? payload.message
-        : 'No se pudo completar la petición.'
-    throw new Error(message)
-  }
+  if (creating && !nombre) throw new Error('Ingresa el nombre del usuario.')
+  if (creating && !correo) throw new Error('Ingresa el correo del usuario.')
+  if (creating && !fields.nombre_rol) throw new Error('Selecciona el rol del usuario.')
+  if (creating && !password?.trim()) throw new Error('Ingresa una contraseña para crear el usuario.')
 
-  if (payload && typeof payload === 'object' && 'success' in payload && payload.success === false) {
-    throw new Error((payload as { error?: string }).error ?? 'La operación falló.')
-  }
-
-  return data
-}
-
-const roleToApiId = (role?: UserRole | string | number | null): number | string => {
-  switch (normalizeRole(role)) {
-    case 'ADMIN':
-      return 1
-    case 'JEFE_INSTITUCION':
-      return 2
-    case 'OPERATIVO':
-      return 3
-    case 'CIUDADANO':
-      return 4
-    default:
-      throw new Error(`Rol desconocido: ${role}`)
-  }
+  return fields
 }
 
 export const userService = {
   async getUsers(): Promise<User[]> {
-    const response = await request<ApiUser[] | { usuarios?: ApiUser[] } | null>('/usuarios')
-    const users = Array.isArray(response)
-      ? response
-      : Array.isArray((response as { usuarios?: ApiUser[] } | null)?.usuarios)
-        ? (response as { usuarios?: ApiUser[] }).usuarios ?? []
-        : []
-
-    return users.map((user) => toUser(user))
+    // El backend documentó data como un arreglo, sin objeto de paginación.
+    const result = await apiFetch<unknown>('/usuarios?incluirEliminados=false')
+    if (!Array.isArray(result)) {
+      throw new Error('El backend no devolvió un listado válido de usuarios.')
+    }
+    return (result as ApiUser[]).map(toUser)
   },
 
   async getUserById(id: string): Promise<User> {
-    const response = await request<ApiUser | null>(`/usuarios/${id}`)
-    return toUser(response)
+    return toUser(await apiFetch<ApiUser>(`/usuarios/${encodeURIComponent(id)}`))
   },
 
   async createUser(input: CreateUserInput): Promise<User> {
-    const role = normalizeRole(input.role ?? input.id_rol ?? 'CIUDADANO')
-    const institutionId = input.institutionId ?? input.id_institucion ?? null
-    const payload = {
-      id_rol: input.id_rol ?? roleToApiId(role),
-      id_institucion: institutionId === undefined || institutionId === null || institutionId === '' ? null : institutionId,
-      nombre: (input.nombre ?? `${input.firstName ?? ''} ${input.lastName ?? ''}`.trim()).trim(),
-      primer_apellido: input.primer_apellido ?? '',
-      segundo_apellido: input.segundo_apellido ?? '',
-      correo: (input.correo ?? input.email ?? '').trim(),
-      telefono: input.telefono ?? input.phone ?? '',
-      contrasena: input.contrasena ?? input.password ?? 'Temp1234',
-    }
-
-    const response = await request<ApiUser>('/usuarios', {
+    const data = await apiFetch<ApiUser>('/usuarios', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(accountFields(input, true)),
     })
-
-    return toUser(response)
+    // Si POST devuelve solo el ID, recuperar el DTO completo con nombre_rol.
+    if (data?.nombre_rol) return toUser(data)
+    const id = data?.id_usuario ?? data?.id
+    if (id == null) throw new Error('El servidor creó el usuario, pero no devolvió su identificador.')
+    return this.getUserById(String(id))
   },
 
   async updateUser(id: string, input: UpdateUserInput): Promise<User> {
-    const payload: Record<string, unknown> = {
-      ...(input.id_rol !== undefined ? { id_rol: input.id_rol ?? roleToApiId(input.role ?? 'CIUDADANO') } : {}),
-      ...(input.id_institucion !== undefined && input.id_institucion !== null && input.id_institucion !== '' ? { id_institucion: input.id_institucion } : {}),
-      ...(input.nombre !== undefined ? { nombre: input.nombre.trim() } : {}),
-      ...(input.primer_apellido !== undefined ? { primer_apellido: input.primer_apellido.trim() } : {}),
-      ...(input.segundo_apellido !== undefined ? { segundo_apellido: input.segundo_apellido.trim() } : {}),
-      ...(input.correo !== undefined ? { correo: input.correo.trim() } : {}),
-      ...(input.telefono !== undefined ? { telefono: input.telefono.trim() } : {}),
-      ...(input.contrasena !== undefined ? { contrasena: input.contrasena.trim() } : {}),
-    }
-
-    const response = await request<ApiUser>(`/usuarios/${id}`, {
+    await apiFetch(`/usuarios/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(accountFields(input, false)),
     })
-
-    return toUser(response)
+    return this.getUserById(id)
   },
 
   async deactivateUser(id: string): Promise<User> {
-    const response = await request<ApiUser>(`/usuarios/${id}/desactivar`, { method: 'PATCH' })
-    return toUser(response)
+    await apiFetch(`/usuarios/${encodeURIComponent(id)}/desactivar`, { method: 'PATCH' })
+    return this.getUserById(id)
   },
 
   async reactivateUser(id: string): Promise<User> {
-    const response = await request<ApiUser>(`/usuarios/${id}/reactivar`, { method: 'PATCH' })
-    return toUser(response)
+    await apiFetch(`/usuarios/${encodeURIComponent(id)}/reactivar`, { method: 'PATCH' })
+    return this.getUserById(id)
   },
 }

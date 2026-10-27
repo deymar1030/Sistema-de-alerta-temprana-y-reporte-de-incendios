@@ -1,64 +1,209 @@
+
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
+
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Wifi, Factory, ArrowRight } from 'lucide-vue-next'
+
+import {
+  AlertCircle,
+  CheckCircle2,
+  Eye,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  Wifi,
+  X,
+} from 'lucide-vue-next'
 
 import { useSensorStore } from '../stores/sensor.store'
+import { usePredioStore } from '../stores/predio.store'
 import { readingService } from '../services/reading.service'
-import { useToast } from '../composables/useToast'
 
-import type { Sensor, Reading } from '../types'
+import {
+  SENSOR_STATES,
+  SENSOR_TYPES,
+  type CreateSensorInput,
+} from '../services/sensor.service'
 
-import LoadingSpinner from '../components/common/LoadingSpinner.vue'
-import StatusBadge from '../components/common/StatusBadge.vue'
+import type { Reading, Sensor } from '../types'
+
+type SensorForm = {
+  id_predio: string
+  nombre: string
+  tipo_sensor: string
+  unidad_medida: string
+  modelo: string
+  fabricante: string
+  fecha_instalacion: string
+  estado: string
+  rango_min: string
+  rango_max: string
+}
 
 const route = useRoute()
 const router = useRouter()
-const { showToast } = useToast()
-
-const sensorStore = useSensorStore()
+const sensors = useSensorStore()
+const predios = usePredioStore()
 
 const search = ref('')
-const selectedType = ref('Todos')
-const selectedState = ref('Todos')
+const selectedType = ref('TODOS')
+const selectedState = ref('TODOS')
+const notice = ref('')
+const noticeError = ref(false)
 
-const sensorDetail = ref<Sensor | null>(null)
-const sensorReadings = ref<Reading[]>([])
+const formOpen = ref(false)
+const formError = ref('')
+const saving = ref(false)
+const editingId = ref<string | null>(null)
+const formDialog = ref<HTMLElement | null>(null)
+const firstInput = ref<HTMLInputElement | null>(null)
 
-const emptySensorForm = () => ({
-  id_predio: '',
-  nombre: '',
-  tipo_sensor: 'TEMPERATURA',
-  estado: 'ACTIVO',
-  modelo: '',
-  fabricante: '',
-  unidad_medida: '',
-  fecha_instalacion: new Date().toISOString().slice(0, 10),
-  rango_min: '',
-  rango_max: '',
-})
+let oldOverflow = ''
+let oldFocus: HTMLElement | null = null
 
-const sensorForm = ref(emptySensorForm())
-const showSensorForm = ref(false)
-const editingSensorId = ref<string | null>(null)
+const selected = ref<Sensor | null>(null)
+const detailLoading = ref(false)
+const detailError = ref('')
+const readings = ref<Reading[]>([])
+const readingsLoading = ref(false)
+const readingsError = ref('')
 
-const mapSensorTypeToApi = (value: Sensor['tipo_sensor']) => {
-  switch (value) {
-    case 'Temperatura':
-      return 'TEMPERATURA'
-    case 'Humo':
-      return 'HUMO'
-    case 'CO':
-      return 'CO'
-    case 'Humedad':
-      return 'HUMEDAD'
-    default:
-      return 'TEMPERATURA'
+function unitFor(type: string): string {
+  return (
+    SENSOR_TYPES.find((item) => item.value === type)?.unit ??
+    ''
+  )
+}
+
+function emptyForm(): SensorForm {
+  return {
+    id_predio: '',
+    nombre: '',
+    tipo_sensor: 'TEMPERATURA',
+    unidad_medida: '°C',
+    modelo: '',
+    fabricante: '',
+    fecha_instalacion: '',
+    estado: 'ACTIVO',
+    rango_min: '',
+    rango_max: '',
   }
 }
 
-const mapSensorStateToApi = (value: Sensor['estado']) => {
-  switch (value) {
+const form = ref<SensorForm>(emptyForm())
+
+watch(
+  () => form.value.tipo_sensor,
+  (next, previous) => {
+    if (
+      !form.value.unidad_medida ||
+      form.value.unidad_medida === unitFor(previous)
+    ) {
+      form.value.unidad_medida = unitFor(next)
+    }
+  }
+)
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLocaleLowerCase()
+
+  return sensors.sensors.filter((sensor) => {
+    const matchesText =
+      !q ||
+      [
+        sensor.nombre,
+        sensor.id_sensor,
+        sensor.ubicacion,
+        sensor.modelo,
+        sensor.variable,
+      ].some((value) =>
+        String(value ?? '')
+          .toLocaleLowerCase()
+          .includes(q)
+      )
+
+    const matchesType =
+      selectedType.value === 'TODOS' ||
+      sensor.variable === selectedType.value
+
+    const matchesState =
+      selectedState.value === 'TODOS' ||
+      sensor.estado.toUpperCase() === selectedState.value ||
+      (selectedState.value === 'MANTENIMIENTO' &&
+        sensor.estado === 'Mantenimiento')
+
+    return matchesText && matchesType && matchesState
+  })
+})
+
+const typeOptions = computed(() => {
+  const options: Array<{
+    value: string
+    label: string
+  }> = SENSOR_TYPES.map((type) => ({
+    value: type.value,
+    label: type.label,
+  }))
+
+  const known = new Set(
+    options.map((option) => option.value)
+  )
+
+  for (const sensor of sensors.sensors) {
+    if (
+      sensor.variable &&
+      !known.has(sensor.variable)
+    ) {
+      options.push({
+        value: sensor.variable,
+        label: sensor.variable,
+      })
+
+      known.add(sensor.variable)
+    }
+  }
+
+  return options
+})
+
+function predioName(id?: string): string {
+  const match = predios.prediosDetail.find(
+    (item) => String(item.id_predio) === String(id)
+  )
+
+  return (
+    match?.nombre ||
+    (id ? `Predio #${id}` : 'Sin predio')
+  )
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : 'No se pudo completar la operación.'
+}
+
+function dateLabel(date: string): string {
+  if (!date) return 'Sin fecha registrada'
+
+  const value = new Date(date)
+
+  return Number.isNaN(value.getTime())
+    ? date
+    : value.toLocaleDateString('es-BO')
+}
+
+function mapStateToApi(state: Sensor['estado']): string {
+  switch (state) {
     case 'Activo':
       return 'ACTIVO'
     case 'Inactivo':
@@ -68,412 +213,782 @@ const mapSensorStateToApi = (value: Sensor['estado']) => {
     case 'Error':
       return 'ERROR'
     default:
-      return 'ACTIVO'
+      return ''
   }
 }
 
-const openCreateSensor = () => {
-  sensorForm.value = emptySensorForm()
-  editingSensorId.value = null
-  showSensorForm.value = true
+function resetForm() {
+  form.value = emptyForm()
+  editingId.value = null
+  formError.value = ''
 }
 
-const openEditSensor = (sensor: Sensor) => {
-  sensorForm.value = {
+function openDialog() {
+  oldFocus =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+
+  oldOverflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+
+  formOpen.value = true
+
+  void nextTick(() => firstInput.value?.focus())
+}
+
+function closeForm() {
+  if (saving.value) return
+
+  formOpen.value = false
+  document.body.style.overflow = oldOverflow
+
+  void nextTick(() => oldFocus?.focus())
+}
+
+function createForm() {
+  resetForm()
+  notice.value = ''
+  openDialog()
+}
+
+function editForm(sensor: Sensor) {
+  resetForm()
+
+  editingId.value = sensor.id_sensor
+
+  form.value = {
     id_predio: sensor.id_predio ?? '',
     nombre: sensor.nombre,
-    tipo_sensor: mapSensorTypeToApi(sensor.tipo_sensor),
-    estado: mapSensorStateToApi(sensor.estado),
+    tipo_sensor: sensor.variable,
+    unidad_medida: sensor.unidad_medida,
     modelo: sensor.modelo,
     fabricante: sensor.fabricante,
-    unidad_medida: sensor.unidad_medida,
-    fecha_instalacion: sensor.fecha_instalacion,
-    rango_min: String(sensor.rango_min ?? ''),
-    rango_max: String(sensor.rango_max ?? ''),
+    fecha_instalacion:
+      sensor.fecha_instalacion?.slice(0, 10) ?? '',
+    estado: mapStateToApi(sensor.estado),
+    rango_min:
+      sensor.rango_min == null
+        ? ''
+        : String(sensor.rango_min),
+    rango_max:
+      sensor.rango_max == null
+        ? ''
+        : String(sensor.rango_max),
   }
-  editingSensorId.value = sensor.id_sensor
-  showSensorForm.value = true
+
+  if (!form.value.estado) {
+    formError.value =
+      'El estado del sensor no está reconocido. Selecciona uno válido antes de guardar.'
+  }
+
+  openDialog()
 }
 
-const normalizeSensorForm = () => {
-  const idPredio = Number(sensorForm.value.id_predio)
-  const nombre = sensorForm.value.nombre.trim()
-  const tipoSensor = sensorForm.value.tipo_sensor
-  const estado = sensorForm.value.estado
-  const modelo = sensorForm.value.modelo.trim()
-  const fabricante = sensorForm.value.fabricante.trim()
-  const unidadMedida = sensorForm.value.unidad_medida.trim()
-  const fechaInstalacion = sensorForm.value.fecha_instalacion
+function positiveId(
+  raw: unknown,
+  field: string
+): number {
+  const text = String(raw ?? '').trim()
+  const value = Number(text)
 
-  if (!idPredio) {
-    throw new Error('Debe indicar el predio del sensor.')
+  if (
+    !/^\d+$/.test(text) ||
+    !Number.isSafeInteger(value) ||
+    value <= 0
+  ) {
+    throw new Error(
+      `Selecciona un ${field} válido.`
+    )
   }
+
+  return value
+}
+
+function buildPayload(): CreateSensorInput {
+  const id = positiveId(
+    form.value.id_predio,
+    'predio'
+  )
+
+  if (
+    !predios.prediosDetail.some(
+      (item) =>
+        String(item.id_predio) === String(id)
+    )
+  ) {
+    throw new Error(
+      'Selecciona un predio existente del listado.'
+    )
+  }
+
+  const nombre = String(
+    form.value.nombre ?? ''
+  ).trim()
 
   if (!nombre) {
-    throw new Error('Debe ingresar el nombre del sensor.')
+    throw new Error(
+      'El nombre del sensor es obligatorio.'
+    )
   }
 
-  if (!tipoSensor) {
-    throw new Error('Debe seleccionar el tipo de sensor.')
+  const tipo = String(
+    form.value.tipo_sensor ?? ''
+  ).trim().toUpperCase()
+
+  if (!tipo) {
+    throw new Error(
+      'Selecciona el tipo del sensor.'
+    )
   }
 
-  if (!estado) {
-    throw new Error('Debe seleccionar el estado del sensor.')
+  const estado = String(
+    form.value.estado ?? ''
+  ).trim().toUpperCase()
+
+  if (
+    !SENSOR_STATES.some(
+      (entry) => entry.value === estado
+    )
+  ) {
+    throw new Error(
+      'Selecciona un estado válido.'
+    )
   }
 
-  if (!modelo) {
-    throw new Error('Debe ingresar el modelo del sensor.')
-  }
-
-  if (!fabricante) {
-    throw new Error('Debe ingresar el fabricante del sensor.')
-  }
-
-  if (!unidadMedida) {
-    throw new Error('Debe indicar la unidad de medida.')
-  }
-
-  if (!fechaInstalacion) {
-    throw new Error('Debe indicar la fecha de instalación.')
-  }
-
-  return {
-    id_predio: idPredio,
+  const payload: CreateSensorInput = {
+    id_predio: id,
     nombre,
-    tipo_sensor: tipoSensor,
+    tipo_sensor: tipo,
     estado,
-    modelo,
-    fabricante,
-    unidad_medida: unidadMedida,
-    fecha_instalacion: fechaInstalacion,
-    rango_min: Number(sensorForm.value.rango_min || 0),
-    rango_max: Number(sensorForm.value.rango_max || 0),
   }
-}
 
-const submitSensor = async () => {
-  try {
-    const payload = normalizeSensorForm()
+  const optional: Array<
+    keyof Pick<
+      CreateSensorInput,
+      | 'unidad_medida'
+      | 'modelo'
+      | 'fabricante'
+      | 'fecha_instalacion'
+    >
+  > = [
+    'unidad_medida',
+    'modelo',
+    'fabricante',
+    'fecha_instalacion',
+  ]
 
-    if (editingSensorId.value) {
-      await sensorStore.updateSensor(editingSensorId.value, payload)
-      showToast({ type: 'success', title: 'Sensor actualizado', description: 'Los cambios se guardaron correctamente.' })
-    } else {
-      await sensorStore.createSensor(payload)
-      showToast({ type: 'success', title: 'Sensor creado', description: 'El sensor fue registrado correctamente.' })
+  for (const key of optional) {
+    const value = String(
+      form.value[key] ?? ''
+    ).trim()
+
+    if (value) {
+      payload[key] = value
+    }
+  }
+
+  for (
+    const key of [
+      'rango_min',
+      'rango_max',
+    ] as const
+  ) {
+    const raw = String(
+      form.value[key] ?? ''
+    ).trim()
+
+    if (!raw) continue
+
+    const numeric = Number(raw)
+
+    if (!Number.isFinite(numeric)) {
+      throw new Error(
+        `El campo ${key} debe ser numérico.`
+      )
     }
 
-    showSensorForm.value = false
-    editingSensorId.value = null
-    sensorForm.value = emptySensorForm()
-    await sensorStore.fetchSensors()
+    payload[key] = numeric
+  }
+
+  if (
+    payload.rango_min !== undefined &&
+    payload.rango_max !== undefined &&
+    payload.rango_min > payload.rango_max
+  ) {
+    throw new Error(
+      'El rango mínimo no puede superar al máximo.'
+    )
+  }
+
+  return payload
+}
+
+async function save() {
+  if (saving.value) return
+
+  formError.value = ''
+
+  let payload: CreateSensorInput
+
+  try {
+    payload = buildPayload()
+  } catch (error) {
+    formError.value = errorMessage(error)
+    return
+  }
+
+  saving.value = true
+
+  try {
+    const wasEditing = editingId.value !== null
+
+    if (wasEditing) {
+      await sensors.updateSensor(
+        editingId.value!,
+        payload
+      )
+    } else {
+      await sensors.createSensor(payload)
+    }
+
+    formOpen.value = false
+    document.body.style.overflow = oldOverflow
+
+    await sensors.fetchSensors()
+
+    noticeError.value = Boolean(sensors.error)
+
+    notice.value = sensors.error
+      ? 'El servidor aceptó la operación, pero no se pudo recargar el listado. Actualízalo antes de repetirla.'
+      : wasEditing
+        ? 'Sensor actualizado correctamente.'
+        : 'Sensor creado correctamente.'
 
     if (route.params.id) {
-      const detail = await sensorStore.getSensorById(String(route.params.id))
-      sensorDetail.value = detail ?? null
-      sensorReadings.value = detail ? await readingService.getReadingsBySensor(detail.id_sensor) : []
+      await refreshDetail(
+        String(route.params.id)
+      )
     }
   } catch (error) {
-    showToast({ type: 'error', title: 'No se pudo guardar el sensor', description: error instanceof Error ? error.message : 'Ocurrió un error inesperado.' })
+    formError.value = errorMessage(error)
+  } finally {
+    saving.value = false
   }
 }
 
-const deleteSensor = async (sensor: Sensor) => {
-  const confirmed = window.confirm(`¿Deseas eliminar el sensor "${sensor.nombre}"?`)
-
-  if (!confirmed) {
+async function remove(sensor: Sensor) {
+  if (
+    !window.confirm(
+      `¿Eliminar el sensor "${sensor.nombre}"? Esta acción puede ser irreversible.`
+    )
+  ) {
     return
   }
 
   try {
-    await sensorStore.deleteSensor(sensor.id_sensor)
-    await sensorStore.fetchSensors()
+    await sensors.deleteSensor(sensor.id_sensor)
+    await sensors.fetchSensors()
 
-    if (sensorDetail.value?.id_sensor === sensor.id_sensor) {
-      sensorDetail.value = null
-      sensorReadings.value = []
+    noticeError.value = Boolean(sensors.error)
+
+    notice.value = sensors.error
+      ? 'El sensor fue eliminado, pero no se pudo actualizar el listado.'
+      : 'Sensor eliminado correctamente.'
+
+    if (
+      String(route.params.id ?? '') ===
+      sensor.id_sensor
+    ) {
+      await router.push('/sensores')
     }
-
-    showToast({ type: 'success', title: 'Sensor eliminado', description: 'El registro se eliminó correctamente.' })
   } catch (error) {
-    showToast({ type: 'error', title: 'No se pudo eliminar el sensor', description: error instanceof Error ? error.message : 'La eliminación falló.' })
+    notice.value = errorMessage(error)
+    noticeError.value = true
   }
 }
 
-const filteredSensors = computed(() => {
-  const term = search.value.trim().toLowerCase()
-
-  return sensorStore.sensors.filter((sensor) => {
-    const matchesText =
-      !term ||
-      [
-        sensor.nombre,
-        sensor.id_sensor,
-        sensor.ubicacion,
-      ].some((value) =>
-        value.toLowerCase().includes(term),
-      )
-
-    const matchesType =
-      selectedType.value === 'Todos' ||
-      sensor.tipo_sensor === selectedType.value
-
-    const matchesState =
-      selectedState.value === 'Todos' ||
-      sensor.estado === selectedState.value
-
-    return (
-      matchesText &&
-      matchesType &&
-      matchesState
-    )
-  })
-})
-
-const openSensor = async (sensor: Sensor) => {
-  /*
-   * Por ahora mantenemos esta ruta heredada porque
-   * /sensores/:id ya existe en el router.
-   */
-  await router.push(`/sensores/${sensor.id_sensor}`)
-
-  const detail =
-    await sensorStore.getSensorById(sensor.id_sensor)
-
-  sensorDetail.value = detail ?? null
-
-  sensorReadings.value =
-    await readingService.getReadingsBySensor(
-      sensor.id_sensor,
-    )
+async function openDetail(id: string) {
+  await router.push(
+    `/sensores/${encodeURIComponent(id)}`
+  )
 }
 
-onMounted(async () => {
-  await sensorStore.fetchSensors()
+async function refreshDetail(id: string) {
+  detailLoading.value = true
+  detailError.value = ''
+  selected.value = null
+  readings.value = []
+  readingsError.value = ''
 
-  const id = route.params.id as string | undefined
-
-  if (id) {
+  try {
     const detail =
-      await sensorStore.getSensorById(id)
+      await sensors.getSensorById(id)
 
-    sensorDetail.value = detail ?? null
-
-    sensorReadings.value =
-      await readingService.getReadingsBySensor(id)
-  }
-})
-
-watch(
-  () => route.params.id,
-
-  async (
-    id: string | string[] | undefined,
-  ) => {
-    const sensorId =
-      Array.isArray(id)
-        ? id[0]
-        : id
-
-    if (!sensorId) {
-      sensorDetail.value = null
-      sensorReadings.value = []
+    if (
+      String(route.params.id ?? '') !== id
+    ) {
       return
     }
 
-    const detail =
-      await sensorStore.getSensorById(sensorId)
+    if (!detail) {
+      detailError.value =
+        'No se encontró el sensor solicitado.'
+      return
+    }
 
-    sensorDetail.value = detail ?? null
+    selected.value = detail
+  } catch (error) {
+    if (
+      String(route.params.id ?? '') === id
+    ) {
+      detailError.value = errorMessage(error)
+    }
+  } finally {
+    if (
+      String(route.params.id ?? '') === id
+    ) {
+      detailLoading.value = false
+    }
+  }
 
-    sensorReadings.value =
-      await readingService.getReadingsBySensor(
-        sensorId,
-      )
+  if (
+    !selected.value ||
+    String(route.params.id ?? '') !== id
+  ) {
+    return
+  }
+
+  readingsLoading.value = true
+
+  try {
+    const items =
+      await readingService.getReadingsBySensor(id)
+
+    if (
+      String(route.params.id ?? '') === id
+    ) {
+      readings.value = items
+    }
+  } catch (error) {
+    if (
+      String(route.params.id ?? '') === id
+    ) {
+      readingsError.value = errorMessage(error)
+    }
+  } finally {
+    if (
+      String(route.params.id ?? '') === id
+    ) {
+      readingsLoading.value = false
+    }
+  }
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (!formOpen.value) return
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeForm()
+    return
+  }
+
+  if (
+    event.key !== 'Tab' ||
+    !formDialog.value
+  ) {
+    return
+  }
+
+  const items = Array.from(
+    formDialog.value.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'
+    )
+  ).filter(
+    (item) => item.getClientRects().length > 0
+  )
+
+  if (!items.length) return
+
+  if (
+    event.shiftKey &&
+    document.activeElement === items[0]
+  ) {
+    event.preventDefault()
+    items[items.length - 1]?.focus()
+  } else if (
+    !event.shiftKey &&
+    document.activeElement ===
+      items[items.length - 1]
+  ) {
+    event.preventDefault()
+    items[0]?.focus()
+  }
+}
+
+watch(
+  () => route.params.id,
+  (next) => {
+    const id = Array.isArray(next)
+      ? next[0]
+      : next
+
+    if (!id) {
+      selected.value = null
+      readings.value = []
+      detailError.value = ''
+      return
+    }
+
+    void refreshDetail(id)
   },
+  { immediate: true }
 )
+
+onMounted(() => {
+  document.addEventListener(
+    'keydown',
+    onKeydown
+  )
+
+  void sensors.fetchSensors()
+  void predios.fetchPredios()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener(
+    'keydown',
+    onKeydown
+  )
+
+  if (formOpen.value) {
+    document.body.style.overflow = oldOverflow
+  }
+})
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Cargando -->
-    <div
-      v-if="sensorStore.loading"
-      class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
+  <main
+    class="admin-page mx-auto w-full max-w-[1500px] space-y-5 p-0 sm:p-2 lg:p-4"
+  >
+    <header
+      class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
     >
-      <LoadingSpinner />
-    </div>
-
-    <!-- Error -->
-    <div
-      v-else-if="sensorStore.error"
-      class="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 text-red-200"
-    >
-      {{ sensorStore.error }}
-    </div>
-
-    <!-- Contenido -->
-    <div
-      v-else
-      class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]"
-    >
-      <!-- Lista de sensores -->
-      <section
-        class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
-      >
-        <div class="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400">Sensores</p>
-          </div>
-
-          <button
-            type="button"
-            class="inline-flex items-center rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-200 transition hover:bg-orange-500/20"
-            @click="openCreateSensor"
-          >
-            + Crear sensor
-          </button>
-        </div>
-
-        <div v-if="showSensorForm" class="mb-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-          <div class="mb-4 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-white">{{ editingSensorId ? 'Editar sensor' : 'Crear sensor' }}</h3>
-            <button type="button" class="text-sm text-slate-400 hover:text-white" @click="showSensorForm = false">Cerrar</button>
-          </div>
-
-          <div class="grid gap-4 md:grid-cols-2">
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">ID predio</span>
-              <input v-model="sensorForm.id_predio" type="number" min="1" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Nombre</span>
-              <input v-model="sensorForm.nombre" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Tipo</span>
-              <select v-model="sensorForm.tipo_sensor" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500">
-                <option value="TEMPERATURA">Temperatura</option>
-                <option value="HUMO">Humo</option>
-                <option value="CO">CO</option>
-                <option value="HUMEDAD">Humedad</option>
-              </select>
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Estado</span>
-              <select v-model="sensorForm.estado" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500">
-                <option value="ACTIVO">Activo</option>
-                <option value="INACTIVO">Inactivo</option>
-                <option value="MANTENIMIENTO">Mantenimiento</option>
-                <option value="ERROR">Error</option>
-              </select>
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Modelo</span>
-              <input v-model="sensorForm.modelo" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Fabricante</span>
-              <input v-model="sensorForm.fabricante" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Unidad de medida</span>
-              <input v-model="sensorForm.unidad_medida" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Fecha instalación</span>
-              <input v-model="sensorForm.fecha_instalacion" type="date" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Rango mínimo</span>
-              <input v-model="sensorForm.rango_min" type="number" step="0.01" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
-            </label>
-
-            <label class="block text-sm text-slate-300">
-              <span class="mb-1 block">Rango máximo</span>
-              <input v-model="sensorForm.rango_max" type="number" step="0.01" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-orange-500" />
-            </label>
-          </div>
-
-          <div class="mt-4 flex justify-end gap-3">
-            <button type="button" class="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200" @click="showSensorForm = false">Cancelar</button>
-            <button type="button" class="rounded-xl bg-orange-500 px-4 py-2 text-sm font-medium text-white" @click="submitSensor">Guardar</button>
-          </div>
-        </div>
-
-        <!-- Filtros -->
-        <div
-          class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+      <div class="min-w-0">
+        <p
+          class="text-xs font-bold uppercase tracking-widest text-orange-600"
         >
-          <div class="relative flex-1">
+          Administración
+        </p>
+
+        <h1
+          class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl"
+        >
+          Sensores
+        </h1>
+
+        <p
+          class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600"
+        >
+          Consulta y administra sensores asociados a los predios registrados.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white hover:bg-orange-700"
+        @click="createForm"
+      >
+        <Plus class="h-5 w-5" aria-hidden="true" />
+        Crear sensor
+      </button>
+    </header>
+
+    <div
+      v-if="notice"
+      role="status"
+      class="flex items-start gap-3 rounded-xl border p-4 text-sm"
+      :class="
+        noticeError
+          ? 'border-amber-200 bg-amber-50 text-amber-900'
+          : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      "
+    >
+      <AlertCircle
+        v-if="noticeError"
+        class="mt-0.5 h-5 w-5 shrink-0"
+        aria-hidden="true"
+      />
+
+      <CheckCircle2
+        v-else
+        class="mt-0.5 h-5 w-5 shrink-0"
+        aria-hidden="true"
+      />
+
+      <span class="min-w-0 flex-1 break-words">
+        {{ notice }}
+      </span>
+
+      <button
+        type="button"
+        aria-label="Cerrar aviso"
+        class="min-h-11 min-w-11 rounded-xl"
+        @click="notice = ''"
+      >
+        <X class="mx-auto h-4 w-4" />
+      </button>
+    </div>
+
+    <section
+      class="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+      aria-label="Directorio de sensores"
+    >
+      <div
+        class="flex min-w-0 flex-col gap-4 border-b border-slate-200 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between"
+      >
+        <div class="min-w-0">
+          <h2
+            class="flex items-center gap-2 text-lg font-bold text-slate-900"
+          >
+            <Wifi
+              class="h-5 w-5 text-orange-600"
+              aria-hidden="true"
+            />
+            Directorio de sensores
+          </h2>
+
+          <p class="mt-1 text-sm text-slate-600">
+            {{ sensors.sensors.length }} sensores registrados
+          </p>
+        </div>
+
+        <div class="flex min-w-0 flex-wrap gap-2">
+          <label
+            class="relative min-w-0 flex-1 sm:w-64 sm:flex-none"
+          >
+            <span class="sr-only">Buscar sensores</span>
+
             <Search
-              class="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400"
+              class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+              aria-hidden="true"
             />
 
             <input
               v-model="search"
-              class="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-2.5 pl-10 pr-3 text-sm text-white outline-none ring-0 placeholder:text-slate-400 focus:border-orange-500"
-              placeholder="Buscar sensor"
+              type="search"
+              placeholder="Buscar sensor, tipo o predio"
+              class="form-input pl-10"
             />
-          </div>
+          </label>
 
-          <div
-            class="flex flex-col gap-2 sm:flex-row"
-          >
-            <!-- Tipo -->
+          <label class="min-w-0 flex-1 sm:w-auto">
+            <span class="sr-only">Filtrar por tipo</span>
+
             <select
               v-model="selectedType"
-              class="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-slate-100"
+              class="form-input"
             >
-              <option>Todos</option>
-              <option>Temperatura</option>
-              <option>Humo</option>
-              <option>CO</option>
-              <option>Humedad</option>
-            </select>
+              <option value="TODOS">
+                Todos los tipos
+              </option>
 
-            <!-- Estado -->
+              <option
+                v-for="type in typeOptions"
+                :key="type.value"
+                :value="type.value"
+              >
+                {{ type.label }}
+              </option>
+            </select>
+          </label>
+
+          <label class="min-w-0 flex-1 sm:w-auto">
+            <span class="sr-only">Filtrar por estado</span>
+
             <select
               v-model="selectedState"
-              class="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-slate-100"
+              class="form-input"
             >
-              <option>Todos</option>
-              <option>Activo</option>
-              <option>Inactivo</option>
-              <option>Mantenimiento</option>
-              <option>Error</option>
+              <option value="TODOS">
+                Todos los estados
+              </option>
+
+              <option
+                v-for="state in SENSOR_STATES"
+                :key="state.value"
+                :value="state.value"
+              >
+                {{ state.label }}
+              </option>
             </select>
-          </div>
+          </label>
+
+          <button
+            type="button"
+            aria-label="Actualizar sensores"
+            title="Actualizar sensores"
+            class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700"
+            :disabled="sensors.loading"
+            @click="sensors.fetchSensors()"
+          >
+            <RefreshCw
+              class="h-4 w-4"
+              :class="{ 'animate-spin': sensors.loading }"
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="sensors.loading"
+        role="status"
+        class="p-10 text-center text-sm text-slate-600"
+      >
+        Cargando sensores...
+      </div>
+
+      <div
+        v-else-if="sensors.error"
+        role="alert"
+        class="m-4 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800"
+      >
+        <p class="break-words">
+          {{ sensors.error }}
+        </p>
+
+        <button
+          type="button"
+          class="mt-3 min-h-11 rounded-xl border border-red-200 bg-white px-4 font-semibold"
+          @click="sensors.fetchSensors()"
+        >
+          Reintentar
+        </button>
+      </div>
+
+      <div
+        v-else-if="!filtered.length"
+        class="p-10 text-center text-sm text-slate-600"
+      >
+        {{
+          sensors.sensors.length
+            ? 'No hay sensores que coincidan con los filtros.'
+            : 'Aún no hay sensores registrados. Ya puedes asociar el primero a un predio.'
+        }}
+      </div>
+
+      <template v-else>
+        <!-- Tarjetas en móvil y tablet -->
+        <div
+          class="grid gap-3 p-4 sm:grid-cols-2 lg:hidden"
+        >
+          <article
+            v-for="sensor in filtered"
+            :key="sensor.id_sensor"
+            class="min-w-0 space-y-3 rounded-xl border border-slate-200 p-4"
+          >
+            <div
+              class="flex flex-wrap items-start justify-between gap-2"
+            >
+              <div class="min-w-0">
+                <h3
+                  class="break-words font-bold text-slate-900"
+                >
+                  {{ sensor.nombre }}
+                </h3>
+
+                <p
+                  class="mt-1 break-words text-sm text-slate-600"
+                >
+                  {{ sensor.tipo_sensor }}
+                  ·
+                  {{ predioName(sensor.id_predio) }}
+                </p>
+              </div>
+
+              <span
+                class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+              >
+                #{{ sensor.id_sensor }}
+              </span>
+            </div>
+
+            <div
+              class="flex flex-wrap gap-2 text-sm text-slate-700"
+            >
+              <span
+                class="rounded-full bg-slate-100 px-3 py-1"
+              >
+                {{ sensor.estado }}
+              </span>
+
+              <span>
+                {{
+                  sensor.ultima_lectura === null
+                    ? 'Sin lecturas'
+                    : `${sensor.ultima_lectura} ${sensor.unidad_medida}`
+                }}
+              </span>
+            </div>
+
+            <div class="flex flex-wrap gap-2 pt-2">
+              <button
+                type="button"
+                class="min-h-11 rounded-xl border border-slate-200 px-3 text-sm text-slate-700"
+                @click="openDetail(sensor.id_sensor)"
+              >
+                Ver detalle
+              </button>
+
+              <button
+                type="button"
+                class="min-h-11 rounded-xl border border-orange-200 px-3 text-sm font-medium text-orange-700"
+                @click="editForm(sensor)"
+              >
+                Editar
+              </button>
+
+              <button
+                type="button"
+                class="min-h-11 rounded-xl border border-red-200 px-3 text-sm text-red-700"
+                @click="remove(sensor)"
+              >
+                Eliminar
+              </button>
+            </div>
+          </article>
         </div>
 
-        <!-- Tabla -->
-        <div class="mt-5 overflow-x-auto">
+        <!-- Tabla en escritorio -->
+        <div class="hidden overflow-x-auto lg:block">
           <table
-            class="min-w-full text-left text-sm text-slate-300"
+            class="w-full min-w-[800px] text-left text-sm text-slate-700"
           >
             <thead
-              class="text-[10px] uppercase tracking-[0.2em] text-slate-400"
+              class="bg-slate-50 text-xs uppercase tracking-wide text-slate-600"
             >
               <tr>
-                <th class="pb-3">ID</th>
-                <th class="pb-3">Nombre</th>
-                <th class="pb-3">Tipo</th>
-                <th class="pb-3">Estado</th>
-                <th class="pb-3">
+                <th scope="col" class="px-4 py-3">
+                  Sensor
+                </th>
+                <th scope="col" class="px-4 py-3">
+                  Tipo
+                </th>
+                <th scope="col" class="px-4 py-3">
+                  Predio
+                </th>
+                <th scope="col" class="px-4 py-3">
+                  Estado
+                </th>
+                <th scope="col" class="px-4 py-3">
                   Última lectura
                 </th>
-                <th class="pb-3">
-                  Ubicación
-                </th>
-                <th class="pb-3">
+                <th
+                  scope="col"
+                  class="px-4 py-3 text-right"
+                >
                   Acciones
                 </th>
               </tr>
@@ -481,344 +996,554 @@ watch(
 
             <tbody>
               <tr
-                v-for="sensor in filteredSensors"
+                v-for="sensor in filtered"
                 :key="sensor.id_sensor"
-                class="border-t border-slate-800 align-top"
+                class="border-t border-slate-100 hover:bg-slate-50"
               >
-                <!-- ID -->
                 <td
-                  class="py-3 font-medium text-white"
+                  class="max-w-60 break-words px-4 py-4"
                 >
-                  {{ sensor.id_sensor }}
-                </td>
-
-                <!-- Nombre -->
-                <td class="py-3">
                   <div
-                    class="flex items-center gap-3"
+                    class="font-semibold text-slate-900"
                   >
-                    <div
-                      class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 text-orange-300"
-                    >
-                      <Wifi class="h-4 w-4" />
-                    </div>
+                    {{ sensor.nombre }}
+                  </div>
 
-                    <div>
-                      <div
-                        class="font-medium text-white"
-                      >
-                        {{ sensor.nombre }}
-                      </div>
-
-                      <div
-                        class="text-xs text-slate-400"
-                      >
-                        {{ sensor.modelo }}
-                      </div>
-                    </div>
+                  <div class="mt-1 text-xs text-slate-500">
+                    #{{ sensor.id_sensor }}
                   </div>
                 </td>
 
-                <!-- Tipo -->
-                <td class="py-3">
+                <td
+                  class="max-w-40 break-words px-4 py-4"
+                >
                   {{ sensor.tipo_sensor }}
                 </td>
 
-                <!-- Estado -->
-                <td class="py-3">
-                  <StatusBadge
-                    :tone="
-                      sensor.estado === 'Activo'
-                        ? 'success'
-                        : sensor.estado === 'Mantenimiento'
-                          ? 'warning'
-                          : sensor.estado === 'Error'
-                            ? 'danger'
-                            : 'neutral'
-                    "
-                    :state="sensor.estado"
+                <td
+                  class="max-w-56 break-words px-4 py-4"
+                >
+                  {{ predioName(sensor.id_predio) }}
+                </td>
+
+                <td class="px-4 py-4">
+                  <span
+                    class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
                   >
                     {{ sensor.estado }}
-                  </StatusBadge>
-                </td>
-
-                <!-- Última lectura -->
-                <td class="py-3">
-                  <span
-                    v-if="sensor.ultima_lectura !== null"
-                    class="font-medium text-white"
-                  >
-                    {{ sensor.ultima_lectura }}
-                    {{ sensor.unidad_medida }}
-                  </span>
-
-                  <span
-                    v-else
-                    class="text-slate-500"
-                  >
-                    Sin lecturas
                   </span>
                 </td>
 
-                <!-- Ubicación -->
-                <td class="py-3">
-                  {{ sensor.ubicacion }}
+                <td class="px-4 py-4">
+                  {{
+                    sensor.ultima_lectura === null
+                      ? 'Sin lecturas'
+                      : `${sensor.ultima_lectura} ${sensor.unidad_medida}`
+                  }}
                 </td>
 
-                <!-- Acción -->
-                <td class="py-3">
-                  <div class="flex flex-col gap-2">
+                <td class="px-4 py-4">
+                  <div class="flex justify-end gap-2">
                     <button
-                      class="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-orange-500 hover:text-white"
-                      @click="openSensor(sensor)"
+                      type="button"
+                      aria-label="Ver detalle"
+                      title="Ver detalle"
+                      class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-slate-700"
+                      @click="openDetail(sensor.id_sensor)"
                     >
-                      Ver detalle
-
-                      <ArrowRight
-                        class="h-3.5 w-3.5"
-                      />
+                      <Eye class="mx-auto h-4 w-4" />
                     </button>
 
-                    <div class="flex gap-2">
-                      <button
-                        type="button"
-                        class="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 hover:border-orange-500 hover:text-white"
-                        @click="openEditSensor(sensor)"
-                      >
-                        Editar
-                      </button>
+                    <button
+                      type="button"
+                      aria-label="Editar sensor"
+                      title="Editar"
+                      class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-orange-700"
+                      @click="editForm(sensor)"
+                    >
+                      <Pencil class="mx-auto h-4 w-4" />
+                    </button>
 
-                      <button
-                        type="button"
-                        class="rounded-lg border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-[11px] font-medium text-red-200 hover:bg-red-500/20"
-                        @click="deleteSensor(sensor)"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      aria-label="Eliminar sensor"
+                      title="Eliminar"
+                      class="min-h-11 min-w-11 rounded-xl border border-red-200 text-red-700"
+                      @click="remove(sensor)"
+                    >
+                      <Trash2 class="mx-auto h-4 w-4" />
+                    </button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+      </template>
+    </section>
 
-        <!-- Sin resultados -->
-        <div
-          v-if="filteredSensors.length === 0"
-          class="py-10 text-center text-sm text-slate-500"
-        >
-          No se encontraron sensores.
-        </div>
-      </section>
-
-      <!-- Detalle del sensor -->
-      <aside
-        v-if="sensorDetail"
-        class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
+    <!-- Detalle del sensor -->
+    <section
+      v-if="route.params.id"
+      class="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+      aria-label="Detalle del sensor"
+    >
+      <header
+        class="mb-4 flex flex-wrap items-start justify-between gap-3"
       >
-        <div
-          class="mb-4 flex items-center justify-between"
-        >
-          <div>
-            <p
-              class="text-[10px] uppercase tracking-[0.22em] text-slate-400"
-            >
-              Detalle
-            </p>
-
-            <h2
-              class="mt-2 text-xl font-semibold text-white"
-            >
-              {{ sensorDetail.nombre }}
-            </h2>
-          </div>
-
-          <StatusBadge
-            :tone="
-              sensorDetail.estado === 'Activo'
-                ? 'success'
-                : sensorDetail.estado === 'Mantenimiento'
-                  ? 'warning'
-                  : sensorDetail.estado === 'Error'
-                    ? 'danger'
-                    : 'neutral'
-            "
-            :state="sensorDetail.estado"
+        <div>
+          <h2
+            class="text-lg font-bold text-slate-900"
           >
-            {{ sensorDetail.estado }}
-          </StatusBadge>
+            Detalle del sensor
+          </h2>
+
+          <p class="mt-1 text-sm text-slate-600">
+            Información obtenida del backend
+          </p>
         </div>
 
-        <!-- Datos -->
+        <button
+          type="button"
+          class="min-h-11 rounded-xl border border-slate-200 px-4 text-sm text-slate-700"
+          @click="router.push('/sensores')"
+        >
+          Cerrar detalle
+        </button>
+      </header>
+
+      <p
+        v-if="detailLoading"
+        role="status"
+        class="py-5 text-sm text-slate-600"
+      >
+        Cargando detalle...
+      </p>
+
+      <p
+        v-else-if="detailError"
+        role="alert"
+        class="rounded-xl bg-red-50 p-4 text-sm text-red-800"
+      >
+        {{ detailError }}
+      </p>
+
+      <template v-else-if="selected">
+        <h3
+          class="mb-4 break-words text-xl font-bold text-slate-900"
+        >
+          {{ selected.nombre }}
+        </h3>
+
         <dl
-          class="space-y-3 text-sm text-slate-300"
+          class="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3"
         >
           <div
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
+            v-for="entry in [
+              { label: 'ID', value: selected.id_sensor },
+              { label: 'Tipo', value: selected.tipo_sensor },
+              { label: 'Predio', value: predioName(selected.id_predio) },
+              { label: 'Estado', value: selected.estado },
+              { label: 'Unidad', value: selected.unidad_medida || 'No registrada' },
+              { label: 'Modelo', value: selected.modelo || 'No registrado' },
+              { label: 'Fabricante', value: selected.fabricante || 'No registrado' },
+              { label: 'Fecha de instalación', value: dateLabel(selected.fecha_instalacion) },
+              { label: 'Rango mínimo', value: selected.rango_min ?? 'No registrado' },
+              { label: 'Rango máximo', value: selected.rango_max ?? 'No registrado' },
+            ]"
+            :key="entry.label"
+            class="min-w-0 rounded-xl bg-slate-50 p-3"
           >
-            <dt>ID</dt>
-
-            <dd class="text-white">
-              {{ sensorDetail.id_sensor }}
-            </dd>
-          </div>
-
-          <div
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Tipo</dt>
-
-            <dd class="text-white">
-              {{ sensorDetail.tipo_sensor }}
-            </dd>
-          </div>
-
-          <div
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Unidad</dt>
-
-            <dd class="text-white">
-              {{ sensorDetail.unidad_medida }}
-            </dd>
-          </div>
-
-          <div
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Modelo</dt>
-
-            <dd class="text-white">
-              {{ sensorDetail.modelo }}
-            </dd>
-          </div>
-
-          <div
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Fabricante</dt>
-
-            <dd class="text-white">
-              {{ sensorDetail.fabricante }}
-            </dd>
-          </div>
-
-          <div
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Instalación</dt>
-
-            <dd class="text-white">
-              {{
-                new Date(
-                  sensorDetail.fecha_instalacion,
-                ).toLocaleDateString()
-              }}
-            </dd>
-          </div>
-
-          <div
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Ubicación</dt>
+            <dt
+              class="text-xs font-bold uppercase tracking-wide text-slate-600"
+            >
+              {{ entry.label }}
+            </dt>
 
             <dd
-              class="max-w-[220px] text-right text-white"
+              class="mt-1 break-words font-medium text-slate-900"
             >
-              {{ sensorDetail.ubicacion }}
-            </dd>
-          </div>
-
-          <div
-            v-if="sensorDetail.rango_min !== undefined"
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Rango mínimo</dt>
-
-            <dd class="text-white">
-              {{ sensorDetail.rango_min }}
-              {{ sensorDetail.unidad_medida }}
-            </dd>
-          </div>
-
-          <div
-            v-if="sensorDetail.rango_max !== undefined"
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Rango máximo</dt>
-
-            <dd class="text-white">
-              {{ sensorDetail.rango_max }}
-              {{ sensorDetail.unidad_medida }}
-            </dd>
-          </div>
-
-          <div
-            class="flex items-center justify-between border-b border-slate-800 pb-2"
-          >
-            <dt>Última lectura</dt>
-
-            <dd class="text-white">
-              <span
-                v-if="sensorDetail.ultima_lectura !== null"
-              >
-                {{ sensorDetail.ultima_lectura }}
-                {{ sensorDetail.unidad_medida }}
-              </span>
-
-              <span
-                v-else
-                class="text-slate-500"
-              >
-                Sin lecturas
-              </span>
+              {{ entry.value }}
             </dd>
           </div>
         </dl>
 
-        <!-- Lecturas -->
         <div
-          class="mt-5 rounded-xl border border-slate-800 bg-slate-950/60 p-4"
+          class="mt-5 rounded-xl border border-slate-200 p-4"
         >
+          <h4
+            class="font-bold text-slate-900"
+          >
+            Lecturas registradas
+          </h4>
+
+          <p
+            v-if="readingsLoading"
+            role="status"
+            class="mt-3 text-sm text-slate-600"
+          >
+            Consultando lecturas...
+          </p>
+
+          <p
+            v-else-if="readingsError"
+            role="alert"
+            class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
+          >
+            {{ readingsError }}
+          </p>
+
+          <p
+            v-else-if="!readings.length"
+            class="mt-3 text-sm text-slate-600"
+          >
+            Este sensor todavía no tiene lecturas.
+          </p>
+
           <div
-            class="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400"
+            v-else
+            class="mt-3 space-y-2"
           >
-            <Factory
-              class="h-4 w-4 text-orange-300"
-            />
-
-            Últimas lecturas
-          </div>
-
-          <ul
-            v-if="sensorReadings.length > 0"
-            class="space-y-2 text-sm text-slate-300"
-          >
-            <li
-              v-for="reading in sensorReadings.slice(0, 4)"
+            <div
+              v-for="reading in readings.slice(0, 10)"
               :key="reading.id_lectura"
-              class="flex items-center justify-between gap-2 rounded-lg bg-slate-900 px-2 py-2"
+              class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-3 text-sm"
             >
-              <span>
+              <span
+                class="font-medium text-slate-800"
+              >
                 {{ reading.variable }}
               </span>
 
-              <span class="text-white">
+              <span class="text-slate-800">
                 {{ reading.valor }}
                 {{ reading.unidad }}
+                ·
+                {{ reading.estado }}
               </span>
-            </li>
-          </ul>
-
-          <p
-            v-else
-            class="py-4 text-center text-sm text-slate-500"
-          >
-            Este sensor no tiene lecturas registradas.
-          </p>
+            </div>
+          </div>
         </div>
-      </aside>
-    </div>
-  </div>
+      </template>
+    </section>
+
+    <!-- Formulario modal -->
+    <Teleport to="body">
+      <div
+        v-if="formOpen"
+        class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/65 p-2 sm:p-5"
+        @click.self="closeForm"
+      >
+        <div
+          ref="formDialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sensor-dialog-title"
+          class="flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]"
+        >
+          <header
+            class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 p-4 sm:px-6"
+          >
+            <div class="min-w-0">
+              <p
+                class="text-xs font-bold uppercase tracking-widest text-orange-600"
+              >
+                Sensores
+              </p>
+
+              <h2
+                id="sensor-dialog-title"
+                class="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl"
+              >
+                {{
+                  editingId
+                    ? 'Editar sensor'
+                    : 'Crear sensor'
+                }}
+              </h2>
+
+              <p class="mt-1 text-sm text-slate-600">
+                Asocia el sensor a un predio registrado.
+                Los campos sin asterisco son opcionales.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="min-h-11 min-w-11 shrink-0 rounded-xl border border-slate-200"
+              aria-label="Cerrar formulario"
+              :disabled="saving"
+              @click="closeForm"
+            >
+              <X class="mx-auto h-5 w-5" />
+            </button>
+          </header>
+
+          <form
+            class="flex min-h-0 flex-1 flex-col"
+            @submit.prevent="save"
+          >
+            <div
+              class="min-h-0 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-6"
+            >
+              <p
+                v-if="formError"
+                role="alert"
+                class="break-words rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+              >
+                {{ formError }}
+              </p>
+
+              <div
+                v-if="predios.error"
+                role="alert"
+                class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+              >
+                No se pudieron cargar los predios:
+                {{ predios.error }}
+
+                <button
+                  type="button"
+                  class="ml-3 underline"
+                  @click="predios.fetchPredios()"
+                >
+                  Reintentar
+                </button>
+              </div>
+
+              <div
+                v-else-if="
+                  !predios.loading &&
+                  !predios.prediosDetail.length
+                "
+                class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+              >
+                No hay predios disponibles. Crea primero
+                un predio en la sección Predios.
+              </div>
+
+              <div
+                class="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2"
+              >
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Predio
+                  <span class="text-orange-600">*</span>
+
+                  <select
+                    v-model="form.id_predio"
+                    required
+                    class="form-input mt-1 font-normal"
+                    :disabled="
+                      predios.loading ||
+                      Boolean(predios.error) ||
+                      !predios.prediosDetail.length
+                    "
+                  >
+                    <option value="">
+                      {{
+                        predios.loading
+                          ? 'Cargando predios...'
+                          : 'Selecciona un predio'
+                      }}
+                    </option>
+
+                    <option
+                      v-for="predio in predios.prediosDetail"
+                      :key="predio.id_predio"
+                      :value="String(predio.id_predio)"
+                    >
+                      {{ predio.nombre }}
+                      (#{{ predio.id_predio }})
+                    </option>
+                  </select>
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Nombre del sensor
+                  <span class="text-orange-600">*</span>
+
+                  <input
+                    ref="firstInput"
+                    v-model="form.nombre"
+                    required
+                    maxlength="200"
+                    type="text"
+                    placeholder="Ej. Sensor de humo patio"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Tipo de sensor
+                  <span class="text-orange-600">*</span>
+
+                  <select
+                    v-model="form.tipo_sensor"
+                    required
+                    class="form-input mt-1 font-normal"
+                  >
+                    <option
+                      v-for="type in typeOptions"
+                      :key="type.value"
+                      :value="type.value"
+                    >
+                      {{ type.label }}
+                    </option>
+                  </select>
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Estado
+                  <span class="text-orange-600">*</span>
+
+                  <select
+                    v-model="form.estado"
+                    required
+                    class="form-input mt-1 font-normal"
+                  >
+                    <option
+                      value=""
+                      disabled
+                    >
+                      Selecciona un estado
+                    </option>
+
+                    <option
+                      v-for="state in SENSOR_STATES"
+                      :key="state.value"
+                      :value="state.value"
+                    >
+                      {{ state.label }}
+                    </option>
+                  </select>
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Unidad de medida
+
+                  <input
+                    v-model="form.unidad_medida"
+                    type="text"
+                    maxlength="50"
+                    placeholder="Ej. ppm, °C"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Modelo
+
+                  <input
+                    v-model="form.modelo"
+                    type="text"
+                    maxlength="100"
+                    placeholder="Ej. MQ-2"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Fabricante
+
+                  <input
+                    v-model="form.fabricante"
+                    type="text"
+                    maxlength="100"
+                    placeholder="Nombre del fabricante"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Fecha de instalación
+
+                  <input
+                    v-model="form.fecha_instalacion"
+                    type="date"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Rango mínimo
+
+                  <input
+                    v-model="form.rango_min"
+                    type="number"
+                    step="any"
+                    placeholder="Ingrese rango"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+
+                <label
+                  class="min-w-0 text-sm font-semibold text-slate-700"
+                >
+                  Rango máximo
+
+                  <input
+                    v-model="form.rango_max"
+                    type="number"
+                    step="any"
+                    placeholder="Ingrese un rango"
+                    class="form-input mt-1 font-normal"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <footer
+              class="flex shrink-0 flex-col gap-2 border-t border-slate-200 bg-slate-50 p-4 sm:flex-row sm:justify-end sm:px-6"
+            >
+              <button
+                type="button"
+                class="min-h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700"
+                :disabled="saving"
+                @click="closeForm"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="submit"
+                class="min-h-11 rounded-xl bg-orange-600 px-5 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-50"
+                :disabled="
+                  saving ||
+                  predios.loading ||
+                  Boolean(predios.error) ||
+                  !predios.prediosDetail.length
+                "
+              >
+                {{
+                  saving
+                    ? 'Guardando...'
+                    : editingId
+                      ? 'Guardar cambios'
+                      : 'Crear sensor'
+                }}
+              </button>
+            </footer>
+          </form>
+        </div>
+      </div>
+    </Teleport>
+  </main>
 </template>

@@ -1,44 +1,23 @@
 # ALERTA Móvil
 
-Aplicación móvil de demostración para prevención y atención de incendios, construida con Ionic Vue y Capacitor. Es un proyecto independiente del frontend web de ALERTA.
+Aplicación móvil Ionic/Vue para los roles Usuario de Institución y Ciudadano.
 
-## Requisitos
-
-- Node.js 20.19+ o 22.12+
-- npm
-- Para Android: Android Studio y Android SDK
-
-## Ejecutar en navegador
+## Desarrollo y build
 
 ```bash
 npm install
-npx --yes @ionic/cli serve
-```
-
-También puede iniciarse con `npm run dev`.
-
-## Verificar y compilar
-
-```bash
-npm run lint
+npm run dev
 npm run build
 ```
 
-## Android
+## Contratos de datos
 
-La configuración de Capacitor usa `dist` como salida web. Después de compilar:
+Los contratos esperados para la futura API están en `src/types/contracts.ts`. Son equivalentes a los del frontend web (`../src/types/contracts.ts`) pero se mantienen duplicados para no crear una dependencia entre proyectos.
 
-```bash
-npx cap add android
-npx cap sync android
-npx cap open android
+Actualmente la app móvil no tiene carpetas propias de mocks, services o stores; las vistas no consumen todavía estos DTO mediante una capa de datos. No se han agregado endpoints ni llamadas de red. Los ejemplos, enums, fechas ISO, relaciones y diferencias legacy están documentados en [`../docs/frontend-data-contracts.md`](../docs/frontend-data-contracts.md).
+
+Flujo futuro esperado:
+
+```text
+Vue View -> Pinia Store -> Service -> API Backend
 ```
-
-`npx cap add android` se ejecuta una sola vez. Para actualizar los recursos web nativos en adelante, ejecuta `npm run build` y `npx cap sync android`.
-
-## Flujos disponibles
-
-- **Usuario de institución:** panel de emergencias, alertas, detalle con actualización de estado e historial.
-- **Ciudadano:** inicio, envío de reporte con fotografía, seguimiento de reportes, notificaciones e instrucciones.
-
-Los datos y servicios actuales son demostrativos y se mantienen localmente en mocks. No se conecta a un backend; Cámara y Geolocalización de Capacitor están instaladas para una futura integración nativa.

@@ -1,30 +1,54 @@
-import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { notificationsMock } from '../mocks/notifications'
+import { defineStore } from 'pinia'
+import type { Notification } from '../types'
 import { notificationService } from '../services/notification.service'
-import type { NotificationItem } from '../types'
 
 export const useNotificationStore = defineStore('notification', () => {
-  const notifications = ref<NotificationItem[]>([...notificationsMock])
-  const isLoading = ref(false)
+  const notifications = ref<Notification[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-  const fetchNotifications = async () => {
-    isLoading.value = true
+  async function fetchNotifications() {
+    loading.value = true
+    error.value = null
+
     try {
       notifications.value = await notificationService.getNotifications()
+      return notifications.value
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudieron cargar las notificaciones.'
+      error.value = message
+      throw err
     } finally {
-      isLoading.value = false
+      loading.value = false
     }
   }
 
-  const markAsRead = async () => {
-    await notificationService.markAsRead()
+  async function markAsRead(id: string) {
+    await notificationService.markAsRead(id)
+    notifications.value = notifications.value.map((item) =>
+      item.id === id ? { ...item, read: true } : item,
+    )
+  }
+
+  async function markAllAsRead() {
+    await notificationService.markAllAsRead()
+    notifications.value = notifications.value.map((item) => ({ ...item, read: true }))
+  }
+
+  function clear() {
+    notifications.value = []
+    loading.value = false
+    error.value = null
   }
 
   return {
     notifications,
-    isLoading,
+    loading,
+    error,
+    clear,
     fetchNotifications,
     markAsRead,
+    markAllAsRead,
   }
 })

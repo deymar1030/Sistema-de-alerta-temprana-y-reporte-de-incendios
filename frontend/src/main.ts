@@ -76,7 +76,7 @@ router.beforeEach(async (to) => {
   const effectiveRole = authStore.role
 
   if (!user) {
-    if (to.path === '/login') {
+    if (['/login', '/ciudadano/welcome', '/ciudadano/login', '/ciudadano/registro', '/ciudadano/recuperar-password'].includes(to.path)) {
       return true
     }
 

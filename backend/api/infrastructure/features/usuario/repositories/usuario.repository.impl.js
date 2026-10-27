@@ -36,12 +36,14 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     return await this.prisma.usuario.findMany({
       where,
       orderBy: { id_usuario: "asc" },
+      include: { rol: { select: { nombre_rol: true } } },
     });
   }
 
   async findById(id) {
     return await this.prisma.usuario.findUnique({
       where: { id_usuario: Number(id) },
+      include: { rol: { select: { nombre_rol: true } } },
     });
   }
 
@@ -54,6 +56,7 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
         rol: { nombre_rol },
       },
       orderBy: { id_usuario: "asc" },
+      include: { rol: { select: { nombre_rol: true } } },
     });
   }
 
@@ -66,6 +69,7 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
         nombre: usuarioData.nombre,
         telefono: usuarioData.telefono,
         correo: usuarioData.correo,
+        contrasena: usuarioData.contrasena,
         primer_apellido: usuarioData.primer_apellido,
         segundo_apellido: usuarioData.segundo_apellido,
       }),
@@ -77,6 +81,7 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     return await this.prisma.usuario.update({
       where: { id_usuario: Number(id) },
       data: { fecha_eliminacion: new Date(), estado: false },
+      include: { rol: { select: { nombre_rol: true } } },
     });
   }
 
@@ -84,6 +89,7 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     return await this.prisma.usuario.update({
       where: { id_usuario: Number(id) },
       data: { fecha_eliminacion: null, estado: true },
+      include: { rol: { select: { nombre_rol: true } } },
     });
   }
 }

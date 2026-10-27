@@ -81,7 +81,7 @@ Se bloquea la fila del predio dentro de una transacción para serializar ingesta
 - Reenvío exacto de sensor + fecha + valor: sin duplicar filas ni eventos. Igual fecha con distinto valor: inválido.
 - Lectura aceptada: `VALIDA` o `ANOMALA`, asociada al episodio activo cuando corresponde.
 - PUBACK se entrega al terminar el procesamiento. Si falla la persistencia, se interrumpe la conexión y el broker puede volver a entregar el mensaje.
-- Confirmación, envíos a instituciones activas de la jurisdicción y notificaciones a sus jefes activos se guardan en una misma transacción.
+- Confirmación, envíos a todas las instituciones registradas, sin filtro territorial, y notificaciones a sus jefes activos se guardan en una misma transacción.
 
 Las confirmadas/atendidas permanecen abiertas hasta el cierre operativo de todos sus envíos. Nuevas lecturas normales no las cierran. Un monitor cada 15 segundos descarta evaluaciones vencidas incluso tras reiniciar o perder los sensores.
 

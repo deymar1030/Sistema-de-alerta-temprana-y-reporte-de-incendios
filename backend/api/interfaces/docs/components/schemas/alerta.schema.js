@@ -84,6 +84,61 @@
  *               nullable: true
  *               description: Reporte ciudadano que originó la alerta, si aplica.
  *
+ *     AlertaMapaUbicacion:
+ *       type: object
+ *       properties:
+ *         origen:
+ *           type: string
+ *           enum: [PREDIO, REPORTE]
+ *         id_predio:
+ *           type: integer
+ *           nullable: true
+ *         id_reporte_u:
+ *           type: integer
+ *           nullable: true
+ *         nombre:
+ *           type: string
+ *           nullable: true
+ *         ubicacion_tipo:
+ *           type: string
+ *           nullable: true
+ *         latitud:
+ *           type: number
+ *           example: -16.5
+ *         longitud:
+ *           type: number
+ *           example: -68.15
+ *
+ *     AlertaMapa:
+ *       type: object
+ *       properties:
+ *         id_alerta:
+ *           type: integer
+ *           example: 7
+ *         estado:
+ *           type: string
+ *           enum: [EN_EVALUACION, CONFIRMADA, ATENDIDA]
+ *           example: "CONFIRMADA"
+ *         clasificacion:
+ *           type: string
+ *           nullable: true
+ *           example: "INCENDIO"
+ *         fecha:
+ *           type: string
+ *           format: date
+ *         hora:
+ *           type: string
+ *         ubicaciones:
+ *           type: array
+ *           description: La del predio del sensor que la detecto y/o la del reporte ciudadano que la origino, segun cual exista.
+ *           items:
+ *             $ref: '#/components/schemas/AlertaMapaUbicacion'
+ *
+ *     AlertaMapaListResponse:
+ *       type: array
+ *       items:
+ *         $ref: '#/components/schemas/AlertaMapa'
+ *
  *     Envio:
  *       type: object
  *       properties:

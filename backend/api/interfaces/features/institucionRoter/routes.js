@@ -13,9 +13,6 @@ export class InstitucionRouter {
     router.put("/:id", institucionController.update);
     router.delete("/:id", institucionController.remove);
 
-    router.get("/:id/jurisdicciones", institucionController.listJurisdicciones);
-    router.post("/:id/jurisdicciones", institucionController.addJurisdiccion);
-    router.delete("/:id/jurisdicciones/:id_zona", institucionController.removeJurisdiccion);
 
     return router;
   }

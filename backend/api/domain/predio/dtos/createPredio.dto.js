@@ -39,11 +39,10 @@ export class CreatePredioDTO {
     this.nivel_proteccion = nivel_proteccion;
   }
 
-  static validate({ id_zona, id_motordet, tipo_predio, nombre, direccion, latitud, longitud, contrasena_mqtt }) {
+  static validate({ id_zona, tipo_predio, nombre, direccion, latitud, longitud, contrasena_mqtt }) {
     const errors = [];
 
     if (!id_zona) errors.push("Missing id_zona");
-    if (!id_motordet) errors.push("Missing id_motordet");
     if (!tipo_predio) errors.push("Missing tipo_predio");
     else if (!TIPOS_PREDIO.includes(tipo_predio)) errors.push(`tipo_predio must be one of: ${TIPOS_PREDIO.join(", ")}`);
     if (!nombre) errors.push("Missing nombre");

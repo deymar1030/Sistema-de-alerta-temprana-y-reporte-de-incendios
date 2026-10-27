@@ -21,6 +21,8 @@ export default class PrismaZonaGeograficaRepository extends ZonaGeograficaReposi
 
   async findAll() {
     return await this.prisma.zona_geografica.findMany({
+      // Las zonas con baja logica (estado: false) no deben llegar al frontend.
+      where: { estado: true },
       orderBy: { id_zona: "asc" },
     });
   }

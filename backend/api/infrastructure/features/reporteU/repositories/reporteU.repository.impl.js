@@ -18,6 +18,7 @@ export default class PrismaReporteURepository extends ReporteURepository {
         longitud: reporteUData.longitud,
         indicador: reporteUData.indicador,
         foto_url: reporteUData.foto_url,
+        ubicacion_tipo: reporteUData.ubicacion_tipo,
       },
     });
   }
@@ -29,7 +30,7 @@ export default class PrismaReporteURepository extends ReporteURepository {
   }
 
   async findAlertaVinculada(id_reporte_u) {
-    const vinculo = await this.prisma.generaru.findFirst({
+    const vinculo = await this.prisma.genera_ru.findFirst({
       where: { id_reporte_u: Number(id_reporte_u) },
       include: { alerta: true },
     });
@@ -66,7 +67,7 @@ export default class PrismaReporteURepository extends ReporteURepository {
   }
 
   async vincularAlerta(id, id_alerta) {
-    await this.prisma.generaru.create({
+    await this.prisma.genera_ru.create({
       data: { id_reporte_u: Number(id), id_alerta: Number(id_alerta) },
     });
 

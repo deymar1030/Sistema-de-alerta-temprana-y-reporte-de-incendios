@@ -37,7 +37,8 @@ CREATE TABLE politica (
     activar_emergencia      BOOLEAN NOT NULL DEFAULT FALSE,
     ver_auditoria           BOOLEAN NOT NULL DEFAULT FALSE,
     gestionar_usuarios      BOOLEAN NOT NULL DEFAULT FALSE,
-    crear_admin             BOOLEAN NOT NULL DEFAULT FALSE
+    crear_admin             BOOLEAN NOT NULL DEFAULT FALSE,
+    puede_moderar_reportes  BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- ======================
@@ -119,23 +120,7 @@ CREATE TABLE sesion (
 );
 
 -- ======================
--- Tabla cubre_jurisdiccion
--- ======================
-
-CREATE TABLE cubre_jurisdiccion (
-    id_zona         BIGINT NOT NULL,
-    id_institucion  BIGINT NOT NULL,
-
-    CONSTRAINT pk_cubre_jurisdiccion PRIMARY KEY (id_zona, id_institucion),
-
-    CONSTRAINT fk_jurisdiccion_zona
-        FOREIGN KEY (id_zona) REFERENCES zona_geografica(id_zona)
-        ON UPDATE CASCADE ON DELETE CASCADE,
-
-    CONSTRAINT fk_jurisdiccion_institucion
-        FOREIGN KEY (id_institucion) REFERENCES institucion(id_institucion)
-        ON UPDATE CASCADE ON DELETE CASCADE
-);
+-- Alertas distribuidas a todas las instituciones registradas.
 
 -- ======================
 -- Tabla auditoria
@@ -181,6 +166,10 @@ CREATE TABLE reporte_u (
     longitud         NUMERIC(9,6),
     indicador        TEXT,
     foto_url         VARCHAR(500),
+    -- 'EN_SITIO': el ciudadano esta en el lugar, las coordenadas son el incendio.
+    -- 'CERCANA': el ciudadano esta cerca pero no en el lugar exacto.
+    -- NULL: no se especifico (reportes anteriores a este cambio).
+    ubicacion_tipo   VARCHAR(20),
 
     CONSTRAINT fk_reporte_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
@@ -269,6 +258,10 @@ CREATE TABLE envia (
     estado                VARCHAR(10) NOT NULL,
     fecha_envio           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion   TIMESTAMP,
+    -- NUEVO
+    ruta_json             TEXT,
+    ruta_calculada_en     TIMESTAMP,
+    ruta_error            VARCHAR(200),
 
     CONSTRAINT pk_envia PRIMARY KEY (id_alerta, id_institucion),
 
@@ -321,7 +314,7 @@ CREATE TABLE parametro_variable (
 CREATE TABLE predio (
     id_predio             BIGSERIAL PRIMARY KEY,
     id_zona               BIGINT NOT NULL,
-    id_motordet           BIGINT NOT NULL,
+    id_motordet           BIGINT,
     tipo_predio           VARCHAR(20) NOT NULL,
     nombre                VARCHAR(100) NOT NULL,
     direccion             VARCHAR(200) NOT NULL,
@@ -336,6 +329,8 @@ CREATE TABLE predio (
     material_construccion SMALLINT,
     ocupacion             SMALLINT,
     nivel_proteccion      SMALLINT,
+    contrasena_mqtt       VARCHAR(60),
+    activo                BOOLEAN NOT NULL DEFAULT TRUE,
 
     CONSTRAINT fk_predio_zona
         FOREIGN KEY (id_zona) REFERENCES zona_geografica(id_zona)

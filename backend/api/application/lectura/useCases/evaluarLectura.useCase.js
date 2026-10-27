@@ -2,33 +2,43 @@ import { resolverConfiguracion } from '../../../domain/motorDeteccion/configurac
 import { evaluarPredio, inicioAlerta } from '../../../domain/motorDeteccion/evaluarPredio.js';
 import { ResponseAlertaDTO } from '../../../domain/alerta/dtos/responseAlerta.dto.js';
 import { ResponseLecturaDTO } from '../../../domain/lectura/dtos/responseLectura.dto.js';
+import { calcularRutasEnvios } from '../../alerta/calcularRutasEnvios.js';
 
 const predioPublico = (p) => ({ id_predio: p.id_predio, nombre: p.nombre, tipo_predio: p.tipo_predio,
   latitud: Number(p.latitud), longitud: Number(p.longitud), irp: p.irp == null ? null : Number(p.irp) });
 
 export class EvaluarLecturaUseCase {
-  constructor({ repository, notifier, configuracion = {}, reloj = () => new Date(), logger = console }) {
-    Object.assign(this, { repository, notifier, configuracion, reloj, logger });
+  constructor({
+    repository, notifier, configuracion = {}, reloj = () => new Date(), logger = console,
+    calculadoraRutasRepository = null, enviaRepository = null,
+  }) {
+    Object.assign(this, { repository, notifier, configuracion, reloj, logger, calculadoraRutasRepository, enviaRepository });
   }
   async publicar(resultado) {
     for (const [metodo, payload] of resultado.eventos ?? []) {
       try { await this.notifier[metodo](payload); }
       catch (error) { this.logger.error(`[deteccion] evento posterior al commit: ${metodo}`, error.message); }
     }
+    calcularRutasEnvios(resultado.rutasPendientes, {
+      calculadoraRutasRepository: this.calculadoraRutasRepository,
+      enviaRepository: this.enviaRepository,
+      logger: this.logger,
+    });
     return resultado;
   }
-  async resolverAlerta(tx, contexto, alerta, resultado, ahora, eventos, nueva = false) {
+  async resolverAlerta(tx, contexto, alerta, resultado, ahora, eventos, rutasPendientes, nueva = false) {
     if (!alerta || alerta.estado !== 'EN_EVALUACION') return alerta;
     const actualizada = await tx.actualizarAlerta(alerta, resultado, ahora);
     const payload = { ...ResponseAlertaDTO.fromEntity(actualizada), id_predio: contexto.predio.id_predio,
       predio: predioPublico(contexto.predio), sensores: resultado.sensores,
       datos_suficientes: resultado.datosSuficientes, confirmacion_disponible: resultado.confirmacionDisponible };
     if (actualizada.estado === 'CONFIRMADA') {
-      const { envios, notificaciones } = await tx.distribuir(actualizada, contexto.predio, ahora);
+      const { envios, notificaciones, rutasPendientes: nuevasRutas } = await tx.distribuir(actualizada, contexto.predio, ahora);
       Object.assign(payload, await tx.detalle(actualizada));
       eventos.push(['emitAlertaConfirmada', payload]);
       envios.forEach((e) => eventos.push(['emitEnvioActualizado', e]));
       notificaciones.forEach((n) => eventos.push(['emitNotificacion', n]));
+      rutasPendientes.push(...nuevasRutas);
     } else if (actualizada.estado === 'DESCARTADA') {
       eventos.push(['emitAlertaDescartada', payload]);
     } else {
@@ -40,6 +50,7 @@ export class EvaluarLecturaUseCase {
     const ahora = this.reloj();
     const resultado = await this.repository.enPredio(lectura.id_predio, async (tx) => {
       const eventos = [];
+      const rutasPendientes = [];
       const sensor = await tx.sensor(lectura.id_sensor);
       if (!sensor || String(sensor.id_predio) !== String(lectura.id_predio)) return { ignorada: 'SENSOR_NO_PERTENECE_AL_PREDIO', eventos };
       if (sensor.estado !== 'ACTIVO') return { ignorada: 'SENSOR_INACTIVO', eventos };
@@ -70,8 +81,8 @@ export class EvaluarLecturaUseCase {
       }
       const guardada = await tx.registrarLectura(lectura, sensor, senal.anomala ? 'ANOMALA' : 'VALIDA', alerta?.id_alerta ?? null);
       eventos.push(['emitLecturaNueva', { ...ResponseLecturaDTO.fromEntity(guardada), id_predio: sensor.id_predio }]);
-      alerta = await this.resolverAlerta(tx, contexto, alerta, evaluacion, ahora, eventos, nueva);
-      return { lectura: guardada, alerta, eventos };
+      alerta = await this.resolverAlerta(tx, contexto, alerta, evaluacion, ahora, eventos, rutasPendientes, nueva);
+      return { lectura: guardada, alerta, eventos, rutasPendientes };
     });
     if (resultado.ignorada) this.logger.warn(`[deteccion] ${resultado.ignorada}: predio=${lectura.id_predio} sensor=${lectura.id_sensor}`);
     return this.publicar(resultado);
@@ -81,6 +92,7 @@ export class EvaluarLecturaUseCase {
       const ahora = this.reloj();
       const resultado = await this.repository.enPredio(id, async (tx) => {
         const eventos = [];
+        const rutasPendientes = [];
         const alerta = await tx.alertaActiva(id);
         if (!alerta || alerta.estado !== 'EN_EVALUACION') return { eventos };
         const contexto = await tx.contexto(id, ahora);
@@ -88,8 +100,8 @@ export class EvaluarLecturaUseCase {
         const config = resolverConfiguracion(contexto.motor, this.configuracion);
         const evaluacion = evaluarPredio({ ...contexto, config, ahora, alerta });
         // Sin lecturas nuevas no se inventa una confirmacion. El plazo del episodio se cumple aun con sensores caidos.
-        await this.resolverAlerta(tx, contexto, alerta, { ...evaluacion, estado: 'DESCARTADA', clasificacion: 'SIN_EVIDENCIA' }, ahora, eventos);
-        return { eventos };
+        await this.resolverAlerta(tx, contexto, alerta, { ...evaluacion, estado: 'DESCARTADA', clasificacion: 'SIN_EVIDENCIA' }, ahora, eventos, rutasPendientes);
+        return { eventos, rutasPendientes };
       });
       await this.publicar(resultado);
     }

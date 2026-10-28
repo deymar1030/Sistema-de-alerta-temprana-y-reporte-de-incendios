@@ -1,42 +1,48 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { authService } from '../services/auth.service'
-import { storageService } from '../services/storage.service'
-import type { User, UserRole } from '../types'
-
-const STORAGE_KEY = 'alerta-mobile-role'
+import { connectRealtime, disconnectRealtime } from '../services/realtime'
+import type { User } from '../types'
 
 export const useAuthStore = defineStore('auth', () => {
-  const isUserRole = (value: unknown): value is UserRole => value === 'INSTITUTION_USER' || value === 'CITIZEN'
-  const role = ref<UserRole | null>(storageService.read(STORAGE_KEY, null, isUserRole))
   const user = ref<User | null>(null)
-
-  if (role.value) {
-    void authService.loginDemo(role.value).then((match) => {
-      user.value = match ?? null
-    })
+  
+  const currentRole = computed(() => user.value?.role ?? null)
+  const checkSession = async () => {
+    try {
+      const sessionUser = await authService.getMe()
+      if (sessionUser) {
+        user.value = sessionUser
+        connectRealtime()
+      }
+    } catch (error) {
+      user.value = null
+    }
   }
 
-  const currentRole = computed(() => role.value)
-
-  const setRole = async (nextRole: UserRole) => {
-    role.value = nextRole
-    storageService.write(STORAGE_KEY, nextRole)
-    const match = await authService.loginDemo(nextRole)
-    user.value = match ?? null
+  // 2. Iniciar sesión real (POST /auth/login)
+  const login = async (correo: string, contrasena: string) => {
+    const loggedUser = await authService.login(correo, contrasena)
+    user.value = loggedUser
+    connectRealtime()
+    return loggedUser
   }
 
-  const clearRole = () => {
-    role.value = null
-    user.value = null
-    storageService.remove(STORAGE_KEY)
+  // 3. Cerrar sesión (POST /auth/logout)
+  const logout = async () => {
+    try {
+      await authService.logout()
+    } finally {
+      user.value = null
+      disconnectRealtime()
+    }
   }
 
   return {
-    role,
     user,
     currentRole,
-    setRole,
-    clearRole,
+    checkSession,
+    login,
+    logout,
   }
 })

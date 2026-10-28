@@ -12,7 +12,7 @@
     "test:unit": "vitest"
   },
   "dependencies": {
-    "@capacitor/android": "^7.2.1",
+    "@capacitor/android": "^7.6.9",
     "@capacitor/camera": "^7.0.1",
     "@capacitor/cli": "^7.2.1",
     "@capacitor/core": "^7.2.1",
@@ -20,12 +20,17 @@
     "@capacitor/haptics": "^7.0.5",
     "@ionic/vue": "^9.0.0",
     "@ionic/vue-router": "^9.0.0",
+    "capacitor-native-settings": "^7.0.2",
     "ionicons": "^8.1.0",
+    "leaflet": "^1.9.4",
     "pinia": "^4.0.3",
+    "socket.io-client": "^4.8.4",
     "vue": "^3.5.41",
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@types/leaflet": "^1.9.22",
     "@vitejs/plugin-legacy": "^8.0.0",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/eslint-config-typescript": "^12.0.0",

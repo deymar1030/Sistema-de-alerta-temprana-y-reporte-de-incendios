@@ -1,16 +1,70 @@
 <script setup lang="ts">
-import { IonButton, IonCard, IonContent, IonHeader, IonIcon, IonPage, IonTitle, IonToolbar } from '@ionic/vue'
+import {
+  IonButton, IonButtons, IonCard, IonContent, IonHeader, IonIcon, IonPage,
+  IonRefresher, IonRefresherContent, IonTitle, IonToolbar, onIonViewWillEnter,
+  onIonViewDidEnter, onIonViewDidLeave
+} from '@ionic/vue'
 import { arrowForwardOutline, flameOutline, locationOutline, timeOutline } from 'ionicons/icons'
-import { onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useInstitutionAlertStore } from '../../stores/institution-alert.store'
 import EmptyState from '../../components/common/EmptyState.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
+import { socket } from '../../services/realtime'
+import type { AlertStatus } from '../../types'
 
 const alertStore = useInstitutionAlertStore()
 
-onMounted(async () => {
-  await alertStore.fetchAlerts()
+const error = ref('')
+const primeraCarga = ref(true)
+const cargando = computed(() => primeraCarga.value || alertStore.isLoading)
+
+const alertasOrdenadas = computed(() =>
+  [...alertStore.alerts].sort((a, b) => {
+    const fa = a.status === 'FINALIZADA' ? 1 : 0
+    const fb = b.status === 'FINALIZADA' ? 1 : 0
+    if (fa !== fb) return fa - fb
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+)
+
+const tono = (status: AlertStatus): 'success' | 'warning' | 'info' =>
+  status === 'FINALIZADA' ? 'success' : status === 'NUEVA' ? 'warning' : 'info'
+
+const fechaHora = (iso: string) =>
+  new Date(iso).toLocaleString('es-BO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+const cargar = async () => {
+  error.value = ''
+  try {
+    await alertStore.fetchAlerts()
+  } catch (e: any) {
+    console.error('Error cargando alertas', e)
+    error.value = e?.message || 'No se pudieron cargar las alertas.'
+  } finally {
+    primeraCarga.value = false
+  }
+}
+
+const refrescar = () => {
+  return cargar()
+}
+
+const onRefresh = async (event: any) => {
+  await refrescar()
+  event.target.complete()
+}
+
+onIonViewWillEnter(() => { cargar() })
+
+const eventos = ['alerta:abierta', 'alerta:actualizada', 'alerta:confirmada', 'alerta:descartada']
+
+onIonViewDidEnter(() => {
+  eventos.forEach((e) => socket.on(e, refrescar))
+})
+
+onIonViewDidLeave(() => {
+  eventos.forEach((e) => socket.off(e, refrescar))
 })
 </script>
 
@@ -21,29 +75,45 @@ onMounted(async () => {
         <ion-title>Alertas</ion-title>
       </ion-toolbar>
     </ion-header>
+
     <ion-content>
+      <ion-refresher slot="fixed" @ionRefresh="onRefresh">
+        <ion-refresher-content></ion-refresher-content>
+      </ion-refresher>
+
       <div class="container">
         <div class="section-title">Alertas recibidas</div>
 
-        <LoadingSpinner v-if="alertStore.isLoading" />
-        <EmptyState v-else-if="alertStore.alerts.length === 0" title="No tienes alertas pendientes" message="Las nuevas alertas aparecerán aquí." />
+        <div v-if="error" class="error-box">
+          <p>{{ error }}</p>
+          <ion-button size="small" fill="clear" @click="refrescar">Reintentar</ion-button>
+        </div>
+
+        <LoadingSpinner v-if="cargando" />
+        <EmptyState
+          v-else-if="alertStore.alerts.length === 0 && !error"
+          title="No tienes alertas pendientes"
+          message="Las nuevas alertas aparecerán aquí."
+        />
 
         <div v-else class="list">
-          <ion-card v-for="alert in alertStore.alerts" :key="alert.id" class="alert-item">
+          <ion-card v-for="alert in alertasOrdenadas" :key="alert.id" class="alert-item">
             <div class="card-head">
               <div>
-                <p class="muted">{{ alert.id }}</p>
+                <p class="muted">Alerta #{{ alert.id }}</p>
                 <h3>{{ alert.type }}</h3>
               </div>
-              <StatusBadge :state="alert.status" :tone="alert.status === 'FINALIZADA' ? 'success' : alert.status === 'NUEVA' ? 'warning' : 'info'" />
+              <StatusBadge :state="alert.status" :tone="tono(alert.status)" />
             </div>
             <p class="location"><ion-icon :icon="locationOutline" />{{ alert.location }}</p>
             <div class="meta-row">
               <span class="risk"><ion-icon :icon="flameOutline" />{{ alert.risk }}</span>
-              <span><ion-icon :icon="timeOutline" />{{ new Date(alert.createdAt).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) }}</span>
+              <span><ion-icon :icon="timeOutline" />{{ fechaHora(alert.createdAt) }}</span>
             </div>
             <div v-if="alert.incidentId" class="alert-action">
-              <ion-button size="small" fill="clear" :router-link="`/institucion/emergencia/${alert.incidentId}`">Ver detalle<ion-icon slot="end" :icon="arrowForwardOutline" /></ion-button>
+              <ion-button size="small" fill="clear" :router-link="`/institucion/emergencia/${alert.incidentId}`">
+                Ver detalle<ion-icon slot="end" :icon="arrowForwardOutline" />
+              </ion-button>
             </div>
           </ion-card>
         </div>
@@ -53,12 +123,19 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding-bottom: 24px;
+}
 .list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
   gap: 12px;
 }
 .alert-item {
+  margin: 0;
   padding: 16px;
 }
 .card-head {
@@ -86,13 +163,15 @@ onMounted(async () => {
   margin-top: 12px;
   font-size: 14px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
-.location ion-icon { color: var(--alerta-brand); font-size: 18px; }
+.location ion-icon { flex: none; color: var(--alerta-brand); font-size: 18px; }
 .meta-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
   margin-top: 10px;
   color: var(--alerta-muted);
   font-size: 12px;
@@ -116,5 +195,17 @@ onMounted(async () => {
   min-height: 38px;
   --box-shadow: none;
   font-size: 13px;
+}
+.error-box {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fdeeee;
+  color: #a33a33;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 </style>

@@ -1,61 +1,71 @@
-import { institutionAlerts } from '../mocks/institutionAlerts'
-import { storageService } from './storage.service'
 import type { AlertItem, AlertStatus, IncidentStatus, RiskLevel } from '../types'
 
-const STORAGE_KEY = 'alerta-mobile-institution-alerts'
-const alertStatuses: AlertStatus[] = ['NUEVA', 'RECIBIDA', 'EN_CAMINO', 'EN_SITIO', 'CONTROLADA', 'FINALIZADA']
-const riskLevels: RiskLevel[] = ['BAJO', 'MEDIO', 'ALTO', 'CRITICO']
-const alertSources: AlertItem['source'][] = ['sensor', 'citizen', 'manual']
+const API_URL = import.meta.env.VITE_API_URL || 'https://alertaincendios.duckdns.org/api'
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
+// Obtenemos dinámicamente el ID usando la cookie de sesión
+const getInstitutionId = async () => {
+  const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+  const json = await res.json()
+  return json.data?.id_institucion || 1
+}
 
-const isAlertItem = (value: unknown): value is AlertItem =>
-  isRecord(value) &&
-  typeof value.id === 'string' &&
-  (value.incidentId === undefined || typeof value.incidentId === 'string') &&
-  typeof value.type === 'string' &&
-  typeof value.location === 'string' &&
-  riskLevels.includes(value.risk as RiskLevel) &&
-  alertStatuses.includes(value.status as AlertStatus) &&
-  typeof value.createdAt === 'string' &&
-  !Number.isNaN(Date.parse(value.createdAt)) &&
-  typeof value.description === 'string' &&
-  typeof value.institutionId === 'string' &&
-  typeof value.distanceKm === 'number' &&
-  Number.isFinite(value.distanceKm) &&
-  alertSources.includes(value.source as AlertItem['source'])
-
-const isAlertList = (value: unknown): value is AlertItem[] => Array.isArray(value) && value.every(isAlertItem)
-const mockSnapshot = (): AlertItem[] => institutionAlerts.map((alert) => ({ ...alert }))
-const readAlerts = (): AlertItem[] => storageService.read(STORAGE_KEY, mockSnapshot(), isAlertList)
+const mapStatus = (estadoBackend: string): AlertStatus => {
+  if (estadoBackend === 'CONFIRMADA') return 'NUEVA'
+  if (estadoBackend === 'RECIBIDA') return 'RECIBIDA'
+  if (estadoBackend === 'ATENDIDA' || estadoBackend === 'EN_CURSO') return 'EN_CAMINO'
+  if (estadoBackend === 'CERRADA' || estadoBackend === 'FINALIZADA') return 'FINALIZADA'
+  return 'NUEVA'
+}
 
 export const institutionAlertService = {
   getInitialAlerts(): AlertItem[] {
-    return readAlerts()
+    return []
   },
 
   async getAlerts(): Promise<AlertItem[]> {
-    return readAlerts()
+    try {
+      const response = await fetch(`${API_URL}/alertas`, {
+        method: 'GET',
+        credentials: 'include' // <- Esto envía la cookie automáticamente
+      })
+
+      if (!response.ok) return []
+
+      const json = await response.json()
+      if (!json.success) return []
+
+      return json.data.map((item: any) => ({
+        id: String(item.id_alerta),
+        incidentId: String(item.id_alerta),
+        type: item.clasificacion || 'INCENDIO',
+        location: 'Ubicación de alerta',
+        risk: (item.puntaje > 0.8 ? 'CRITICO' : 'ALTO') as RiskLevel,
+        status: mapStatus(item.estado),
+        createdAt: item.fecha_confirmacion || new Date().toISOString(),
+        description: `Alerta detectada con puntaje ${item.puntaje}`,
+        institutionId: '1',
+        distanceKm: 0,
+        source: 'sensor'
+      }))
+    } catch (error) {
+      console.error('Error en getAlerts:', error)
+      return []
+    }
   },
 
   async updateStatus(id: string, status: AlertStatus): Promise<AlertItem | undefined> {
-    const alerts = readAlerts()
-    const item = alerts.find((alert) => alert.id === id)
-    if (!item) return undefined
-    const updated = { ...item, status }
-    const nextAlerts = alerts.map((alert) => alert.id === id ? updated : alert)
-    if (!storageService.write(STORAGE_KEY, nextAlerts)) throw new Error('STORAGE_UNAVAILABLE')
-    return updated
+    if (status === 'RECIBIDA') {
+      const instId = await getInstitutionId()
+      await fetch(`${API_URL}/alertas/${id}/instituciones/${instId}/recibir`, {
+        method: 'PATCH',
+        credentials: 'include'
+      })
+    }
+    const alertas = await this.getAlerts()
+    return alertas.find(a => a.id === id)
   },
 
   async updateByIncidentId(incidentId: string, status: IncidentStatus): Promise<AlertItem | undefined> {
-    const alerts = readAlerts()
-    const item = alerts.find((alert) => alert.incidentId === incidentId)
-    if (!item) return undefined
-    const updated = { ...item, status }
-    const nextAlerts = alerts.map((alert) => alert.incidentId === incidentId ? updated : alert)
-    if (!storageService.write(STORAGE_KEY, nextAlerts)) throw new Error('STORAGE_UNAVAILABLE')
-    return updated
+    return this.updateStatus(incidentId, status as AlertStatus)
   },
 }

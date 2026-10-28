@@ -1,99 +1,120 @@
-import { incidentsMock } from '../mocks/incidents'
-import { storageService } from './storage.service'
-import type { Incident, IncidentStatus, RiskLevel, TimelineEvent, TimelineEventType } from '../types'
+import type { Incident, IncidentStatus, RiskLevel } from '../types'
 
-const STORAGE_KEY = 'alerta-mobile-incidents'
-const incidentStatuses: IncidentStatus[] = ['NUEVA', 'RECIBIDA', 'EN_CAMINO', 'EN_SITIO', 'CONTROLADA', 'FINALIZADA']
-const riskLevels: RiskLevel[] = ['BAJO', 'MEDIO', 'ALTO', 'CRITICO']
-const timelineTypes: TimelineEventType[] = [
-  'ALERTA_RECIBIDA',
-  'RECEPCION_CONFIRMADA',
-  'UNIDAD_EN_CAMINO',
-  'LLEGADA_AL_LUGAR',
-  'INCENDIO_CONTROLADO',
-  'INTERVENCION_FINALIZADA',
-]
-const nextStatus: Partial<Record<IncidentStatus, IncidentStatus>> = {
-  NUEVA: 'RECIBIDA',
-  RECIBIDA: 'EN_CAMINO',
-  EN_CAMINO: 'EN_SITIO',
-  EN_SITIO: 'CONTROLADA',
-  CONTROLADA: 'FINALIZADA',
-}
-const eventByStatus: Partial<Record<IncidentStatus, TimelineEventType>> = {
-  RECIBIDA: 'RECEPCION_CONFIRMADA',
-  EN_CAMINO: 'UNIDAD_EN_CAMINO',
-  EN_SITIO: 'LLEGADA_AL_LUGAR',
-  CONTROLADA: 'INCENDIO_CONTROLADO',
-  FINALIZADA: 'INTERVENCION_FINALIZADA',
+const API_URL = import.meta.env.VITE_API_URL || 'https://alertaincendios.duckdns.org/api'
+
+const getInstitutionId = async () => {
+  const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+  const json = await res.json()
+  return json.data?.id_institucion || 1
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
+const mapStatus = (estadoBackend: string): IncidentStatus => {
+  if (estadoBackend === 'CONFIRMADA') return 'NUEVA'
+  if (estadoBackend === 'RECIBIDA') return 'RECIBIDA'
+  if (estadoBackend === 'ATENDIDA') return 'EN_CAMINO'
+  if (estadoBackend === 'CERRADA' || estadoBackend === 'FINALIZADA') return 'FINALIZADA'
+  return 'NUEVA'
+}
 
-const isTimelineEvent = (value: unknown): value is TimelineEvent =>
-  isRecord(value) &&
-  typeof value.id === 'string' &&
-  typeof value.timestamp === 'string' &&
-  !Number.isNaN(Date.parse(value.timestamp)) &&
-  timelineTypes.includes(value.type as TimelineEventType) &&
-  incidentStatuses.includes(value.status as IncidentStatus)
-
-const isIncident = (value: unknown): value is Incident =>
-  isRecord(value) &&
-  typeof value.id === 'string' &&
-  typeof value.title === 'string' &&
-  incidentStatuses.includes(value.status as IncidentStatus) &&
-  riskLevels.includes(value.risk as RiskLevel) &&
-  typeof value.location === 'string' &&
-  typeof value.address === 'string' &&
-  typeof value.description === 'string' &&
-  typeof value.institutionId === 'string' &&
-  typeof value.institutionName === 'string' &&
-  typeof value.createdAt === 'string' &&
-  !Number.isNaN(Date.parse(value.createdAt)) &&
-  typeof value.updatedAt === 'string' &&
-  !Number.isNaN(Date.parse(value.updatedAt)) &&
-  typeof value.distanceKm === 'number' &&
-  Number.isFinite(value.latitude) &&
-  Number.isFinite(value.longitude) &&
-  Array.isArray(value.timeline) &&
-  value.timeline.every(isTimelineEvent)
-
-const isIncidentList = (value: unknown): value is Incident[] => Array.isArray(value) && value.every(isIncident)
-
-const mockSnapshot = (): Incident[] => incidentsMock.map((incident) => ({ ...incident, timeline: [...incident.timeline] }))
-const readIncidents = (): Incident[] => storageService.read(STORAGE_KEY, mockSnapshot(), isIncidentList)
+// Función que traduce coordenadas a calle. Tiene un try-catch para no romper nada si falla.
+const obtenerDireccionReal = async (lat: number, lon: number): Promise<string> => {
+  if (!lat || !lon) return 'Ubicación en mapa';
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`, {
+      headers: { 'Accept-Language': 'es' }
+    });
+    const data = await res.json();
+    if (data && data.display_name) {
+      // Cortamos para que no sea un texto gigante
+      return data.display_name.split(',').slice(0, 3).join(', ');
+    }
+    return 'Ubicación en mapa';
+  } catch (error) {
+    return 'Ubicación en mapa';
+  }
+}
 
 export const incidentService = {
   getInitialIncidents(): Incident[] {
-    return readIncidents()
+    return []
   },
 
   async getIncidents(): Promise<Incident[]> {
-    return readIncidents()
+    try {
+      const response = await fetch(`${API_URL}/alertas/mapa`, {
+        method: 'GET',
+        credentials: 'include'
+      })
+
+      if (!response.ok) return []
+
+      const json = await response.json()
+      if (!json.success) return []
+
+      const emergenciasMap = await Promise.all(json.data.map(async (item: any) => {
+        const ubicacion = item.ubicaciones?.[0] || {}
+        
+        // CORRECCIÓN CLAVE: Forzar Number() para que el mapa Leaflet no explote
+        const latitud = Number(ubicacion.latitud) || 0;
+        const longitud = Number(ubicacion.longitud) || 0;
+        
+        let direccionFisica = ubicacion.nombre;
+        if (!direccionFisica || direccionFisica.trim() === '') {
+          direccionFisica = await obtenerDireccionReal(latitud, longitud);
+        }
+
+        return {
+          id: String(item.id_alerta),
+          title: item.clasificacion || 'Emergencia',
+          status: mapStatus(item.estado),
+          risk: 'ALTO' as RiskLevel,
+          location: ubicacion.ubicacion_tipo || 'Punto de incendio',
+          address: direccionFisica,
+          description: 'Emergencia reportada y confirmada en el sistema.',
+          institutionId: '1',
+          institutionName: 'Mi Institución',
+          createdAt: item.fecha && item.hora ? `${item.fecha}T${item.hora}` : new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          distanceKm: 0,
+          latitude: latitud,   // <--- Ahora siempre será un número válido para el mapa
+          longitude: longitud, // <--- Ahora siempre será un número válido para el mapa
+          timeline: []
+        }
+      }))
+
+      return emergenciasMap;
+    } catch (error) {
+      console.error('Error en getIncidents:', error)
+      return []
+    }
   },
 
   async updateStatus(id: string, status: IncidentStatus): Promise<Incident | undefined> {
-    const incidents = readIncidents()
-    const incident = incidents.find((item) => item.id === id)
-    if (!incident || nextStatus[incident.status] !== status) return undefined
+    try {
+      const instId = await getInstitutionId()
+      let endpoint = ''
 
-    const timestamp = new Date().toISOString()
-    const event: TimelineEvent = {
-      id: `EV-${Date.now()}`,
-      type: eventByStatus[status] ?? 'ALERTA_RECIBIDA',
-      timestamp,
-      status,
+      if (status === 'RECIBIDA') {
+        endpoint = `${API_URL}/alertas/${id}/instituciones/${instId}/recibir`
+      } else if (status === 'EN_CAMINO' || status === 'EN_SITIO' || status === 'CONTROLADA') {
+        endpoint = `${API_URL}/alertas/${id}/instituciones/${instId}/atender`
+      } else if (status === 'FINALIZADA') {
+        endpoint = `${API_URL}/alertas/${id}/instituciones/${instId}/cerrar`
+      }
+
+      if (endpoint) {
+        await fetch(endpoint, {
+          method: 'PATCH',
+          credentials: 'include'
+        })
+      }
+
+      const emergencias = await this.getIncidents()
+      return emergencias.find(e => e.id === id)
+
+    } catch (error) {
+      console.error('Error al actualizar el estado', error)
+      return undefined
     }
-    const updated: Incident = {
-      ...incident,
-      status,
-      updatedAt: timestamp,
-      timeline: [...incident.timeline, event],
-    }
-    const nextIncidents = incidents.map((item) => item.id === id ? updated : item)
-    if (!storageService.write(STORAGE_KEY, nextIncidents)) throw new Error('STORAGE_UNAVAILABLE')
-    return updated
   },
 }

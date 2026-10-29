@@ -27,10 +27,13 @@ export default class PrismaEnviaRepository extends EnviaRepository {
       const envio = await db.envia.update({ where, data: { estado, fecha_actualizacion: ahora } });
       let alerta_actualizada = null;
       if (estado === 'ATENDIDA') {
+        // CERRADA ya no se decide aqui: la cierra el informe_atencion de la
+        // institucion BOMBEROS que certifica el control del incendio (ver
+        // informeAtencion.repository.impl.js#cerrarAlertaPorInforme). Que
+        // todas las instituciones notificadas cierren su envio solo indica
+        // que cada una termino su parte, no que el incendio esta controlado.
         await db.alerta.updateMany({ where: { id_alerta: BigInt(id_alerta), estado: 'CONFIRMADA' }, data: { estado: 'ATENDIDA' } });
         alerta_actualizada = await db.alerta.findUnique({ where: { id_alerta: BigInt(id_alerta) } });
-      } else if (estado === 'CERRADA' && await db.envia.count({ where: { id_alerta: BigInt(id_alerta), estado: { not: 'CERRADA' } } }) === 0) {
-        alerta_actualizada = await db.alerta.update({ where: { id_alerta: BigInt(id_alerta) }, data: { estado: 'CERRADA', fecha_cierre: ahora } });
       }
       return { ...envio, alerta_actualizada };
     });

@@ -174,13 +174,17 @@ model alerta {
 }
 
 model recepciona {
-  id_usuario BigInt
-  id_alerta  BigInt
+  id_usuario        BigInt
+  id_alerta         BigInt
+  estado            String    @default("ASIGNADO") @db.VarChar(10)
+  fecha_asignacion  DateTime  @default(now()) @db.Timestamp(6)
+  fecha_liberacion  DateTime? @db.Timestamp(6)
 
   usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
   alerta  alerta  @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
 
   @@id([id_usuario, id_alerta], map: "pk_recepciona")
+  @@index([id_usuario, estado], map: "idx_recepciona_usuario_estado")
 }
 
 model realiza_audi {

@@ -19,6 +19,17 @@ function buildWhere(filters = {}) {
   return where;
 }
 
+// Cuando el llamador filtra por su propia institucion, trae tambien SU fila
+// de `envia` (ENVIADA/RECIBIDA/ATENDIDA/CERRADA): es el estado operativo real
+// para esa institucion, distinto del estado global de la alerta (compartido
+// por todas las instituciones notificadas). Sin esto, el movil no tiene forma
+// de saber si YA confirmo recepcion sin pedir el detalle alerta por alerta.
+function includeMiEnvio(filters) {
+  return filters.id_institucion
+    ? { envia: { where: { id_institucion: Number(filters.id_institucion) }, take: 1 } }
+    : undefined;
+}
+
 export default class PrismaAlertaRepository extends AlertaRepository {
   constructor(prisma) {
     super();
@@ -29,6 +40,7 @@ export default class PrismaAlertaRepository extends AlertaRepository {
     return await this.prisma.alerta.findMany({
       where: buildWhere(filters),
       orderBy: [{ fecha: "desc" }, { hora: "desc" }],
+      include: includeMiEnvio(filters),
     });
   }
 
@@ -39,6 +51,7 @@ export default class PrismaAlertaRepository extends AlertaRepository {
     return await this.prisma.alerta.findMany({
       where,
       orderBy: [{ fecha: "desc" }, { hora: "desc" }],
+      include: includeMiEnvio(filters),
     });
   }
 
@@ -62,6 +75,7 @@ export default class PrismaAlertaRepository extends AlertaRepository {
           take: 1,
           include: { reporte_u: true },
         },
+        ...includeMiEnvio(filters),
       },
     });
   }

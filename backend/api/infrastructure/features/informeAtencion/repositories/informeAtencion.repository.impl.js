@@ -52,6 +52,46 @@ export default class PrismaInformeAtencionRepository extends InformeAtencionRepo
     return await this.prisma.informe_atencion.create({ data: limpiar(campos(informeData)) });
   }
 
+  // Crea el informe y, si nace ya COMPLETADO, cierra la alerta en la misma
+  // transaccion (ver cerrarAlertaPorInforme). No es el caso usual: lo normal
+  // es crear en BORRADOR y completar despues via update().
+  async crearYEvaluarCierre(informeData) {
+    return this.prisma.$transaction(async (db) => {
+      const informe = await db.informe_atencion.create({ data: limpiar(campos(informeData)) });
+      const alerta_actualizada = informeData.estado === 'COMPLETADO'
+        ? await this.cerrarAlertaPorInforme(db, informe.id_alerta)
+        : null;
+      return { informe, alerta_actualizada };
+    });
+  }
+
+  // Actualiza el informe y, solo en la transicion BORRADOR -> COMPLETADO,
+  // cierra la alerta y libera a los OPERATIVO asignados. Idempotente: pedir
+  // COMPLETADO de nuevo sobre un informe ya COMPLETADO no reabre nada.
+  async actualizarYEvaluarCierre(id, informeData, { id_alerta, yaCompletado }) {
+    return this.prisma.$transaction(async (db) => {
+      const informe = await db.informe_atencion.update({ where: { id_informe_atencion: id }, data: limpiar(campos(informeData)) });
+      const cierra = informeData.estado === 'COMPLETADO' && !yaCompletado;
+      const alerta_actualizada = cierra ? await this.cerrarAlertaPorInforme(db, id_alerta) : null;
+      return { informe, alerta_actualizada };
+    });
+  }
+
+  // No toca alertas ya DESCARTADA/CERRADA (p. ej. doble envio del formulario).
+  async cerrarAlertaPorInforme(db, id_alerta) {
+    const ahora = new Date();
+    const { count } = await db.alerta.updateMany({
+      where: { id_alerta: BigInt(id_alerta), estado: { notIn: ['CERRADA', 'DESCARTADA'] } },
+      data: { estado: 'CERRADA', fecha_cierre: ahora },
+    });
+    if (count === 0) return null;
+    await db.recepciona.updateMany({
+      where: { id_alerta: BigInt(id_alerta), estado: 'ASIGNADO' },
+      data: { estado: 'LIBERADO', fecha_liberacion: ahora },
+    });
+    return db.alerta.findUnique({ where: { id_alerta: BigInt(id_alerta) } });
+  }
+
   async findAll(filters = {}) {
     const where = {};
     if (filters.id_institucion) where.id_institucion = Number(filters.id_institucion);

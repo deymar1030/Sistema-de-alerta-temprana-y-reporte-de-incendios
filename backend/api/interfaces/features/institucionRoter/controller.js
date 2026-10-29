@@ -124,4 +124,24 @@ export class InstitucionController {
     }
   };
 
+  updateDisponibilidad = async (req, res) => {
+    try {
+      const result = await this.institucionService.updateDisponibilidad(
+        req.params.id,
+        { disponibilidad_operativa: req.body.disponibilidad_operativa },
+        req.auth.usuario
+      );
+
+      res.json({
+        success: true,
+        data: InstitucionMapper.toResponseDTO(result),
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  };
+
 }

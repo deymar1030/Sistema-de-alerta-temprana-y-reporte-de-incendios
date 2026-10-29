@@ -5,12 +5,14 @@ export class InstitucionService {
     getInstitucionUseCase,
     updateInstitucionUseCase,
     deleteInstitucionUseCase,
+    updateDisponibilidadInstitucionUseCase,
   }) {
     this.createInstitucionUseCase = createInstitucionUseCase;
     this.getAllInstitucionUseCase = getAllInstitucionUseCase;
     this.getInstitucionUseCase = getInstitucionUseCase;
     this.updateInstitucionUseCase = updateInstitucionUseCase;
     this.deleteInstitucionUseCase = deleteInstitucionUseCase;
+    this.updateDisponibilidadInstitucionUseCase = updateDisponibilidadInstitucionUseCase;
   }
 
   async create(institucionData) {
@@ -33,6 +35,7 @@ export class InstitucionService {
     return await this.deleteInstitucionUseCase.execute(id);
   }
 
-
-
+  async updateDisponibilidad(id, data, jefe) {
+    return await this.updateDisponibilidadInstitucionUseCase.execute(id, data, jefe);
+  }
 }

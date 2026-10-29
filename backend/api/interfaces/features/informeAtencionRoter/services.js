@@ -18,7 +18,7 @@ export class InformeAtencionService {
     return await this.getInformeAtencionUseCase.execute(id);
   }
 
-  async update(id, informeData) {
-    return await this.updateInformeAtencionUseCase.execute(id, informeData);
+  async update(id, informeData, usuario) {
+    return await this.updateInformeAtencionUseCase.execute(id, informeData, usuario);
   }
 }

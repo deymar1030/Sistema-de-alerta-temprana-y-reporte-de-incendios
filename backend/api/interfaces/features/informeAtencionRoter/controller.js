@@ -1,10 +1,12 @@
 import { InformeAtencionMapper } from "../../../domain/informeAtencion/mappers/informeAtencion.mapper.js";
 
-function mapCreateRequest(body) {
+function mapCreateRequest(body, usuario) {
   return {
     id_alerta: body.id_alerta,
-    id_institucion: body.id_institucion,
-    id_usuario: body.id_usuario,
+    // id_institucion/id_usuario vienen de la sesion, no del body: el cliente
+    // no debe poder declarar que emite el informe otra institucion/usuario.
+    id_institucion: usuario.id_institucion,
+    id_usuario: usuario.id_usuario,
     estado: body.estado,
     fecha_incidente: body.fecha_incidente,
     hora_recepcion: body.hora_recepcion,
@@ -63,7 +65,7 @@ export class InformeAtencionController {
 
   create = async (req, res) => {
     try {
-      const informeData = mapCreateRequest(req.body);
+      const informeData = mapCreateRequest(req.body, req.auth.usuario);
       const result = await this.informeAtencionService.create(informeData);
       res.status(201).json({ success: true, data: InformeAtencionMapper.toResponseDTO(result) });
     } catch (error) {
@@ -96,7 +98,7 @@ export class InformeAtencionController {
   update = async (req, res) => {
     try {
       const informeData = mapUpdateRequest(req.body);
-      const result = await this.informeAtencionService.update(req.params.id, informeData);
+      const result = await this.informeAtencionService.update(req.params.id, informeData, req.auth.usuario);
       res.json({ success: true, data: InformeAtencionMapper.toResponseDTO(result) });
     } catch (error) {
       res.status(400).json({ success: false, error: error.message });

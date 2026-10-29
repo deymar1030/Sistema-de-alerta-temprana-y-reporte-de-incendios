@@ -10,6 +10,9 @@ export default class CreateInformeAtencionUseCase {
     if (errors.length > 0) throw new Error(`Validation errors: ${errors.join(", ")}`);
 
     const informeDTO = new CreateInformeAtencionDTO(informeData);
-    return await this.informeAtencionRepository.create(informeDTO);
+    // Crea en una sola transaccion y, si nace ya COMPLETADO, cierra la
+    // alerta (ver cerrarAlertaPorInforme en el repositorio).
+    const { informe } = await this.informeAtencionRepository.crearYEvaluarCierre(informeDTO);
+    return informe;
   }
 }

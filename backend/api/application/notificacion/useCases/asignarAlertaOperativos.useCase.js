@@ -2,13 +2,16 @@ import { RolNombres } from "../../../domain/rol/rolNombres.js";
 
 // El JEFE_INSTITUCION reparte una alerta ya recibida por su institucion
 // (debe existir fila en `envia`) entre OPERATIVO puntuales de esa misma
-// institucion -- nunca todos a la vez. Persiste una notificacion por
-// destinatario y la emite en vivo por WebSocket (rooms.usuario).
+// institucion -- nunca todos a la vez. Persiste la asignacion real en
+// `recepciona` (para que el operativo quede no disponible para otra
+// alerta), una notificacion por destinatario, y emite en vivo por
+// WebSocket (rooms.usuario).
 export default class AsignarAlertaOperativosUseCase {
-  constructor({ notificacionRepository, usuarioRepository, enviaRepository, realtimeNotifier }) {
+  constructor({ notificacionRepository, usuarioRepository, enviaRepository, recepcionaRepository, realtimeNotifier }) {
     this.notificacionRepository = notificacionRepository;
     this.usuarioRepository = usuarioRepository;
     this.enviaRepository = enviaRepository;
+    this.recepcionaRepository = recepcionaRepository;
     this.realtimeNotifier = realtimeNotifier;
   }
 
@@ -37,6 +40,18 @@ export default class AsignarAlertaOperativosUseCase {
         `Usuario(s) no válidos: no son OPERATIVO activo de tu institución: ${idsInvalidos.join(", ")}`
       );
     }
+
+    // Un operativo ya ASIGNADO a OTRA alerta activa no puede recibir una
+    // segunda: no sabria a donde ir. Reasignarlo a la MISMA alerta si es
+    // idempotente.
+    const asignacionesActivas = await this.recepcionaRepository.findAsignacionesActivas(idsSolicitados);
+    const ocupadosEnOtraAlerta = asignacionesActivas.filter((a) => Number(a.id_alerta) !== Number(id_alerta));
+    if (ocupadosEnOtraAlerta.length > 0) {
+      const detalle = ocupadosEnOtraAlerta.map((a) => `usuario ${a.id_usuario} -> alerta #${a.id_alerta}`).join(", ");
+      throw new Error(`Usuario(s) ya asignado(s) a otra alerta activa: ${detalle}`);
+    }
+
+    await this.recepcionaRepository.asignar(id_alerta, idsSolicitados);
 
     const notificacionesData = idsSolicitados.map((id_usuario) => ({
       id_usuario,

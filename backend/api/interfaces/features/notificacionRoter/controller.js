@@ -55,4 +55,13 @@ export class NotificacionController {
       res.status(400).json({ success: false, error: error.message });
     }
   };
+
+  misAsignaciones = async (req, res) => {
+    try {
+      const asignaciones = await this.notificacionService.misAsignaciones(req.auth.usuario.id_usuario);
+      res.json({ success: true, data: asignaciones });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
 }

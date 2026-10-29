@@ -8,6 +8,7 @@ import GetAllInstitucionUseCase from "../../../application/institucion/useCases/
 import GetInstitucionUseCase from "../../../application/institucion/useCases/getInstitucion.useCase.js";
 import UpdateInstitucionUseCase from "../../../application/institucion/useCases/updateInstitucion.useCase.js";
 import DeleteInstitucionUseCase from "../../../application/institucion/useCases/deleteInstitucion.useCase.js";
+import UpdateDisponibilidadInstitucionUseCase from "../../../application/institucion/useCases/updateDisponibilidadInstitucion.useCase.js";
 
 export class InstitucionDependencies {
   static createController() {
@@ -19,6 +20,7 @@ export class InstitucionDependencies {
       getInstitucionUseCase: new GetInstitucionUseCase(institucionRepository),
       updateInstitucionUseCase: new UpdateInstitucionUseCase(institucionRepository),
       deleteInstitucionUseCase: new DeleteInstitucionUseCase(institucionRepository),
+      updateDisponibilidadInstitucionUseCase: new UpdateDisponibilidadInstitucionUseCase(institucionRepository),
     };
 
     const institucionService = new InstitucionService(useCases);

@@ -11,6 +11,8 @@ export class ResponseUsuarioDTO {
     segundo_apellido,
     fecha_eliminacion,
     estado,
+    disponible,
+    id_alerta_asignada,
   }) {
     this.id_usuario = id_usuario;
     this.id_rol = id_rol;
@@ -23,6 +25,10 @@ export class ResponseUsuarioDTO {
     this.segundo_apellido = segundo_apellido;
     this.fecha_eliminacion = fecha_eliminacion;
     this.estado = estado;
+    // Solo presentes cuando viene de GetOperativosInstitucionUseCase (ver
+    // asignarAlertaOperativos.useCase.js): si no, quedan undefined.
+    this.disponible = disponible;
+    this.id_alerta_asignada = id_alerta_asignada;
   }
 
   static fromEntity(usuario) {
@@ -41,6 +47,8 @@ export class ResponseUsuarioDTO {
       segundo_apellido: usuario.segundo_apellido,
       fecha_eliminacion: usuario.fecha_eliminacion,
       estado: usuario.estado,
+      disponible: usuario.disponible,
+      id_alerta_asignada: usuario.id_alerta_asignada,
     });
   }
 }

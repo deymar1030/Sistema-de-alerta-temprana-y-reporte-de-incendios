@@ -1,3 +1,5 @@
+import { ResponseEnvioDTO } from "../../envia/dtos/responseEnvia.dto.js";
+
 function toFechaString(value) {
   if (!value) return null;
   return value.toISOString().slice(0, 10);
@@ -8,8 +10,18 @@ function toHoraString(value) {
   return value.toISOString().slice(11, 19);
 }
 
+// Si el repositorio incluyo `envia` filtrado por id_institucion (ver
+// includeMiEnvio en alerta.repository.impl.js), esta es la fila de ESA
+// institucion: su propio ENVIADA/RECIBIDA/ATENDIDA/CERRADA, distinto del
+// `estado` de la alerta (compartido por todas las instituciones notificadas).
+// null cuando no se filtro por institucion o esa institucion no fue notificada.
+function miEnvio(alerta) {
+  const envio = alerta.envia?.[0];
+  return envio ? ResponseEnvioDTO.fromEntity(envio) : null;
+}
+
 export class ResponseAlertaDTO {
-  constructor({ id_alerta, fecha, hora, estado, puntaje, clasificacion, fecha_confirmacion, fecha_cierre }) {
+  constructor({ id_alerta, fecha, hora, estado, puntaje, clasificacion, fecha_confirmacion, fecha_cierre, mi_envio }) {
     this.id_alerta = id_alerta;
     this.fecha = fecha;
     this.hora = hora;
@@ -18,6 +30,7 @@ export class ResponseAlertaDTO {
     this.clasificacion = clasificacion;
     this.fecha_confirmacion = fecha_confirmacion;
     this.fecha_cierre = fecha_cierre;
+    this.mi_envio = mi_envio;
   }
 
   static fromEntity(alerta) {
@@ -30,6 +43,7 @@ export class ResponseAlertaDTO {
       clasificacion: alerta.clasificacion,
       fecha_confirmacion: alerta.fecha_confirmacion,
       fecha_cierre: alerta.fecha_cierre,
+      mi_envio: miEnvio(alerta),
     });
   }
 }
@@ -57,13 +71,14 @@ function toNumber(v) {
 // genero (via lectura) y/o la del reporte ciudadano que la origino (via
 // genera_ru), segun cual de los dos exista.
 export class ResponseAlertaMapaDTO {
-  constructor({ id_alerta, estado, clasificacion, fecha, hora, ubicaciones }) {
+  constructor({ id_alerta, estado, clasificacion, fecha, hora, ubicaciones, mi_envio }) {
     this.id_alerta = id_alerta;
     this.estado = estado;
     this.clasificacion = clasificacion;
     this.fecha = fecha;
     this.hora = hora;
     this.ubicaciones = ubicaciones;
+    this.mi_envio = mi_envio;
   }
 
   static fromEntity(alerta) {
@@ -98,6 +113,7 @@ export class ResponseAlertaMapaDTO {
       fecha: toFechaString(alerta.fecha),
       hora: toHoraString(alerta.hora),
       ubicaciones,
+      mi_envio: miEnvio(alerta),
     });
   }
 }

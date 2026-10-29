@@ -10,7 +10,16 @@
 // se cerro. rutasPendientes queda separado de envios a proposito: envios se
 // emite tal cual por WebSocket y no debe ganar campos nuevos sin querer.
 export async function distribuirAlerta(db, { alerta, ahora, titulo, mensaje, destino_latitud = null, destino_longitud = null }) {
-  const instituciones = await db.institucion.findMany({ where: { estado: true }, select: { id_institucion: true, latitud: true, longitud: true } });
+  // disponibilidad_operativa nula (nunca configurada) cuenta como disponible;
+  // solo NO_DISPONIBLE excluye. OR explicito porque `not: 'NO_DISPONIBLE'`
+  // sin esto dejaria fuera a las filas con el campo en NULL.
+  const instituciones = await db.institucion.findMany({
+    where: { estado: true, OR: [
+      { disponibilidad_operativa: null },
+      { disponibilidad_operativa: { not: 'NO_DISPONIBLE' } },
+    ] },
+    select: { id_institucion: true, latitud: true, longitud: true },
+  });
   const envios = [];
   const rutasPendientes = [];
   for (const institucion of instituciones) {

@@ -39,7 +39,11 @@ export default class CreateReporteUUseCase {
     // Los eventos se emiten despues del commit. Un fallo de transporte no
     // convierte una escritura correcta en un error que provoque reintentos.
     await this.emitir('emitReporteCiudadano', creado);
-    if (resultado) {
+    if (resultado?.corroboracion) {
+      // Otro reporte ya confirmo este mismo incendio: solo subio el
+      // puntaje de confianza, no es una alerta nueva ni se redistribuye.
+      await this.emitir('emitAlertaActualizada', ResponseAlertaDTO.fromEntity(resultado.alerta));
+    } else if (resultado) {
       await this.emitir('emitAlertaConfirmada', { ...ResponseAlertaDTO.fromEntity(resultado.alerta), reporte_origen: creado });
       for (const envio of resultado.envios) await this.emitir('emitEnvioActualizado', envio);
       for (const notificacion of resultado.notificaciones) await this.emitir('emitNotificacion', notificacion);

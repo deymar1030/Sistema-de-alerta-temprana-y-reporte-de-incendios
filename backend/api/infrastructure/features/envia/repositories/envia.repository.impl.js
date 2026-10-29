@@ -27,13 +27,23 @@ export default class PrismaEnviaRepository extends EnviaRepository {
       const envio = await db.envia.update({ where, data: { estado, fecha_actualizacion: ahora } });
       let alerta_actualizada = null;
       if (estado === 'ATENDIDA') {
-        // CERRADA ya no se decide aqui: la cierra el informe_atencion de la
-        // institucion BOMBEROS que certifica el control del incendio (ver
-        // informeAtencion.repository.impl.js#cerrarAlertaPorInforme). Que
-        // todas las instituciones notificadas cierren su envio solo indica
-        // que cada una termino su parte, no que el incendio esta controlado.
+        // CERRADA ya no decide el cierre global aqui: la cierra el
+        // informe_atencion de la institucion BOMBEROS que certifica el
+        // control del incendio (ver informeAtencion.repository.impl.js#
+        // cerrarAlertaPorInforme). Que todas las instituciones notificadas
+        // cierren su envio solo indica que cada una termino su parte, no que
+        // el incendio esta controlado.
         await db.alerta.updateMany({ where: { id_alerta: BigInt(id_alerta), estado: 'CONFIRMADA' }, data: { estado: 'ATENDIDA' } });
         alerta_actualizada = await db.alerta.findUnique({ where: { id_alerta: BigInt(id_alerta) } });
+      } else if (estado === 'CERRADA') {
+        // Esta institucion termino su parte en esta alerta: sus propios
+        // operativos quedan libres para otra, aunque el incendio en si siga
+        // sin certificarse controlado por Bomberos (eso es un cierre aparte,
+        // independiente por institucion -- ver nota arriba).
+        await db.recepciona.updateMany({
+          where: { id_alerta: BigInt(id_alerta), estado: 'ASIGNADO', usuario: { id_institucion: BigInt(id_institucion) } },
+          data: { estado: 'LIBERADO', fecha_liberacion: ahora },
+        });
       }
       return { ...envio, alerta_actualizada };
     });

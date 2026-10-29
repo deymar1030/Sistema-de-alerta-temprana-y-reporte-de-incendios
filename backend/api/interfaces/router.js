@@ -11,6 +11,7 @@ import { LecturaRouter } from "./features/lecturaRoter/routes.js";
 import { AlertaRouter } from "./features/alertaRoter/routes.js";
 import { ArchivoRouter } from "./features/archivoRoter/routes.js";
 import { InformeAtencionRouter } from "./features/informeAtencionRoter/routes.js";
+import { AuditoriaRouter } from "./features/auditoriaRoter/routes.js";
 import { AuthRouter } from "./features/authRoter/routes.js";
 import { AuthDependencies } from "./features/authRoter/dependencies.js";
 
@@ -40,6 +41,7 @@ export class AppRouter {
     router.use("/alertas", requireAuth, AlertaRouter.routes);
     router.use("/archivos", requireAuth, ArchivoRouter.routes);
     router.use("/informes-atencion", requireAuth, InformeAtencionRouter.routes);
+    router.use("/auditoria", requireAuth, AuditoriaRouter.routes);
 
     return router;
   }

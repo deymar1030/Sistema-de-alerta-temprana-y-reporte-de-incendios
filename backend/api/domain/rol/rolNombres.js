@@ -6,4 +6,5 @@ export const RolNombres = Object.freeze({
   JEFE_INSTITUCION: "JEFE_INSTITUCION",
   OPERATIVO: "OPERATIVO",
   CIUDADANO: "CIUDADANO",
+  AUDITOR: "AUDITOR",
 });

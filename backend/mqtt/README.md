@@ -44,12 +44,16 @@ Ctrl+C detiene procesos locales; `npm run mqtt:down` detiene Docker conservando 
 
 ## Identidades, tópicos y secretos
 
+En local/test (`mqtt:provisionar` + `password_file`), las identidades salen del manifiesto `docs/mqtt example/SENSORES/simuladores.json`:
+
 | Identidad | Permiso |
 | --- | --- |
 | `backend` | Solo leer `incendios/+/+` |
 | `predio-8` | Publicar sensores 31, 32, 33 y 34 de predio 8 |
 | `predio-12` | Publicar sensores 51 y 52 de predio 12 |
 | `predio-15` | Publicar sensores 70, 71 y 72 de predio 15 |
+
+En producción (perfil TLS) no se usa manifiesto ni `password_file`: el broker (imagen `mosquitto-go-auth`) valida cada conexión y publicación en vivo contra el backend (`/internal/mqtt/auth` y `/internal/mqtt/acl`, ver [Auth dinámica en producción](#auth-dinámica-en-producción)). `predio-{id_predio}` autentica con la `contrasena_mqtt` que la institución fijó al crear/editar ese predio desde el frontend, y solo puede publicar en los sensores `ACTIVO` de su propio predio. El usuario `backend` autentica con `MQTT_USERNAME`/`MQTT_PASSWORD` (igual que en local) y solo puede leer/suscribirse a `incendios/+/+`.
 
 Tópico: `incendios/{id_predio}/{id_sensor}`, por ejemplo `incendios/8/31`.
 
@@ -128,15 +132,31 @@ El listener sin TLS solo se expone en loopback. Para acceso remoto usar `mqtts:/
 
 Preparar `runtime/certs/server.crt` y `server.key` para el DNS del broker, legibles por Mosquitto. Incluir la cadena necesaria en el certificado.
 
-```powershell
-$env:MQTT_BROKER_URL = 'mqtts://broker.ejemplo:8883'
-npm run mqtt:provisionar
-docker compose -f mqtt/docker-compose.yml -f mqtt/docker-compose.tls.yml up -d
-```
-
 Con CA privada, configurar `MQTT_CA_FILE` para el backend y `--ca ruta/ca.crt` en Python. Se verifica certificado/hostname. El perfil TLS publica también en loopback por defecto; definir `MQTT_BIND_ADDRESS` explícitamente para la interfaz remota y habilitar su acceso de red.
 
-El perfil TLS se validó con Compose; la integración completa se probó con Mosquitto nativo local.
+### Auth dinámica en producción
+
+El perfil TLS usa la imagen `iegomez/mosquitto-go-auth` en vez de `eclipse-mosquitto`: el broker llama por HTTP a `/internal/mqtt/auth` y `/internal/mqtt/acl` del backend en cada conexión/publicación (con cache en memoria de 60s para no llamar por cada lectura), que valida contra `predio.contrasena_mqtt` (bcrypt) y las credenciales del propio backend (`MQTT_USERNAME`/`MQTT_PASSWORD`). No requiere `mqtt:provisionar` ni reaprovisionar al agregar o editar predios: cualquier predio que ya exista en la BD con su `contrasena_mqtt` funciona de inmediato.
+
+Variables de entorno del backend (`.env`) necesarias, además de las ya existentes:
+
+| Variable | Uso |
+| --- | --- |
+| `MQTT_AUTH_SECRET` | Secreto compartido; el broker lo envía como `User-Agent` en cada llamada a `/internal/mqtt/*` |
+| `MQTT_AUTH_BACKEND_HOST` | Host donde Mosquitto alcanza al backend (por defecto `host.docker.internal`, ya mapeado en `docker-compose.tls.yml` al host real vía `extra_hosts`) |
+| `MQTT_AUTH_BACKEND_PORT` | Puerto del backend (por defecto `PORT` o `3000`) |
+
+Desplegar/actualizar el perfil TLS:
+
+```powershell
+$env:MQTT_BROKER_URL = 'mqtts://broker.ejemplo:8883'
+npm run mqtt:conf
+npm run mqtt:up:tls
+```
+
+`mqtt:conf` renderiza `mqtt/mosquitto.tls.conf` (plantilla sin secretos, versionada) a `mqtt/runtime/mosquitto.tls.generado.conf` (ignorado por Git) sustituyendo `MQTT_AUTH_SECRET`/`MQTT_AUTH_BACKEND_HOST`/`MQTT_AUTH_BACKEND_PORT` desde el entorno. Repetir `mqtt:conf` + `docker compose ... restart mosquitto` cada vez que cambie alguna de esas variables; no hace falta para altas/bajas de predios ni cambios de su `contrasena_mqtt`, eso ya es inmediato.
+
+El perfil TLS (password_file) se validó con Compose; la integración completa con Mosquitto nativo local sigue probando el mecanismo de `mqtt:provisionar`. El mecanismo de auth HTTP de producción no tiene prueba de integración con broker real (requeriría descargar la imagen `mosquitto-go-auth`); sí está cubierto por pruebas unitarias en `tests/mqttAuth.test.js`.
 
 ## Pruebas
 

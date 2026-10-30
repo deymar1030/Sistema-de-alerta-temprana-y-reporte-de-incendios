@@ -1,0 +1,16 @@
+# Local environment files; keep only the safe templates in the repository.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local TLS material and credentials.
+**/*.crt
+**/*.pem
+**/*.key
+**/*.private.json
+/hardware/gen_dat_sensores/runtime/credenciales_predios.json
+/hardware/gen_dat_sensores/contrasenas-predios.md
+
+# Python-generated files and virtual environments.
+**/__pycache__/
+**/.venv/

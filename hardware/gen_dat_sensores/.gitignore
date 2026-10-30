@@ -6,3 +6,7 @@ __pycache__/
 *.private.json
 publishers.json
 runtime/
+*.crt
+*.pem
+*.key
+contrasenas-predios.md

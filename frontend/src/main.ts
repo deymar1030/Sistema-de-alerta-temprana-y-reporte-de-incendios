@@ -23,6 +23,7 @@ app.use(router)
 
 const fallback: Record<WebUserRole, string> = {
   ADMIN: '/super-admin/dashboard',
+  AUDITOR: '/auditor/auditoria',
   JEFE_INSTITUCION: '/institucion/dashboard',
   OPERATIVO: '/institucion/dashboard',
 }
@@ -32,6 +33,10 @@ const homeForRole = (role: UserRole | null | undefined) => {
 
   if (role === 'ADMIN') {
     return '/super-admin/dashboard'
+  }
+
+  if (role === 'AUDITOR') {
+    return '/auditor/auditoria'
   }
 
   if (role === 'CIUDADANO') {
@@ -57,6 +62,8 @@ const isCompatibleRedirect = (redirect: string | undefined, role: UserRole | nul
   switch (role) {
     case 'ADMIN':
       return normalized.startsWith('/super-admin')
+    case 'AUDITOR':
+      return normalized.startsWith('/auditor')
     case 'JEFE_INSTITUCION':
     case 'OPERATIVO':
       return normalized.startsWith('/institucion')
@@ -97,6 +104,11 @@ router.beforeEach(async (to) => {
         access: 'mobile',
       },
     }
+  }
+
+  // AUDITOR no tiene pantallas ciudadanas, generales ni institucionales.
+  if (effectiveRole === 'AUDITOR' && !to.path.startsWith('/auditor')) {
+    return '/auditor/auditoria'
   }
 
   if (to.path === '/login') {

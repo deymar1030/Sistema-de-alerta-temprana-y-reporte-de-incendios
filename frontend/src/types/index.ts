@@ -24,11 +24,12 @@ export type UserRole =
 // El rol AUDITOR se reconoce, pero no recibe permisos de ADMIN.
 export type WebUserRole = Extract<
   UserRole,
-  'ADMIN' | 'JEFE_INSTITUCION' | 'OPERATIVO'
+  'ADMIN' | 'AUDITOR' | 'JEFE_INSTITUCION' | 'OPERATIVO'
 >
 
 export const WEB_USER_ROLES: readonly WebUserRole[] = [
   'ADMIN',
+  'AUDITOR',
   'JEFE_INSTITUCION',
   'OPERATIVO',
 ]

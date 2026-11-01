@@ -52,9 +52,12 @@ import SuperAdminInstitutionsView from '../views/SuperAdminInstitutionsView.vue'
 import SuperAdminAlertsView from '../views/SuperAdminAlertsView.vue'
 import SuperAdminIncidentsView from '../views/SuperAdminIncidentsView.vue'
 import SuperAdminAuditView from '../views/SuperAdminAuditView.vue'
+import AuditView from '../views/AuditView.vue'
 import SuperAdminSettingsView from '../views/SuperAdminSettingsView.vue'
 
 const adminRoles: UserRole[] = ['ADMIN']
+const auditorRoles: UserRole[] = ['AUDITOR']
+const headRoles: UserRole[] = ['JEFE_INSTITUCION']
 const institutionRoles: UserRole[] = ['JEFE_INSTITUCION', 'OPERATIVO']
 const citizenRoles: UserRole[] = ['CIUDADANO']
 
@@ -73,6 +76,13 @@ export const routes: RouteRecordRaw[] = [
   { path: '/ciudadano/perfil', name: 'citizen-profile', component: CitizenProfileView, meta: { roles: citizenRoles, title: 'Perfil' } },
   { path: '/ciudadano/perfil/editar', name: 'citizen-edit-profile', component: CitizenEditProfileView, meta: { roles: citizenRoles, title: 'Editar perfil' } },
   { path: '/ciudadano/perfil/cambiar-password', name: 'citizen-change-password', component: CitizenChangePasswordView, meta: { roles: citizenRoles, title: 'Cambiar contraseña' } },
+
+  {
+    path: '/auditor', component: MonitoringLayout, meta: { roles: auditorRoles }, children: [
+      { path: '', redirect: '/auditor/auditoria' },
+      { path: 'auditoria', name: 'auditor-audit', component: AuditView, meta: { roles: auditorRoles, title: 'Auditoría' } },
+    ],
+  },
 
   {
     path: '/super-admin', component: MonitoringLayout, meta: { roles: adminRoles }, children: [
@@ -102,7 +112,7 @@ export const routes: RouteRecordRaw[] = [
       { path: 'inicio', redirect: '/institucion/dashboard' },
       { path: 'alertas', name: 'institution-admin-alerts', component: InstitutionAlertsView, meta: { roles: institutionRoles, title: 'Alertas recibidas' } },
       { path: 'alertas/:id', name: 'institution-admin-alert-detail', component: InstitutionAlertDetailView, meta: { roles: institutionRoles, title: 'Detalle de alerta' } },
-      { path: 'usuarios', name: 'institution-users', component: AdminUsersView, meta: { roles: institutionRoles, title: 'Personal y usuarios' } },
+      { path: 'usuarios', name: 'institution-users', component: AdminUsersView, meta: { roles: headRoles, title: 'Personal y usuarios' } },
       { path: 'informes', name: 'institution-reports', component: InstitutionReportsView, meta: { roles: institutionRoles, title: 'Informes de Atención' } },
       { path: 'historial', name: 'institution-history', component: InstitutionHistoryView, meta: { roles: institutionRoles, title: 'Historial' } },
       { path: 'configuracion', name: 'institution-settings', component: SettingsView, meta: { roles: institutionRoles, title: 'Configuración' } },
@@ -157,6 +167,7 @@ export const routes: RouteRecordRaw[] = [
     ],
   },
 
+  { path: '/auditor/:pathMatch(.*)*', redirect: '/auditor/auditoria' },
   { path: '/institucion/:pathMatch(.*)*', redirect: { path: '/institucion/dashboard' } },
   { path: '/super-admin/:pathMatch(.*)*', redirect: { path: '/super-admin/dashboard' } },
   { path: '/ciudadano/:pathMatch(.*)*', redirect: { path: '/ciudadano/inicio' } },

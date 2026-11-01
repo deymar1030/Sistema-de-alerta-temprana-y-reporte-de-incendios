@@ -178,6 +178,7 @@ export const useAuthStore = defineStore('auth', () => {
         { useCitizenReportStore },
         { useAlertStore },
         { useReadingStore },
+        { useAuditStore },
       ] = await Promise.all([
         import('./user.store'),
         import('./institution.store'),
@@ -185,6 +186,7 @@ export const useAuthStore = defineStore('auth', () => {
         import('./citizen-report.store'),
         import('./alert.store'),
         import('./reading.store'),
+        import('./audit.store'),
       ])
 
       useUserStore().users = []
@@ -196,6 +198,7 @@ export const useAuthStore = defineStore('auth', () => {
       useCitizenReportStore().reports = []
       useAlertStore().alerts = []
       useReadingStore().readings = []
+      useAuditStore().clear()
     }
   }
 

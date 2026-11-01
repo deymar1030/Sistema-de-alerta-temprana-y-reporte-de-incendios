@@ -51,6 +51,21 @@ export const useInstitutionStore = defineStore('institution', () => {
     }
   }
 
+  async function updateAvailability(id: string, status: 'DISPONIBLE' | 'NO_DISPONIBLE') {
+    saving.value = true
+    error.value = null
+    try {
+      const updated = await institutionService.setAvailability(id, status)
+      institutions.value = institutions.value.map(item => item.id === updated.id ? updated : item)
+      return updated
+    } catch (cause) {
+      error.value = cause instanceof Error ? cause.message : 'No se pudo actualizar la disponibilidad.'
+      throw cause
+    } finally {
+      saving.value = false
+    }
+  }
+
   async function deleteInstitution(id: string) {
     if (deletingId.value !== null) {
       return
@@ -74,6 +89,7 @@ export const useInstitutionStore = defineStore('institution', () => {
     error,
     fetchInstitutions,
     saveInstitution,
+    updateAvailability,
     deleteInstitution,
   }
 })

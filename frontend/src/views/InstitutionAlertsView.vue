@@ -35,7 +35,7 @@ onMounted(load)
       <div>
         <p class="text-xs font-semibold uppercase tracking-wide text-orange-700">Institución</p>
         <h1 class="mt-1 text-2xl font-bold text-slate-900">Alertas recibidas</h1>
-        <p class="mt-2 text-sm text-slate-600">Distribución automática confirmada por el backend. La gestión del personal operativo corresponde al móvil.</p>
+        <p class="mt-2 text-sm text-slate-600">Distribución automática confirmada por el backend. El jefe de institución puede asignar operativos desde el detalle; la atención en campo continúa en el flujo móvil.</p>
       </div>
       <button type="button" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white disabled:opacity-50" :disabled="loading" @click="load">Actualizar</button>
     </header>

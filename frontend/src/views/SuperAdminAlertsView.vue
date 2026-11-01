@@ -20,6 +20,8 @@ import {
 } from '../services/backend-alerts.service'
 
 const alerts = ref<BackendAlert[]>([])
+const updatedScoreIds = ref<string[]>([])
+let pollTimer: ReturnType<typeof setInterval> | null = null
 const mapAlerts = ref<MapAlert[]>([])
 const selected = ref<BackendAlert | null>(null)
 
@@ -110,7 +112,7 @@ function alertColor(status: string): string {
   }
 }
 
-function drawAlertMarkers() {
+function drawAlertMarkers(recenter = true) {
   if (!map || !markers) return
 
   markers.clearLayers()
@@ -189,9 +191,9 @@ function drawAlertMarkers() {
   }
 
   // Centrar el mapa en las ubicaciones reales.
-  if (points.length === 1) {
+  if (recenter && points.length === 1) {
     map.setView(points[0]!, 15)
-  } else if (points.length > 1) {
+  } else if (recenter && points.length > 1) {
     map.fitBounds(points, {
       padding: [30, 30],
       maxZoom: 15,
@@ -204,7 +206,15 @@ async function loadAlerts() {
   error.value = ''
 
   try {
-    alerts.value = await backendAlertsService.list()
+    const next = await backendAlertsService.list()
+    const previous = new Map(alerts.value.map(item => [String(item.id_alerta), item.puntaje]))
+    // La misma alerta puede recibir mayor confianza sin generar otro ID.
+    updatedScoreIds.value = next
+      .filter(item => previous.has(String(item.id_alerta)) &&
+        previous.get(String(item.id_alerta)) !== null && item.puntaje !== null &&
+        Number(previous.get(String(item.id_alerta))) < Number(item.puntaje))
+      .map(item => String(item.id_alerta))
+    alerts.value = next
   } catch (cause) {
     alerts.value = []
     error.value = errorMessage(cause)
@@ -213,7 +223,7 @@ async function loadAlerts() {
   }
 }
 
-async function loadMapAlerts() {
+async function loadMapAlerts(recenter = true) {
   mapLoading.value = true
   mapError.value = ''
 
@@ -224,14 +234,14 @@ async function loadMapAlerts() {
     mapError.value = errorMessage(cause)
   } finally {
     mapLoading.value = false
-    drawAlertMarkers()
+    drawAlertMarkers(recenter)
   }
 }
 
-async function refresh() {
+async function refresh(silent = false) {
   await Promise.all([
     loadAlerts(),
-    loadMapAlerts(),
+    loadMapAlerts(!silent),
   ])
 }
 
@@ -310,9 +320,17 @@ onMounted(async () => {
   await refresh()
 
   map?.invalidateSize()
+  // Sin cliente Socket.IO en la versión suministrada: sincronización periódica.
+  // Nunca crea alertas locales; GET /alertas entrega los IDs persistidos.
+  pollTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && !loading.value && !mapLoading.value) {
+      void refresh(true)
+    }
+  }, 45_000)
 })
 
 onBeforeUnmount(() => {
+  if (pollTimer) clearInterval(pollTimer)
   resizeObserver?.disconnect()
   map?.remove()
 
@@ -345,7 +363,7 @@ onBeforeUnmount(() => {
         type="button"
         class="inline-flex min-h-11 items-center gap-2 rounded-xl bg-orange-600 px-4 py-2 font-semibold text-white disabled:opacity-60"
         :disabled="loading || mapLoading"
-        @click="refresh"
+        @click="refresh()"
       >
         <RefreshCw
           class="h-4 w-4"
@@ -518,6 +536,9 @@ onBeforeUnmount(() => {
             {{ alert.puntaje == null ? 'No disponible' : alert.puntaje }}
           </p>
 
+          <p v-if="updatedScoreIds.includes(String(alert.id_alerta))" class="mt-1 text-xs font-semibold text-emerald-700">
+            Puntaje actualizado en el servidor (sin duplicar la alerta)
+          </p>
           <p class="mt-1 text-sm text-slate-600">
             Fecha: {{ alert.fecha }} {{ alert.hora }}
           </p>

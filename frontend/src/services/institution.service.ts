@@ -42,7 +42,8 @@ interface ApiInstitution {
 function mapAvailability(
   value: string | null | undefined
 ): Institution['disponibilidad'] {
-  if (value === 'DISPONIBLE') {
+  // null = nunca configurada: el backend indica que equivale a DISPONIBLE.
+  if (value == null || value === 'DISPONIBLE') {
     return 'DISPONIBLE'
   }
 
@@ -50,6 +51,7 @@ function mapAvailability(
     return 'ATENDIENDO'
   }
 
+  // Fallar en modo conservador cuando el backend entregue un valor desconocido.
   return 'NO_DISPONIBLE'
 }
 
@@ -217,6 +219,16 @@ export const institutionService = {
       institution =>
         institution.estado === 'ACTIVA'
     )
+  },
+
+  /** Únicamente el JEFE_INSTITUCION puede cambiar la disponibilidad propia. */
+  async setAvailability(id: string, status: 'DISPONIBLE' | 'NO_DISPONIBLE'): Promise<Institution> {
+    if (!id.trim()) throw new Error('Tu cuenta no tiene una institución asignada.')
+    const updated = await apiFetch<ApiInstitution>(
+      `/instituciones/${encodeURIComponent(id)}/disponibilidad`,
+      { method: 'PATCH', body: JSON.stringify({ disponibilidad_operativa: status }) },
+    )
+    return mapInstitution(updated)
   },
 
   // Crear una institución.

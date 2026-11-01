@@ -37,6 +37,9 @@ import { getRoleLabel, isWebUserRole, type WebUserRole } from '../types'
 type NavItem = { label: string; to: string; icon: Component }
 
 const navByRole: Record<WebUserRole, NavItem[]> = {
+  AUDITOR: [
+    { label: 'Auditoría', to: '/auditor/auditoria', icon: History },
+  ],
   ADMIN: [
     { label: 'Dashboard', to: '/super-admin/dashboard', icon: Gauge },
     { label: 'Usuarios', to: '/super-admin/usuarios', icon: Users },
@@ -47,7 +50,6 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
     { label: 'Lecturas', to: '/super-admin/lecturas', icon: ClipboardList },
     { label: 'Alertas', to: '/super-admin/alertas', icon: AlertTriangle },
     { label: 'Incidentes', to: '/super-admin/incidentes', icon: Flame },
-    { label: 'Auditoría', to: '/super-admin/auditoria', icon: History },
   ],
   JEFE_INSTITUCION: [
     { label: 'Dashboard', to: '/institucion/dashboard', icon: Gauge },
@@ -97,6 +99,7 @@ const navItems = computed<NavItem[]>(() => {
 const currentTitle = computed(() => String(route.meta.title ?? 'ALERTA'))
 const headerContext = computed(() => {
   if (authStore.role === 'ADMIN') return 'Administración general'
+  if (authStore.role === 'AUDITOR') return 'Auditoría del sistema'
   if (authStore.role === 'JEFE_INSTITUCION' || authStore.role === 'OPERATIVO') {
     return 'Administración institucional'
   }
@@ -289,10 +292,13 @@ onMounted(() => {
   clockTimer = setInterval(() => { now.value = new Date() }, 30_000)
   document.addEventListener('pointerdown', onDocumentPointerDown)
   document.addEventListener('keydown', onDocumentKeydown)
-  void Promise.allSettled([
-    institutionStore.fetchInstitutions(),
-    notificationStore.fetchNotifications(),
-  ])
+  // El AUDITOR solo consulta auditoría: no solicitar datos de otros módulos.
+  if (authStore.role !== 'AUDITOR') {
+    void Promise.allSettled([
+      institutionStore.fetchInstitutions(),
+      notificationStore.fetchNotifications(),
+    ])
+  }
 })
 
 onBeforeUnmount(() => {
@@ -430,6 +436,7 @@ onBeforeUnmount(() => {
             <!-- La campana y el perfil comparten un ancla para menús que no se salen de pantalla. -->
             <div ref="headerActions" class="relative flex shrink-0 items-center gap-2">
               <button
+                v-if="authStore.role !== 'AUDITOR'"
                 type="button"
                 class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-orange-200 hover:text-orange-700"
                 aria-label="Notificaciones"
@@ -465,7 +472,7 @@ onBeforeUnmount(() => {
 
               <!-- Menú de notificaciones; sólo ocupa el ancho disponible del viewport. -->
               <section
-                v-if="notificationsOpen"
+                v-if="notificationsOpen && authStore.role !== 'AUDITOR'"
                 id="alerta-notifications"
                 class="absolute right-0 top-[calc(100%+0.75rem)] z-[60] max-h-[70dvh] w-[min(23rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl"
                 aria-label="Notificaciones"
@@ -524,6 +531,7 @@ onBeforeUnmount(() => {
                   Mi cuenta
                 </button>
                 <button
+                  v-if="authStore.role !== 'AUDITOR'"
                   type="button"
                   class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm text-slate-800 hover:bg-slate-50"
                   @click="goToSettings"

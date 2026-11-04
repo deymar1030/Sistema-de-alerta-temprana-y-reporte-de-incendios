@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   MapPin,
   RefreshCw,
+  X,
 } from 'lucide-vue-next'
 
 import {
@@ -24,6 +25,12 @@ const updatedScoreIds = ref<string[]>([])
 let pollTimer: ReturnType<typeof setInterval> | null = null
 const mapAlerts = ref<MapAlert[]>([])
 const selected = ref<BackendAlert | null>(null)
+const detailModalOpen = ref(false)
+const detailDialog = ref<HTMLElement | null>(null)
+const closeDetailButton = ref<HTMLButtonElement | null>(null)
+let focusBeforeDetail: HTMLElement | null = null
+let bodyOverflowBeforeDetail = ''
+let detailRequestVersion = 0
 
 const loading = ref(false)
 const detailLoading = ref(false)
@@ -246,18 +253,47 @@ async function refresh(silent = false) {
 }
 
 async function openDetail(id: string) {
+  const requestVersion = ++detailRequestVersion
   selected.value = null
   detailError.value = ''
   detailLoading.value = true
+  focusBeforeDetail = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  bodyOverflowBeforeDetail = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+  detailModalOpen.value = true
+  await nextTick()
+  closeDetailButton.value?.focus()
 
   try {
-    selected.value =
-      await backendAlertsService.detail(id)
+    const result = await backendAlertsService.detail(id)
+    if (requestVersion === detailRequestVersion) selected.value = result
   } catch (cause) {
-    detailError.value = errorMessage(cause)
+    if (requestVersion === detailRequestVersion) detailError.value = errorMessage(cause)
   } finally {
-    detailLoading.value = false
+    if (requestVersion === detailRequestVersion) detailLoading.value = false
   }
+}
+
+function closeDetail() {
+  ++detailRequestVersion
+  detailModalOpen.value = false
+  selected.value = null
+  detailError.value = ''
+  detailLoading.value = false
+  document.body.style.overflow = bodyOverflowBeforeDetail
+  void nextTick(() => focusBeforeDetail?.focus())
+}
+
+function onDialogKeydown(event: KeyboardEvent) {
+  if (!detailModalOpen.value) return
+  if (event.key === 'Escape') { event.preventDefault(); closeDetail(); return }
+  if (event.key !== 'Tab' || !detailDialog.value) return
+  const focusable = [...detailDialog.value.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled)')]
+    .filter(item => item.getClientRects().length > 0)
+  if (!focusable.length) return
+  const first = focusable[0]!, last = focusable[focusable.length - 1]!
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
 }
 
 function safePhotoUrl(
@@ -292,6 +328,7 @@ function dateLabel(
 }
 
 onMounted(async () => {
+  document.addEventListener('keydown', onDialogKeydown)
   await nextTick()
 
   if (!mapContainer.value) return
@@ -330,6 +367,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onDialogKeydown)
+  if (detailModalOpen.value) document.body.style.overflow = bodyOverflowBeforeDetail
   if (pollTimer) clearInterval(pollTimer)
   resizeObserver?.disconnect()
   map?.remove()
@@ -554,127 +593,45 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- DETALLE DE UNA ALERTA -->
-    <p
-      v-if="detailLoading"
-      role="status"
-      class="text-sm text-slate-600"
-    >
-      Cargando detalle...
-    </p>
-
-    <p
-      v-if="detailError"
-      role="alert"
-      class="text-sm text-red-700"
-    >
-      {{ detailError }}
-    </p>
-
-    <section
-      v-if="selected"
-      aria-label="Detalle de la alerta"
-      class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-    >
-      <div
-        class="flex items-start justify-between gap-2"
-      >
-        <h2 class="text-xl font-bold text-slate-900">
-          Detalle de la alerta #{{ selected.id_alerta }}
-        </h2>
-
-        <button
-          type="button"
-          class="min-h-11 rounded-lg border px-3 py-2 text-slate-700"
-          aria-label="Cerrar detalle"
-          @click="selected = null"
-        >
-          Cerrar
-        </button>
+    <!-- Detalle en modal: visible inmediatamente, incluso con cientos de alertas. -->
+    <Teleport to="body">
+      <div v-if="detailModalOpen" class="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/65 p-3 sm:p-6" @click.self="closeDetail">
+        <section ref="detailDialog" role="dialog" aria-modal="true" aria-labelledby="alert-detail-title" aria-describedby="alert-detail-description" class="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
+            <div class="min-w-0">
+              <p class="text-xs font-bold uppercase tracking-wider text-orange-600">Monitoreo de alertas</p>
+              <h2 id="alert-detail-title" class="mt-1 text-xl font-extrabold text-slate-900">{{ selected ? `Detalle de la alerta #${selected.id_alerta}` : 'Detalle de alerta' }}</h2>
+            </div>
+            <button ref="closeDetailButton" type="button" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100" aria-label="Cerrar detalle" @click="closeDetail"><X class="h-5 w-5" aria-hidden="true" /></button>
+          </header>
+          <div id="alert-detail-description" class="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
+            <p v-if="detailLoading" role="status" class="py-8 text-center text-sm text-slate-600">Consultando detalle en el servidor...</p>
+            <div v-else-if="detailError" role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ detailError }}</div>
+            <template v-else-if="selected">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div class="rounded-xl bg-slate-50 p-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500">Estado global</p><p class="mt-1 text-lg font-extrabold text-slate-900">{{ selected.estado }}</p></div>
+                <div class="rounded-xl bg-slate-50 p-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500">Origen</p><p class="mt-1 font-semibold text-slate-900">{{ selected.reporte_origen ? 'Reporte ciudadano' : selected.predio ? 'Predio / sensor' : 'No especificado' }}</p></div>
+                <div class="rounded-xl bg-slate-50 p-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500">Ubicación</p><p class="mt-1 break-words text-sm text-slate-900">{{ selected.predio?.nombre ?? selected.reporte_origen?.ubicacion_tipo ?? 'No disponible' }}</p></div>
+                <div class="rounded-xl bg-slate-50 p-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500">Puntaje de confianza</p><p class="mt-1 text-lg font-extrabold text-slate-900">{{ selected.puntaje == null ? 'No disponible' : selected.puntaje }}</p></div>
+              </div>
+              <div v-if="selected.reporte_origen?.descripcion || safePhotoUrl(selected.reporte_origen?.foto_url)" class="mt-4 space-y-2 rounded-xl border border-slate-200 p-4 text-sm text-slate-700">
+                <p v-if="selected.reporte_origen?.descripcion"><strong>Reporte:</strong> {{ selected.reporte_origen.descripcion }}</p>
+                <p v-if="safePhotoUrl(selected.reporte_origen?.foto_url)"><strong>Foto registrada:</strong> <a class="font-semibold text-orange-700 underline" :href="safePhotoUrl(selected.reporte_origen?.foto_url) ?? undefined" target="_blank" rel="noopener noreferrer">Ver evidencia</a></p>
+              </div>
+              <h3 class="mt-6 text-base font-bold text-slate-900">Instituciones notificadas ({{ selected.instituciones_notificadas?.length ?? 0 }})</h3>
+              <ul v-if="selected.instituciones_notificadas?.length" class="mt-3 space-y-2">
+                <li v-for="delivery in selected.instituciones_notificadas" :key="String(delivery.id_institucion)" class="rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
+                  <p class="font-semibold text-slate-900">{{ delivery.nombre }} <span class="font-normal text-slate-500">— {{ delivery.estado }}</span></p>
+                  <p class="mt-1">Envío: {{ dateLabel(delivery.fecha_envio) }}</p>
+                  <p>Actualizado: {{ dateLabel(delivery.fecha_actualizacion) }}</p>
+                </li>
+              </ul>
+              <p v-else class="mt-2 text-sm text-slate-600">El servidor no devolvio instituciones notificadas para esta alerta.</p>
+            </template>
+          </div>
+          <footer class="flex shrink-0 justify-end border-t border-slate-200 px-5 py-3 sm:px-6"><button type="button" class="min-h-11 rounded-xl bg-orange-600 px-5 text-sm font-bold text-white hover:bg-orange-700" @click="closeDetail">Cerrar detalle</button></footer>
+        </section>
       </div>
-
-      <p class="mt-3 text-sm text-slate-700">
-        Estado global:
-        <strong>{{ selected.estado }}</strong>
-      </p>
-
-      <p class="mt-1 text-sm text-slate-700">
-        Origen:
-        {{
-          selected.reporte_origen
-            ? 'Reporte ciudadano'
-            : selected.predio
-              ? 'Predio / sensor'
-              : 'No especificado'
-        }}
-      </p>
-
-      <p class="mt-1 text-sm text-slate-700">
-        Ubicación:
-        {{
-          selected.predio?.nombre ??
-          selected.reporte_origen?.ubicacion_tipo ??
-          'No disponible'
-        }}
-      </p>
-
-      <p
-        v-if="selected.reporte_origen?.descripcion"
-        class="mt-1 text-sm text-slate-700"
-      >
-        Reporte: {{ selected.reporte_origen.descripcion }}
-      </p>
-
-      <p
-        v-if="safePhotoUrl(selected.reporte_origen?.foto_url)"
-        class="mt-1 text-sm text-slate-700"
-      >
-        Foto registrada:
-
-        <a
-          :href="safePhotoUrl(selected.reporte_origen?.foto_url) ?? undefined"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline"
-        >
-          Ver evidencia
-        </a>
-      </p>
-
-      <h3 class="mt-5 font-semibold text-slate-900">
-        Instituciones notificadas
-        ({{ selected.instituciones_notificadas?.length ?? 0 }})
-      </h3>
-
-      <ul
-        v-if="selected.instituciones_notificadas?.length"
-        class="mt-2 space-y-2"
-      >
-        <li
-          v-for="delivery in selected.instituciones_notificadas"
-          :key="String(delivery.id_institucion)"
-          class="rounded-lg border border-slate-200 p-3 text-sm text-slate-700"
-        >
-          <strong>{{ delivery.nombre }}</strong>
-          — {{ delivery.estado }}
-
-          <p>
-            Envío: {{ dateLabel(delivery.fecha_envio) }}
-          </p>
-
-          <p>
-            Actualizado: {{ dateLabel(delivery.fecha_actualizacion) }}
-          </p>
-        </li>
-      </ul>
-
-      <p
-        v-else
-        class="mt-2 text-sm text-slate-600"
-      >
-        El backend no devolvió instituciones notificadas
-        para esta alerta.
-      </p>
-    </section>
+    </Teleport>
   </main>
 </template>

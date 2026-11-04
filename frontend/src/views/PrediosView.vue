@@ -6,6 +6,7 @@ import {
   Eye, MapPin, Pencil, Plus, RefreshCw, Search, Trash2, X,
 } from 'lucide-vue-next'
 import LocationPicker from '../components/common/LocationPicker.vue'
+import PrediosDirectoryMap from '../components/predios/PrediosDirectoryMap.vue'
 import { usePredioStore } from '../stores/predio.store'
 import { locationService, type GeographicZone } from '../services/location.service'
 import { predioService, type CreatePredioInput, type PredioDetail } from '../services/predio.service'
@@ -60,6 +61,7 @@ const zones = ref<GeographicZone[]>([])
 const zonesError = ref('')
 const loadingZones = ref(false)
 const search = ref('')
+const directoryMapOpen = ref(false)
 const formOpen = ref(false)
 const saving = ref(false)
 const editingId = ref<string | null>(null)
@@ -412,14 +414,19 @@ onBeforeUnmount(() => {
         </p>
       </div>
 
-      <button
-        type="button"
-        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white hover:bg-orange-700"
-        @click="openCreateForm"
-      >
-        <Plus class="h-5 w-5" aria-hidden="true" />
-        Crear predio
-      </button>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" :aria-pressed="directoryMapOpen" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-white px-5 py-3 text-sm font-bold text-orange-700 hover:bg-orange-50" @click="directoryMapOpen = !directoryMapOpen">
+          <MapPin class="h-5 w-5" aria-hidden="true" /> {{ directoryMapOpen ? 'Ocultar mapa' : 'Ver mapa' }}
+        </button>
+        <button
+          type="button"
+          class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white hover:bg-orange-700"
+          @click="openCreateForm"
+        >
+          <Plus class="h-5 w-5" aria-hidden="true" />
+          Crear predio
+        </button>
+      </div>
     </header>
 
     <div
@@ -440,6 +447,8 @@ onBeforeUnmount(() => {
         <X class="mx-auto h-4 w-4" />
       </button>
     </div>
+
+    <PrediosDirectoryMap v-if="directoryMapOpen && !store.loading && !store.error" :items="filtered" @select="openDetail" />
 
     <section
       aria-label="Directorio de predios"

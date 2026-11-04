@@ -606,8 +606,11 @@ onBeforeUnmount(() => {
               </div>
             </dl>
           </div>
-          <footer class="shrink-0 border-t border-slate-200 px-4 py-3 text-right sm:px-5">
-            <button type="button" class="min-h-11 rounded-xl bg-orange-600 px-5 text-sm font-semibold text-white hover:bg-orange-700" @click="closeAccount">
+          <footer class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-3 sm:px-5">
+            <button v-if="authStore.role !== 'AUDITOR'" type="button" class="min-h-11 rounded-xl bg-orange-600 px-5 text-sm font-semibold text-white hover:bg-orange-700" @click="closeAccount(); goToSettings()">
+              Editar mis datos
+            </button>
+            <button type="button" class="min-h-11 rounded-xl border border-slate-200 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="closeAccount">
               Cerrar
             </button>
           </footer>

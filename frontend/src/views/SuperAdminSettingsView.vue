@@ -1,19 +1,14 @@
 <script setup lang="ts">
-const settings = [
-  'Permisos globales del sistema',
-  'Configuración de alertas y notificaciones',
-  'Integración con instituciones',
-  'Parámetros de seguridad',
-]
+import AccountProfileForm from '../components/account/AccountProfileForm.vue'
 </script>
 
 <template>
-  <div class="space-y-6 p-6">
-    <h1 class="text-3xl font-bold text-slate-900">Configuración</h1>
-    <div class="space-y-3">
-      <div v-for="(setting, index) in settings" :key="index" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p class="text-sm font-medium text-slate-700">{{ setting }}</p>
-      </div>
-    </div>
-  </div>
+  <main class="admin-page mx-auto max-w-[1100px] space-y-5">
+    <header>
+      <p class="text-xs font-bold uppercase tracking-widest text-orange-600">Administración general</p>
+      <h1 class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">Configuración de mi perfil</h1>
+      <p class="mt-2 text-sm text-slate-600">Actualiza los datos de la cuenta con la que iniciaste sesión.</p>
+    </header>
+    <AccountProfileForm />
+  </main>
 </template>

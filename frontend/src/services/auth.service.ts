@@ -142,6 +142,8 @@ const mapApiUserToUser = (payload: ApiUser | null | undefined): User | null => {
     nombre,
     firstName: firstName || undefined,
     lastName: lastName || undefined,
+    primerApellido: payload.primer_apellido ?? undefined,
+    segundoApellido: payload.segundo_apellido ?? undefined,
     email,
     role,
     rol: role,

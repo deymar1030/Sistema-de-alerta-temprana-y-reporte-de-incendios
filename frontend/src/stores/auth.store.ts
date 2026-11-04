@@ -99,6 +99,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /** Recarga la cuenta logueada desde la cookie de sesion del backend. */
+  const refreshProfile = async (): Promise<User> => {
+    if (!user.value) throw new Error('Debes iniciar sesion para editar tus datos.')
+    const currentId = String(user.value.id)
+    const fresh = await authService.getCurrentUser()
+    if (!fresh) throw new Error('El servidor no pudo confirmar tu sesion despues del cambio.')
+    if (String(fresh.id) !== currentId) {
+      throw new Error('El servidor devolvio una cuenta distinta a la autenticada.')
+    }
+    user.value = fresh
+    return fresh
+  }
+
   const registerCitizen = async (
     payload: Partial<User> & {
       password: string
@@ -211,6 +224,7 @@ export const useAuthStore = defineStore('auth', () => {
     initialize,
     login,
     registerCitizen,
+    refreshProfile,
     changePassword,
     logout,
   }

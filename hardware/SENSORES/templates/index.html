@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulador de sensores · Incendios</title>
+<style>
+:root{--bg:#e9ebee;--card:#fff;--ink:#1d2430;--mut:#6b7686;--line:#d3d8df;--fire:#d6402b;--ok:#1f7a55;--warn:#b7791f}
+@media(prefers-color-scheme:dark){:root{--bg:#14181f;--card:#1d232d;--ink:#e8ebf0;--mut:#8f9aab;--line:#2d3542;--fire:#ff6a4d;--ok:#4cc38a;--warn:#e0a53a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--line)}
+h1{font-size:20px;margin:0;font-weight:650}h1 small{display:block;color:var(--mut);font-weight:400;font-size:13px}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--mut)}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--fire);outline-offset:2px}
+button.fire{background:var(--fire);border-color:var(--fire);color:#fff}button.go{background:var(--ok);border-color:var(--ok);color:#fff}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;padding:20px 24px}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+#predios{display:grid;gap:14px}
+.p{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;border-left:5px solid var(--line)}
+.p.on{border-left-color:var(--ok)}.p.ev{border-left-color:var(--fire)}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.top b{font-size:17px}.tag{font-size:13px;color:var(--mut)}.tag.ev{color:var(--fire);font-weight:650}.tag.err{color:var(--fire)}
+.s{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.s div{border:1px solid var(--line);border-radius:6px;padding:4px 10px;min-width:104px}
+.s span{display:block;color:var(--mut);font-size:12px}.s strong{font-size:18px;font-variant-numeric:tabular-nums}
+.bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin:4px 0 10px}.bar i{display:block;height:100%;background:var(--warn)}.bar.full i{background:var(--ok)}
+.acc{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input[type=number]{width:70px;background:transparent;border:1px solid var(--line);border-radius:6px;padding:5px}
+select{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px}
+aside{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;max-height:80vh;overflow:auto;font:12.5px/1.5 ui-monospace,Consolas,monospace}
+aside h2{font:600 14px "Segoe UI",sans-serif;margin:0 0 8px}aside p{margin:0 0 4px;word-break:break-word}
+#msg{color:var(--fire);font-size:13px}
+</style></head><body>
+<header><h1>Simulador de sensores<small>MQTT · un cliente por predio · <span id="n">0</span> predios</small></h1>
+<div class="acc"><span id="msg"></span>
+<button onclick="post('/api/refrescar')">Actualizar predios</button>
+<button class="go" onclick="post('/api/todos/iniciar')">Iniciar todos</button>
+<button onclick="post('/api/todos/detener')">Detener todos</button></div></header>
+<main><section id="predios"></section><aside><h2>Registro</h2><div id="log"></div></aside></main>
+<script>
+const BASE={{ baseline }};
+const $=s=>document.querySelector(s);
+async function post(url,body){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+  const j=await r.json();$('#msg').textContent=j.ok?'':j.error;load();
+}
+function dis(id){const t=$('#t'+id).value,i=$('#i'+id).value,r=$('#r'+id).value;
+  const seg=+$('#p'+id).dataset.seg;
+  if(seg<BASE&&!confirm('Este predio lleva menos de '+Math.round(BASE/60)+' min publicando: el motor aun no tiene linea base y puede no detectar el incendio. ¿Disparar igual?'))return;
+  post('/api/predios/'+id+'/incendio',{tipo:t,intensidad:i,rampa:r});}
+function card(p){
+  const pct=Math.min(100,p.segundos/BASE*100),full=p.segundos>=BASE;
+  const est=p.error?`<span class="tag err">${p.error}</span>`:p.evento?`<span class="tag ev">${p.evento.apagando?'apagando…':'INCENDIO: '+p.evento.tipo}</span>`:`<span class="tag">${p.activo?'publicando':'detenido'}</span>`;
+  const sens=p.sensores.map(s=>`<div><span>${s.tipo}</span><strong>${s.valor??'—'}</strong> <span style="display:inline">${s.unidad}</span></div>`).join('');
+  const acc=p.activo?`
+   <div class="bar ${full?'full':''}" title="Linea base"><i style="width:${pct}%"></i></div>
+   <div class="acc"><select id="t${p.id_predio}"><option value="incendio">Incendio completo</option><option value="calor">Solo calor</option><option value="gas">Fuga de gas</option><option value="pico">Pico de temperatura</option></select>
+   <label>Intensidad <input id="i${p.id_predio}" type="number" step="0.1" min="0.1" max="3" value="1"></label>
+   <label>Rampa (s) <input id="r${p.id_predio}" type="number" min="1" value="60"></label>
+   <button class="fire" onclick="dis(${p.id_predio})">Iniciar incendio</button>
+   <button onclick="post('/api/predios/${p.id_predio}/apagar')">Apagar</button>
+   <button onclick="post('/api/predios/${p.id_predio}/detener')">Detener sensor</button></div>`
+   :`<div class="acc"><button class="go" onclick="post('/api/predios/${p.id_predio}/iniciar')">Iniciar simulacion</button></div>`;
+  return `<article class="p ${p.evento?'ev':p.activo?'on':''}" id="p${p.id_predio}" data-seg="${p.segundos}">
+   <div class="top"><b>Predio ${p.id_predio}</b>${est}</div><div class="s">${sens}</div>${acc}</article>`;
+}
+async function load(){
+  const j=await (await fetch('/api/estado')).json();
+  $('#n').textContent=j.predios.length;
+  const foco=document.activeElement&&document.activeElement.closest('.acc'); // no pisar controles en uso
+  if(!foco||document.activeElement.tagName==='BUTTON'){
+    const keep={};document.querySelectorAll('.acc select,.acc input').forEach(e=>keep[e.id]=e.value);
+    $('#predios').innerHTML=j.predios.map(card).join('')||'<p>Sin predios con sensores activos. Pulsa «Actualizar predios».</p>';
+    for(const k in keep){const e=document.getElementById(k);if(e)e.value=keep[k];}
+  }
+  $('#log').innerHTML=j.logs.map(l=>`<p>${l.t} [${l.predio}] ${l.msg}</p>`).join('');
+}
+load();setInterval(load,2000);
+</script></body></html>

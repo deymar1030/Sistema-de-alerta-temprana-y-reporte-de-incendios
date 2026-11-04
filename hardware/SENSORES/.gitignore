@@ -1,0 +1,8 @@
+__pycache__/
+.venv/
+.env
+.env.*
+!.env.example
+*.private.json
+publishers.json
+runtime/

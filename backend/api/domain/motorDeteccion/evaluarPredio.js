@@ -1,4 +1,4 @@
-import { filtroHampel, cusum, theilSen, contrasteVecinos, puntajeAlerta, clasificarAlerta } from './index.js';
+import { filtroHampel, cusum, theilSen, contrasteVecinos, puntajeAlerta, clasificarAlerta, ventanaCorregida } from './index.js';
 import { normalizarVariable } from '../sensor/tiposSensor.js';
 
 export function inicioAlerta(alerta) {
@@ -87,7 +87,33 @@ export function evaluarPredio({ sensores, vecinos = [], motor, config, ahora, al
     mayoriaVecinosAfectados: puedePuntuar && clima, todosZrobBajoUmbral: clima,
     tiempoEvaluacionVencido: edad >= Number(motor.tiempo_max_evaluacion_min) * 60000,
   });
-  return { ...decision, puntaje: puedePuntuar ? puntaje.R : null, sensores: propios,
+
+  // Ventana de correccion: una lectura critica con respaldo ya no confirma
+  // de inmediato. Avisa a las instituciones en el acto (avisoCritico) pero
+  // el estado queda EN_EVALUACION hasta que, minutos despues, se resuelva
+  // sola (silencio o lecturas mezcladas sostienen; ventana limpia corrige).
+  // Una vez fijado fecha_pico_critico, el desenlace depende solo de la
+  // ventana, sin importar si la lectura que disparo el aviso se enfrio.
+  let resultado = decision;
+  let avisoCritico = false;
+  let fechaPicoCritico = alerta?.fecha_pico_critico ? new Date(alerta.fecha_pico_critico) : null;
+  if (fechaPicoCritico) {
+    const vencida = +ahora - +fechaPicoCritico >= Number(motor.ventana_correccion_min) * 60000;
+    if (!vencida) {
+      resultado = { estado: 'EN_EVALUACION', clasificacion: null };
+    } else {
+      const sensoresEvidencia = sensores.filter((s) => config.confirmacion.variablesEvidencia.includes(normalizarVariable(s.tipo_sensor)));
+      const corregida = ventanaCorregida({ sensoresEvidencia, motor, config, fechaPicoCritico, ahora });
+      resultado = corregida ? { estado: 'DESCARTADA', clasificacion: 'ALARMA_CORREGIDA' } : { estado: 'CONFIRMADA', clasificacion: 'INCENDIO' };
+    }
+  } else if (decision.estado === 'CONFIRMADA') {
+    avisoCritico = true;
+    fechaPicoCritico = ahora;
+    resultado = { estado: 'EN_EVALUACION', clasificacion: null };
+  }
+
+  return { ...resultado, puntaje: puedePuntuar ? puntaje.R : null, sensores: propios,
     datosSuficientes: puedePuntuar && puntaje.R !== null,
-    confirmacionDisponible: propios.some((s) => config.confirmacion.variablesEvidencia.includes(s.variable)) };
+    confirmacionDisponible: propios.some((s) => config.confirmacion.variablesEvidencia.includes(s.variable)),
+    avisoCritico, fechaPicoCritico };
 }

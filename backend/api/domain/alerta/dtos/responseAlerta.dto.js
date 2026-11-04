@@ -21,7 +21,7 @@ function miEnvio(alerta) {
 }
 
 export class ResponseAlertaDTO {
-  constructor({ id_alerta, fecha, hora, estado, puntaje, clasificacion, fecha_confirmacion, fecha_cierre, mi_envio }) {
+  constructor({ id_alerta, fecha, hora, estado, puntaje, clasificacion, fecha_confirmacion, fecha_cierre, fecha_pico_critico, mi_envio }) {
     this.id_alerta = id_alerta;
     this.fecha = fecha;
     this.hora = hora;
@@ -30,6 +30,7 @@ export class ResponseAlertaDTO {
     this.clasificacion = clasificacion;
     this.fecha_confirmacion = fecha_confirmacion;
     this.fecha_cierre = fecha_cierre;
+    this.fecha_pico_critico = fecha_pico_critico;
     this.mi_envio = mi_envio;
   }
 
@@ -43,6 +44,7 @@ export class ResponseAlertaDTO {
       clasificacion: alerta.clasificacion,
       fecha_confirmacion: alerta.fecha_confirmacion,
       fecha_cierre: alerta.fecha_cierre,
+      fecha_pico_critico: alerta.fecha_pico_critico,
       mi_envio: miEnvio(alerta),
     });
   }

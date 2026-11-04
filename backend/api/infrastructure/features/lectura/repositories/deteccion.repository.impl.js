@@ -58,13 +58,21 @@ class TransaccionDeteccion {
   actualizarAlerta(alerta, resultado, ahora) {
     const data = { estado: resultado.estado, clasificacion: resultado.clasificacion,
       puntaje: resultado.puntaje == null ? null : Number(resultado.puntaje.toFixed(3)) };
+    if (resultado.avisoCritico) data.fecha_pico_critico = ahora;
     if (resultado.estado === 'CONFIRMADA') data.fecha_confirmacion = ahora;
     if (resultado.estado === 'DESCARTADA') data.fecha_cierre = ahora;
     return this.db.alerta.update({ where: { id_alerta: alerta.id_alerta }, data });
   }
   async distribuir(alerta, predio, ahora) {
-    return distribuirAlerta(this.db, { alerta, ahora, titulo: 'Incendio confirmado',
-      mensaje: `Alerta #${alerta.id_alerta} en ${predio.nombre}.`,
+    // Se llama tanto al confirmar en firme como al primer aviso critico
+    // (estado aun EN_EVALUACION, dentro de la ventana de correccion): el
+    // texto no debe declarar confirmado lo que todavia se esta validando.
+    const confirmada = alerta.estado === 'CONFIRMADA';
+    return distribuirAlerta(this.db, { alerta, ahora,
+      titulo: confirmada ? 'Incendio confirmado' : 'Lectura critica: posible incendio',
+      mensaje: confirmada
+        ? `Alerta #${alerta.id_alerta} en ${predio.nombre}.`
+        : `Alerta #${alerta.id_alerta} en ${predio.nombre}: lectura critica, validando.`,
       destino_latitud: predio.latitud, destino_longitud: predio.longitud });
   }
 

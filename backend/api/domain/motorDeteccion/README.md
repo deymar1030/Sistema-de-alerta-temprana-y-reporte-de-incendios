@@ -15,6 +15,7 @@ El enfoque permite detectar anomalías y gestionar episodios. La confirmación f
 | `umbral_confirmacion`, `umbral_descarte` | Umbrales de R |
 | `tiempo_max_evaluacion_min` | Plazo del episodio |
 | `radio_vecindad_m` | Selección espacial |
+| `ventana_correccion_min` | Minutos de la ventana de corrección tras la primera lectura crítica con respaldo |
 | `parametro_variable.tipo_variable` | Variables habilitadas |
 | `parametro_variable.umbral_critico` | Límite crítico opcional |
 
@@ -51,12 +52,22 @@ La evidencia predeterminada admite HUMO/CO. CO₂/%LEL originales sí abren epis
 
 `SIN_EVIDENCIA` no demuestra ausencia de riesgo. `confirmacion_disponible: false` indica que no hay variables admitidas para confirmar. R es un índice de las señales, no una probabilidad.
 
+### Ventana de corrección
+
+La primera vez que una evaluación cumpliría la regla 2 (`INCENDIO`), `evaluarPredio` no la confirma todavía: avisa a las instituciones de inmediato (`avisoCritico: true`, `fecha_pico_critico` se fija) pero el `estado` queda `EN_EVALUACION`. Durante los `ventana_correccion_min` siguientes:
+
+- Silencio del sensor (sin lecturas nuevas de las variables de evidencia) → al vencer la ventana, `CONFIRMADA`. Un incendio real puede dañar el sensor que lo detectó; el silencio no se confunde con "no hay evidencia".
+- Lecturas mezcladas o fluctuantes → también `CONFIRMADA`. El fuego real también produce datos inconsistentes.
+- Todas las lecturas de esas variables vuelven a la normalidad → `DESCARTADA` / `ALARMA_CORREGIDA`. El aviso ya enviado no se retracta.
+
+Una vez resuelta por la ventana (`CONFIRMADA` o `ALARMA_CORREGIDA`), aplica la regla de abajo: el motor no vuelve a tocarla.
+
 ## Orquestación y pruebas
 
 [EvaluarLecturaUseCase](../../application/lectura/useCases/evaluarLectura.useCase.js) valida, evalúa y prepara eventos. El [repositorio Prisma](../../infrastructure/features/lectura/repositories/deteccion.repository.impl.js) serializa por predio y persiste lectura, episodio y distribución institucional de forma atómica.
 
-Una confirmada/atendida no se descarta por nuevas lecturas normales. El cierre de todos sus envíos cierra el episodio y permite uno posterior. El monitor recupera evaluaciones de la BD tras reiniciar y descarta vencidas sin inventar confirmaciones con lecturas antiguas.
+Una confirmada/atendida no se descarta por nuevas lecturas normales: solo bomberos la cierra (`informe_atencion`). El cierre de todos sus envíos cierra el episodio y permite uno posterior. El monitor recupera evaluaciones de la BD tras reiniciar y descarta vencidas sin inventar confirmaciones con lecturas antiguas, salvo que tengan una ventana de corrección abierta (`fecha_pico_critico`), que se resuelve por su propio plazo en vez del plazo general del episodio.
 
-Sin cambios de esquema, índices, migraciones ni depuración automática de lecturas.
+Sin índices, migraciones ni depuración automática de lecturas. Esquema: `alerta.fecha_pico_critico` y `motor_det.ventana_correccion_min` (ver `bd/CambiosBD_VentanaCorreccion.md`).
 
 Desde `backend`: `npm test`. Para pruebas reales de broker, persistencia, concurrencia y rollback, ver [guía de integración](../../../mqtt/README.md).

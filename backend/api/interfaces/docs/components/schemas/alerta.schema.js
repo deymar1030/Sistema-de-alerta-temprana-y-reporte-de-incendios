@@ -26,6 +26,7 @@
  *         clasificacion:
  *           type: string
  *           nullable: true
+ *           enum: [INCENDIO, CLIMA, FALLA_SENSOR, SIN_EVIDENCIA, ALARMA_CORREGIDA]
  *           example: "INCENDIO"
  *         fecha_confirmacion:
  *           type: string
@@ -35,6 +36,11 @@
  *           type: string
  *           format: date-time
  *           nullable: true
+ *         fecha_pico_critico:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: Momento de la primera lectura critica con respaldo. Ya se aviso a las instituciones; el estado queda EN_EVALUACION hasta que cierre la ventana de correccion del motor_det.
  *
  *     AlertaListResponse:
  *       type: array

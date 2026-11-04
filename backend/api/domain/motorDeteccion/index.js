@@ -4,3 +4,4 @@ export { theilSen } from "./theilSen.js";
 export { contrasteVecinos } from "./contrasteVecinos.js";
 export { puntajeAlerta } from "./puntajeAlerta.js";
 export { clasificarAlerta } from "./clasificarAlerta.js";
+export { ventanaCorregida } from "./evaluarVentanaCorreccion.js";

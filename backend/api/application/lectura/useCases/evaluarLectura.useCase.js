@@ -32,15 +32,23 @@ export class EvaluarLecturaUseCase {
     const payload = { ...ResponseAlertaDTO.fromEntity(actualizada), id_predio: contexto.predio.id_predio,
       predio: predioPublico(contexto.predio), sensores: resultado.sensores,
       datos_suficientes: resultado.datosSuficientes, confirmacion_disponible: resultado.confirmacionDisponible };
-    if (actualizada.estado === 'CONFIRMADA') {
+    const avisar = async (evento) => {
       const { envios, notificaciones, rutasPendientes: nuevasRutas } = await tx.distribuir(actualizada, contexto.predio, ahora);
       Object.assign(payload, await tx.detalle(actualizada));
-      eventos.push(['emitAlertaConfirmada', payload]);
+      eventos.push([evento, payload]);
       envios.forEach((e) => eventos.push(['emitEnvioActualizado', e]));
       notificaciones.forEach((n) => eventos.push(['emitNotificacion', n]));
       rutasPendientes.push(...nuevasRutas);
+    };
+    if (actualizada.estado === 'CONFIRMADA') {
+      await avisar('emitAlertaConfirmada');
     } else if (actualizada.estado === 'DESCARTADA') {
       eventos.push(['emitAlertaDescartada', payload]);
+    } else if (resultado.avisoCritico) {
+      // Lectura critica con respaldo: se avisa a las instituciones de
+      // inmediato aunque el estado quede EN_EVALUACION hasta que cierre la
+      // ventana de correccion (ver evaluarPredio.js).
+      await avisar(nueva ? 'emitAlertaAbierta' : 'emitAlertaActualizada');
     } else {
       eventos.push([nueva ? 'emitAlertaAbierta' : 'emitAlertaActualizada', payload]);
     }
@@ -96,8 +104,17 @@ export class EvaluarLecturaUseCase {
         const alerta = await tx.alertaActiva(id);
         if (!alerta || alerta.estado !== 'EN_EVALUACION') return { eventos };
         const contexto = await tx.contexto(id, ahora);
-        if (+ahora - +inicioAlerta(alerta) < Number(contexto.motor.tiempo_max_evaluacion_min) * 60000) return { eventos };
         const config = resolverConfiguracion(contexto.motor, this.configuracion);
+        if (alerta.fecha_pico_critico) {
+          // Ventana de correccion activa: ya se aviso a las instituciones,
+          // solo evaluarPredio decide el desenlace (silencio o lecturas
+          // mezcladas sostienen; ventana entera y limpia corrige).
+          const evaluacion = evaluarPredio({ ...contexto, config, ahora, alerta });
+          if (evaluacion.estado === 'EN_EVALUACION') return { eventos };
+          await this.resolverAlerta(tx, contexto, alerta, evaluacion, ahora, eventos, rutasPendientes);
+          return { eventos, rutasPendientes };
+        }
+        if (+ahora - +inicioAlerta(alerta) < Number(contexto.motor.tiempo_max_evaluacion_min) * 60000) return { eventos };
         const evaluacion = evaluarPredio({ ...contexto, config, ahora, alerta });
         // Sin lecturas nuevas no se inventa una confirmacion. El plazo del episodio se cumple aun con sensores caidos.
         await this.resolverAlerta(tx, contexto, alerta, { ...evaluacion, estado: 'DESCARTADA', clasificacion: 'SIN_EVIDENCIA' }, ahora, eventos, rutasPendientes);

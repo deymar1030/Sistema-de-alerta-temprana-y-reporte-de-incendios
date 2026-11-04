@@ -160,6 +160,7 @@ model alerta {
   clasificacion      String?   @db.VarChar(20)
   fecha_confirmacion DateTime? @db.Timestamp(6)
   fecha_cierre       DateTime? @db.Timestamp(6)
+  fecha_pico_critico DateTime? @db.Timestamp(6)
 
   recepciona       recepciona[]
   realiza_audi     realiza_audi[]
@@ -234,6 +235,7 @@ model motor_det {
   umbral_descarte           Decimal @db.Decimal(3, 2)
   tiempo_max_evaluacion_min Int     @db.SmallInt
   radio_vecindad_m          Int
+  ventana_correccion_min    Int     @default(5) @db.SmallInt
 
   parametro_variable parametro_variable[]
   predio             predio[]

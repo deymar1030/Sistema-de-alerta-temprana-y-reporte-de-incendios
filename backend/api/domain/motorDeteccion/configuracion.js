@@ -50,7 +50,8 @@ export function resolverConfiguracion(motor, personalizada = {}) {
       config.confirmacion.permitirGasesSimulados !== true) {
     throw new Error('Confirmacion con CO2/GAS_LEL requiere configuracion explicita validada');
   }
-  for (const clave of ['ventana_base_min', 'umbral_z', 'cusum_h', 'umbral_confirmacion', 'umbral_descarte', 'tiempo_max_evaluacion_min', 'radio_vecindad_m']) {
+  for (const clave of ['ventana_base_min', 'umbral_z', 'cusum_h', 'umbral_confirmacion', 'umbral_descarte',
+    'tiempo_max_evaluacion_min', 'radio_vecindad_m', 'ventana_correccion_min']) {
     positivo(Number(motor[clave]), clave);
   }
   if (Number(motor.umbral_descarte) >= Number(motor.umbral_confirmacion) || Number(motor.umbral_confirmacion) > 1) {

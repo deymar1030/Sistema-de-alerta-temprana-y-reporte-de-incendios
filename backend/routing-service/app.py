@@ -1,9 +1,17 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from router import calculate_shortest_route
+from router import _load_cached_graph, calculate_shortest_route
 
 app = FastAPI(title="Servicio de rutas")
+
+
+@app.on_event("startup")
+def preload_graph():
+    # Carga el grafo cacheado al arrancar el contenedor en vez de en la
+    # primera request: el primer usuario no paga el costo de leer/parsear
+    # el .graphml.gz (unos segundos).
+    _load_cached_graph()
 
 
 class RouteRequest(BaseModel):

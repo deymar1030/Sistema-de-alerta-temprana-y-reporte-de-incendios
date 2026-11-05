@@ -5,7 +5,12 @@ const ESTADOS_ACTIVOS = ["EN_EVALUACION", "CONFIRMADA", "ATENDIDA"];
 function buildWhere(filters = {}) {
   const where = {};
 
+  // Sin filtro de estado explicito, se oculta DESCARTADA por defecto: una
+  // alerta descartada ya no es accionable y solo genera ruido visual en las
+  // listas/dashboards. Quien necesite verlas (ej. auditoria) debe pedirlas
+  // con ?estado=DESCARTADA explicitamente.
   if (filters.estado) where.estado = filters.estado;
+  else where.estado = { not: "DESCARTADA" };
   if (filters.clasificacion) where.clasificacion = filters.clasificacion;
   if (filters.id_zona) where.lectura = { some: { sensor: { predio: { id_zona: Number(filters.id_zona) } } } };
   if (filters.id_institucion) where.envia = { some: { id_institucion: Number(filters.id_institucion) } };

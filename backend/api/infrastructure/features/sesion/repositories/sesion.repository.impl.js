@@ -6,6 +6,9 @@ import SesionRepository from "../../../../application/sesion/repositories/sesion
 const USUARIO_PUBLICO = {
   estado: true,
   fecha_eliminacion: true,
+  bloqueado_hasta: true,
+  mfa_secreto: true,
+  mfa_habilitado: true,
   id_usuario: true,
   id_rol: true,
   id_institucion: true,
@@ -30,6 +33,7 @@ export default class PrismaSesionRepository extends SesionRepository {
         id_usuario: sesionData.id_usuario,
         token_hash: sesionData.token_hash,
         expira_en: sesionData.expira_en,
+        mfa_pendiente: sesionData.mfa_pendiente,
       },
     });
   }
@@ -59,6 +63,19 @@ export default class PrismaSesionRepository extends SesionRepository {
   async purgeAntiguas(id_usuario, limite) {
     await this.prisma.sesion.deleteMany({
       where: { id_usuario, expira_en: { lt: limite } },
+    });
+  }
+
+  // Se dispara al bloquear la cuenta por intentos fallidos: el bloqueo es de
+  // toda la cuenta, no solo de los intentos de login nuevos (ver authenticate.useCase.js).
+  async revokeAllByUsuario(id_usuario) {
+    await this.prisma.sesion.deleteMany({ where: { id_usuario } });
+  }
+
+  async confirmarMfa(id_sesion, expira_en) {
+    await this.prisma.sesion.update({
+      where: { id_sesion },
+      data: { mfa_pendiente: false, expira_en },
     });
   }
 }

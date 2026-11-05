@@ -26,4 +26,24 @@ export default class UsuarioRepository {
   async reactivar(id) {
     throw new Error("Method not implemented");
   }
+
+  async incrementarIntentosFallidos(id) {
+    throw new Error("Method not implemented");
+  }
+
+  async resetearIntentos(id) {
+    throw new Error("Method not implemented");
+  }
+
+  async bloquear(id, bloqueado_hasta) {
+    throw new Error("Method not implemented");
+  }
+
+  async guardarSecretoMfa(id, mfa_secreto) {
+    throw new Error("Method not implemented");
+  }
+
+  async habilitarMfa(id) {
+    throw new Error("Method not implemented");
+  }
 }

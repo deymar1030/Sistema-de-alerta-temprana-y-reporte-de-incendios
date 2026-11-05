@@ -10,10 +10,10 @@ const baseOptions = {
 };
 
 export class SessionCookie {
-  static set(res, token) {
+  static set(res, token, maxAgeMs = envs.SESSION_TTL_HOURS * 60 * 60 * 1000) {
     res.cookie(SESSION_COOKIE_NAME, token, {
       ...baseOptions,
-      maxAge: envs.SESSION_TTL_HOURS * 60 * 60 * 1000,
+      maxAge: maxAgeMs,
     });
   }
 

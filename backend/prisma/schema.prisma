@@ -85,6 +85,10 @@ model usuario {
   correo            String    @unique @db.VarChar(254)
   fecha_eliminacion DateTime? @db.Timestamp(6)
   estado            Boolean   @default(true)
+  intentos_fallidos Int       @default(0) @db.SmallInt
+  bloqueado_hasta   DateTime? @db.Timestamp(6)
+  mfa_secreto       String?   @db.VarChar(64)
+  mfa_habilitado    Boolean   @default(false)
 
   rol         rol          @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Restrict)
   institucion institucion? @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: SetNull)
@@ -100,10 +104,11 @@ model usuario {
 }
 
 model sesion {
-  id_sesion  BigInt   @id @default(autoincrement())
-  id_usuario BigInt
-  token_hash String   @unique @db.Char(64)
-  expira_en  DateTime @db.Timestamp(6)
+  id_sesion     BigInt   @id @default(autoincrement())
+  id_usuario    BigInt
+  token_hash    String   @unique @db.Char(64)
+  expira_en     DateTime @db.Timestamp(6)
+  mfa_pendiente Boolean  @default(false)
 
   usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
 

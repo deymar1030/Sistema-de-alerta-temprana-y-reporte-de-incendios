@@ -92,4 +92,43 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
       include: { rol: { select: { nombre_rol: true } } },
     });
   }
+
+  // Devuelve el contador ya incrementado para que el caller decida si llego
+  // al umbral de la politica del rol, sin una lectura previa por separado.
+  async incrementarIntentosFallidos(id) {
+    const usuario = await this.prisma.usuario.update({
+      where: { id_usuario: Number(id) },
+      data: { intentos_fallidos: { increment: 1 } },
+      select: { intentos_fallidos: true },
+    });
+    return usuario.intentos_fallidos;
+  }
+
+  async resetearIntentos(id) {
+    await this.prisma.usuario.update({
+      where: { id_usuario: Number(id) },
+      data: { intentos_fallidos: 0 },
+    });
+  }
+
+  async bloquear(id, bloqueado_hasta) {
+    await this.prisma.usuario.update({
+      where: { id_usuario: Number(id) },
+      data: { bloqueado_hasta, intentos_fallidos: 0 },
+    });
+  }
+
+  async guardarSecretoMfa(id, mfa_secreto) {
+    await this.prisma.usuario.update({
+      where: { id_usuario: Number(id) },
+      data: { mfa_secreto, mfa_habilitado: false },
+    });
+  }
+
+  async habilitarMfa(id) {
+    await this.prisma.usuario.update({
+      where: { id_usuario: Number(id) },
+      data: { mfa_habilitado: true },
+    });
+  }
 }

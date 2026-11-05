@@ -93,6 +93,10 @@ CREATE TABLE usuario (
     correo            VARCHAR(254) NOT NULL UNIQUE,
     fecha_eliminacion TIMESTAMP,
     estado            BOOLEAN NOT NULL DEFAULT TRUE,
+    intentos_fallidos SMALLINT NOT NULL DEFAULT 0,
+    bloqueado_hasta   TIMESTAMP,
+    mfa_secreto       VARCHAR(64),
+    mfa_habilitado    BOOLEAN NOT NULL DEFAULT FALSE,
 
     CONSTRAINT fk_usuario_rol
         FOREIGN KEY (id_rol) REFERENCES rol(id_rol)
@@ -112,6 +116,7 @@ CREATE TABLE sesion (
     id_usuario  BIGINT NOT NULL,
     token_hash  CHAR(64) NOT NULL UNIQUE,
     expira_en   TIMESTAMP NOT NULL,
+    mfa_pendiente BOOLEAN NOT NULL DEFAULT FALSE,
 
     CONSTRAINT fk_sesion_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)

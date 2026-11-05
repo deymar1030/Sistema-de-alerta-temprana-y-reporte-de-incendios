@@ -146,7 +146,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="al-modern-screen space-y-6">
     <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-500">Administración institucional</p>

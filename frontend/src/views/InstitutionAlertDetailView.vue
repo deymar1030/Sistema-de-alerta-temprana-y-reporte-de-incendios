@@ -113,7 +113,7 @@ watch(() => route.params.id, () => { void load() })
 </script>
 
 <template>
-  <main class="mx-auto max-w-[1200px] space-y-5">
+  <main class="al-modern-screen mx-auto max-w-[1200px] space-y-5">
     <RouterLink to="/institucion/alertas" class="inline-flex font-semibold text-orange-700 underline">Volver a alertas</RouterLink>
     <header class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-bold text-slate-900">Detalle institucional</h1>

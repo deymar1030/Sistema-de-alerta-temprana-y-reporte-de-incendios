@@ -30,7 +30,7 @@ onMounted(load)
 </script>
 
 <template>
-  <main class="space-y-5">
+  <main class="al-modern-screen space-y-5">
     <header class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p class="text-xs font-semibold uppercase tracking-wide text-orange-700">Institución</p>

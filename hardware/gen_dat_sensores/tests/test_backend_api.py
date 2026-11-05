@@ -47,7 +47,7 @@ class ClienteBackendTest(unittest.TestCase):
             return ClienteBackend("http://backend.test", "simulador@test", "password", credenciales)
 
     def test_descubre_sensor_y_usa_credencial_existente(self):
-        sesion = SesionFalsa([{"id_predio": 8}], {
+        sesion = SesionFalsa([{"id_predio": 8, "nombre": "Predio de prueba"}], {
             8: [{
                 "id_sensor": 31,
                 "tipo_sensor": "TEMPERATURA",
@@ -63,9 +63,31 @@ class ClienteBackendTest(unittest.TestCase):
             resultado = cliente.descubrir_predios()
 
         self.assertEqual(resultado[0]["id_predio"], 8)
+        self.assertEqual(resultado[0]["nombre_predio"], "Predio de prueba")
         self.assertEqual(resultado[0]["usuario_mqtt"], "predio-8")
         self.assertEqual(resultado[0]["password_mqtt"], "password-segura")
+        self.assertEqual(resultado[0]["sensores"][0]["rango_max"], 80.0)
+        self.assertEqual(resultado[0]["sensores"][0]["temperatura_escenario_max"], 80.0)
         self.assertEqual([llamada[0] for llamada in sesion.llamadas], ["POST", "GET", "GET"])
+
+    def test_amplia_solo_el_rango_local_de_temperatura_para_simular_hasta_80(self):
+        sesion = SesionFalsa([{"id_predio": 8}], {
+            8: [{
+                "id_sensor": 31,
+                "tipo_sensor": "TEMPERATURA",
+                "unidad_medida": "C",
+                "rango_min": 0,
+                "rango_max": 45,
+                "estado": "ACTIVO",
+            }]
+        })
+
+        with tempfile.TemporaryDirectory() as directorio:
+            cliente = self.crear_cliente(directorio, sesion)
+            sensor = cliente.descubrir_predios()[0]["sensores"][0]
+
+        self.assertEqual(sensor["rango_max"], 80.0)
+        self.assertEqual(sensor["temperatura_escenario_max"], 80.0)
 
     def test_falla_si_falta_credencial_sin_provisionarla_por_api(self):
         sesion = SesionFalsa([{"id_predio": 9}], {

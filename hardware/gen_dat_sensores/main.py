@@ -9,7 +9,12 @@ from dotenv import load_dotenv
 from requests import RequestException
 
 from config_predios import cargar_predios
-from cliente_predio import ClientePredio
+from cliente_predio import (
+    INTERVALO_MAX_SEGUNDOS,
+    INTERVALO_MIN_SEGUNDOS,
+    INTERVALO_PREDETERMINADO_SEGUNDOS,
+    ClientePredio,
+)
 from web_manual import iniciar_interfaz
 
 load_dotenv()
@@ -17,23 +22,27 @@ load_dotenv()
 
 def main():
     parser = argparse.ArgumentParser(description="Publica lecturas por MQTT para los predios/sensores reales del backend.")
-    parser.add_argument("--intervalo", type=float, default=7)
+    parser.add_argument("--intervalo", type=float, default=INTERVALO_PREDETERMINADO_SEGUNDOS)
     parser.add_argument("--backend-url", help="URL de la API, ej. http://host:3000 (default SIMULADOR_BACKEND_URL o localhost:3000)")
     parser.add_argument("--correo", help="Usuario de simulacion (o SIMULADOR_CORREO)")
     parser.add_argument("--contrasena", help="Contrasena del usuario de simulacion (o SIMULADOR_CONTRASENA)")
     parser.add_argument("--credenciales", help="Archivo con contrasenas MQTT provisionadas por predio (default runtime/credenciales_predios.json)")
     parser.add_argument("--broker", help="mqtt://host:1883 o mqtts://host:8883")
     parser.add_argument("--ca", help="CA del broker TLS")
-    parser.add_argument("--escenario", choices=["normal", "gas", "calor", "pico"], default="normal")
-    parser.add_argument("--inicio-evento", type=float, default=420, help="Segundos de linea base antes del escenario (conservar mas de 5 minutos)")
+    parser.add_argument("--escenario", choices=["normal", "gas", "calor", "pico", "incendio"], default="normal")
+    parser.add_argument("--inicio-evento", type=float, default=3, help="Segundos de linea base antes del escenario (predeterminado: 3)")
     parser.add_argument("--duracion", type=float, default=0, help="0: ejecutar hasta Ctrl+C")
     parser.add_argument("--semilla", type=int, default=42)
     parser.add_argument("--web-port", type=int, default=5000, help="Puerto local de la interfaz Flask")
     parser.add_argument("--sin-interfaz", action="store_true", help="Ejecutar solo la publicacion MQTT")
     args = parser.parse_args()
-    if (not 5 <= args.intervalo <= 10 or args.duracion < 0 or args.inicio_evento < 0
+    if (not INTERVALO_MIN_SEGUNDOS <= args.intervalo <= INTERVALO_MAX_SEGUNDOS
+            or args.duracion < 0 or args.inicio_evento < 0
             or not 1 <= args.web_port <= 65535):
-        parser.error("Intervalo entre 5 y 10; duracion e inicio-evento no negativos; puerto web entre 1 y 65535")
+        parser.error(
+            f"Intervalo entre {INTERVALO_MIN_SEGUNDOS} y {INTERVALO_MAX_SEGUNDOS}; "
+            "duracion e inicio-evento no negativos; puerto web entre 1 y 65535"
+        )
     detener = threading.Event()
     signal.signal(signal.SIGINT, lambda *_: detener.set())
     signal.signal(signal.SIGTERM, lambda *_: detener.set())
@@ -46,7 +55,8 @@ def main():
         for p in predios:
             c = ClientePredio(p["id_predio"], p["usuario_mqtt"], p["password_mqtt"], p["sensores"],
                               args.intervalo, args.broker, args.ca, args.escenario,
-                              args.semilla + p["id_predio"], args.inicio_evento, sensor_pico_id)
+                              args.semilla + p["id_predio"], args.inicio_evento, sensor_pico_id,
+                              nombre_predio=p.get("nombre_predio"))
             clientes.append(c)
             c.conectar()
         for c in clientes:

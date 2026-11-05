@@ -23,6 +23,7 @@ TIPO_DEFAULTS = {
     "HUMO": {"valor_base": 5.0, "sigma": 1.0},
     "CO": {"valor_base": 1.0, "sigma": 0.3},
 }
+TEMPERATURA_ESCENARIO_MAX_C = 80.0
 
 
 class ClienteBackend:
@@ -81,6 +82,10 @@ class ClienteBackend:
                 tipo = s["tipo_sensor"]
                 defaults = TIPO_DEFAULTS.get(tipo, {"valor_base": 0.0, "sigma": 1.0})
                 rango_min, rango_max = float(s["rango_min"]), float(s["rango_max"])
+                temperatura_escenario_max = None
+                if tipo == "TEMPERATURA":
+                    temperatura_escenario_max = TEMPERATURA_ESCENARIO_MAX_C
+                    rango_max = max(rango_max, temperatura_escenario_max)
                 sensores.append({
                     "id_sensor": int(s["id_sensor"]),
                     "tipo_variable": tipo,
@@ -89,6 +94,7 @@ class ClienteBackend:
                     "sigma": defaults["sigma"],
                     "rango_min": rango_min,
                     "rango_max": rango_max,
+                    "temperatura_escenario_max": temperatura_escenario_max,
                 })
             if not sensores:
                 continue  # predio sin sensores activos: nada que simular todavia
@@ -99,6 +105,7 @@ class ClienteBackend:
                 continue
             resultado.append({
                 "id_predio": id_predio,
+                "nombre_predio": p.get("nombre") or f"Predio {id_predio}",
                 "usuario_mqtt": f"predio-{id_predio}",
                 "password_mqtt": password,
                 "sensores": sensores,

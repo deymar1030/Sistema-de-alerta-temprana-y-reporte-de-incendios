@@ -25,12 +25,12 @@ MQTT_CA_FILE=ruta/al/server.crt
 4. Corre el simulador (lee todo de `.env` automáticamente):
 
 ```powershell
-.venv\Scripts\python.exe main.py --intervalo 7 --escenario normal
+.venv\Scripts\python.exe main.py --intervalo 15 --escenario normal
 ```
 
 En Linux/macOS usar `.venv/bin/python`. Ctrl+C detiene la interfaz local y todos los clientes MQTT.
 
-La interfaz Flask se inicia junto con el simulador en `http://127.0.0.1:5000`. Desde allí se puede seleccionar un sensor activo y encolar una lectura manual, validada contra el rango configurado. Se publica en el siguiente ciclo normal; no abre una conexión MQTT adicional. Solo escucha en el equipo local: no la expongas a Internet. Cambia el puerto con `--web-port` o desactívala con `--sin-interfaz`.
+La interfaz Flask se inicia junto con el simulador en `http://127.0.0.1:5000`. Selecciona un predio para ver su conexión MQTT, escenario, lecturas recientes y estado de publicación por sensor; el panel se actualiza cada 2.5 segundos. Puedes pausar/reanudar el envío de un sensor individual o usar los controles para pausar/reanudar todos los sensores del predio seleccionado. Esto solo detiene las publicaciones futuras de este simulador; no cambia el estado ni la configuración de sensores en el backend. Una publicación MQTT que ya estaba en curso puede terminar. La pausa es temporal y al reiniciar el simulador todos los sensores vuelven a estar habilitados. Los botones de escenario actualizan el estado sin recargar la página y muestran si la operación inició o falló. Solo se puede activar un escenario a la vez por predio: detén el actual antes de iniciar otro. `gas` eleva CO₂ y %LEL; `calor` e `incendio` suben directamente la temperatura simulada a 80 °C en la primera lectura publicada. Los valores de CO₂ y %LEL en `incendio` conservan su rampa de 10 segundos. En modo manual, las lecturas nuevas se publican de acuerdo con `--intervalo` (15 segundos por defecto; configurable entre 5 y 60 segundos). El backend recibe lecturas MQTT y decide si corresponde generar una alerta; el simulador no crea alertas directamente ni garantiza que el motor confirme un incendio. También permite encolar una lectura manual individual. Solo escucha en el equipo local: no la expongas a Internet. Acuerda las pruebas antes de publicar en un broker compartido, detén los escenarios al terminar, cambia el puerto con `--web-port` o desactívala con `--sin-interfaz`.
 
 Cualquier valor del `.env` se puede sobrescribir puntualmente por línea de comandos, ej. `--broker` o `--escenario`; ver `--help` para la lista completa.
 
@@ -54,16 +54,18 @@ No subas este archivo ni compartas su contenido. Si falta la contraseña de un p
 .venv\Scripts\python.exe main.py --escenario gas --duracion 900
 .venv\Scripts\python.exe main.py --escenario calor --duracion 900
 .venv\Scripts\python.exe main.py --escenario pico --duracion 600
+.venv\Scripts\python.exe main.py --escenario incendio --duracion 900
 ```
 
 - `normal`: ruido alrededor de la base de cada sensor.
 - `gas`: aumento sintético de CO₂ y %LEL.
 - `calor`: incremento gradual de temperatura en los predios.
 - `pico`: pico breve del primer sensor TEMPERATURA del primer predio, manteniendo los demás en su variación normal.
+- `incendio`: incremento gradual de temperatura, CO₂ y %LEL, sin forzar humo ni CO.
 
-El evento empieza a los **420 segundos** por defecto. `--inicio-evento` lo cambia; un calentamiento corto puede dejar R desconocido. `--semilla` hace reproducible el ruido.
+En modo automático, el escenario empieza después de **3 segundos** de línea base por defecto (`--inicio-evento`). En `calor` e `incendio`, la primera lectura de temperatura del evento pasa a **80 °C**. El generador amplía solo su límite local de simulación a 80 °C; no modifica el rango guardado del sensor. Por ello, el sistema backend puede aplicar todavía las reglas o límites configurados para el sensor. CO₂ y %LEL de `incendio` conservan la rampa de **10 segundos**; `gas` conserva su rampa de 15 segundos. Las lecturas se publican cada 15 segundos por defecto; ajusta el intervalo con `--intervalo` (entre 5 y 60 segundos) según la frecuencia requerida por el motor de detección. Puedes aumentar el tiempo de línea base, por ejemplo `--inicio-evento 420`, para obtener más lecturas previas al evento. `--semilla` hace reproducible el ruido.
 
-Son escenarios para probar software, no modelos físicos de combustión ni validación de umbrales. Con la política conservadora pueden abrir `EN_EVALUACION`, pero no confirmar automáticamente `INCENDIO`. No sustituir CO₂/%LEL por humo/CO para forzarlo.
+Los rangos `rango_min`/`rango_max` son límites configurados del sensor, no sus valores normales ni umbrales de alerta. La temperatura sintética de prueba alcanza 80 °C aunque el máximo configurado sea menor; esto no modifica el registro del sensor. Son escenarios para probar software, no modelos físicos de combustión ni validación de umbrales. El backend puede evaluar estas lecturas conforme a su propia configuración y no necesariamente generar una alerta. No sustituir CO₂/%LEL por humo/CO para forzarlo.
 
 ## Transporte
 

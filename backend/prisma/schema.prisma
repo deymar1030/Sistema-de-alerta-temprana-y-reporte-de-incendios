@@ -70,6 +70,7 @@ model institucion {
   usuario            usuario[]
   envia              envia[]
   informe_atencion   informe_atencion[]
+  mensaje_chat       mensaje_chat[]
 }
 
 model usuario {
@@ -95,6 +96,7 @@ model usuario {
   informe_atencion     informe_atencion[]
   notificacion         notificacion[]     @relation("NotificacionDestinatario")
   notificacion_enviada notificacion[]     @relation("NotificacionEmisor")
+  mensaje_chat         mensaje_chat[]
 }
 
 model sesion {
@@ -376,4 +378,26 @@ model notificacion {
   @@index([id_usuario, leida], map: "idx_notificacion_usuario")
   @@index([id_alerta], map: "idx_notificacion_alerta")
   @@index([id_usuario_emisor], map: "idx_notificacion_emisor")
+}
+
+// Chat de coordinacion entre instituciones. Dos canales por ahora:
+// GLOBAL (todas las instituciones con alerta activa pueden coordinarse) y
+// CATEGORIA (solo entre instituciones del mismo tipo, ej. BOMBEROS con
+// BOMBEROS). categoria queda NULL en el canal GLOBAL. tipo_mensaje separa
+// mensajes escritos por un usuario de futuros mensajes automaticos del
+// sistema (ej. al designar personal a una alerta).
+model mensaje_chat {
+  id_mensaje            BigInt   @id @default(autoincrement())
+  tipo_canal            String   @db.VarChar(10)
+  categoria             String?  @db.VarChar(30)
+  id_usuario            BigInt
+  id_institucion_emisor BigInt
+  contenido             String
+  tipo_mensaje          String   @default("USUARIO") @db.VarChar(10)
+  fecha_hora            DateTime @default(now()) @db.Timestamp(6)
+
+  usuario     usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
+  institucion institucion @relation(fields: [id_institucion_emisor], references: [id_institucion], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([tipo_canal, categoria, fecha_hora], map: "idx_mensaje_chat_canal")
 }

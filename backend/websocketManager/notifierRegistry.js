@@ -41,4 +41,8 @@ export class RegistryRealtimeNotifier extends RealtimeNotifierPort {
   async emitNotificacion(...args) {
     return instancia?.emitNotificacion(...args);
   }
+
+  async emitMensajeChat(...args) {
+    return instancia?.emitMensajeChat(...args);
+  }
 }

@@ -246,6 +246,9 @@ model parametro_variable {
   id_motordet           BigInt
   tipo_variable         String   @db.VarChar(20)
   umbral_critico        Decimal? @db.Decimal(8, 2)
+  // Direccion peligrosa de la variable: 1 = critico cuando SUBE (temperatura,
+  // humo, CO, CO2, gas), -1 = critico cuando BAJA (humedad: aire seco = riesgo).
+  signo                 Int      @default(1) @db.SmallInt
 
   motor_det motor_det @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Cascade)
 

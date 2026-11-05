@@ -22,7 +22,7 @@ export function ventanaCorregida({ sensoresEvidencia, motor, config, fechaPicoCr
     const enVentana = registros.filter((l) => +l.fecha_hora > +fechaPicoCritico && +l.fecha_hora <= +ahora);
     for (const l of enVentana) {
       huboLecturas = true;
-      const critico = p.umbralCritico != null && Number(l.valor) >= p.umbralCritico;
+      const critico = p.umbralCritico != null && Number(l.valor) * p.signo >= p.umbralCritico * p.signo;
       const { esAnomala } = filtroHampel(valores, Number(l.valor) * p.signo, p.madMin, Number(motor.umbral_z));
       if (critico || esAnomala) return false;
     }

@@ -34,8 +34,11 @@ function senalSensor(sensor, motor, config, ahora) {
   const previo = registros.at(-2);
   const salto = previo && +actual.fecha_hora > +previo.fecha_hora
     ? Math.abs(Number(actual.valor) - Number(previo.valor)) * 60000 / (+actual.fecha_hora - +previo.fecha_hora) : 0;
-  const critico = p.umbralCritico != null && Number(actual.valor) >= p.umbralCritico;
-  const respaldo = critico && previo && +ahora - +previo.fecha_hora <= config.frescuraSegundos * 1000 && Number(previo.valor) >= p.umbralCritico;
+  // signo invierte la comparacion para variables cuya direccion peligrosa es
+  // bajar (ej. HUMEDAD): con signo=-1, "critico" pasa a ser valor <= umbral.
+  const critico = p.umbralCritico != null && Number(actual.valor) * p.signo >= p.umbralCritico * p.signo;
+  const respaldo = critico && previo && +ahora - +previo.fecha_hora <= config.frescuraSegundos * 1000 &&
+    Number(previo.valor) * p.signo >= p.umbralCritico * p.signo;
   return {
     id_sensor: sensor.id_sensor, variable, fresca: true, valor: Number(actual.valor),
     z: hampel.z, b: tendencia.pendiente, zrob: null, cusum: suma.acumulado,

@@ -11,7 +11,8 @@ const parametros = { HUMO: { peso: .30, bmax: 100 }, CO: { peso: .25, bmax: 50 }
 const clasificar = (extra = {}) => motor.clasificarAlerta({ R: null, umbralConfirmacion: .6, umbralDescarte: .45, ...extra });
 const configuracionBD = { id_motordet: 1n, ventana_base_min: 30, umbral_z: 3, cusum_h: 5, umbral_confirmacion: .6,
   umbral_descarte: .45, tiempo_max_evaluacion_min: 10, radio_vecindad_m: 500, ventana_correccion_min: 5,
-  parametro_variable: ['TEMPERATURA', 'HUMEDAD', 'CO2', 'GAS_LEL'].map((tipo_variable) => ({ tipo_variable, umbral_critico: null })) };
+  parametro_variable: ['TEMPERATURA', 'HUMEDAD', 'CO2', 'GAS_LEL'].map((tipo_variable) =>
+    ({ tipo_variable, umbral_critico: null, signo: tipo_variable === 'HUMEDAD' ? -1 : 1 })) };
 
 test('Hampel reproduce el ejemplo del PDF, sin modificar la ventana', () => {
   const v = Object.freeze([24.4, 23.6, 24]);
@@ -107,8 +108,22 @@ test('Haversine y lecturas antiguas no aportan evidencia reciente', () => {
   assert.equal(r.sensores[0].fresca, false); assert.equal(r.puntaje, null);
 });
 
+test('REGRESION: HUMEDAD con signo=-1 es critica cuando BAJA del umbral, no cuando sube', () => {
+  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMEDAD', umbral_critico: 20, signo: -1 }] };
+  const config = resolverConfiguracion(m);
+  const ahora = fecha(1);
+  const humedadNormalAlta = evaluarPredio({ sensores: [{ id_sensor: 1n, tipo_sensor: 'HUMEDAD', lecturas: [
+    { ...lectura(55, 1), estado_lectura: 'VALIDA', id_alerta: null },
+  ] }], motor: m, config, ahora });
+  assert.equal(humedadNormalAlta.sensores[0].critico, false);
+  const humedadBaja = evaluarPredio({ sensores: [{ id_sensor: 1n, tipo_sensor: 'HUMEDAD', lecturas: [
+    { ...lectura(15, 1), estado_lectura: 'VALIDA', id_alerta: null },
+  ] }], motor: m, config, ahora });
+  assert.equal(humedadBaja.sensores[0].critico, true);
+});
+
 test('Humo critico respaldado avisa de inmediato pero no confirma hasta la ventana de correccion', () => {
-  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500 }] };
+  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500, signo: 1 }] };
   const ahora = fecha(1);
   const r = evaluarPredio({ sensores: [{ id_sensor: 1n, tipo_sensor: 'HUMO', lecturas: [
     { valor: 600, fecha_hora: new Date(+ahora - 5000), estado_lectura: 'ANOMALA', id_alerta: 1n },
@@ -118,7 +133,7 @@ test('Humo critico respaldado avisa de inmediato pero no confirma hasta la venta
   assert.deepEqual(r.fechaPicoCritico, ahora); assert.equal(r.puntaje, null);
 });
 test('Ventana de correccion: sigue esperando mientras no vence', () => {
-  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500 }] };
+  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500, signo: 1 }] };
   const fechaPico = fecha(1);
   const sensores = [{ id_sensor: 1n, tipo_sensor: 'HUMO', lecturas: [
     { valor: 600, fecha_hora: new Date(+fechaPico - 5000), estado_lectura: 'ANOMALA', id_alerta: 1n },
@@ -129,7 +144,7 @@ test('Ventana de correccion: sigue esperando mientras no vence', () => {
   assert.equal(r.estado, 'EN_EVALUACION'); assert.equal(r.avisoCritico, false);
 });
 test('Ventana de correccion: silencio tras el pico sostiene la alerta (CONFIRMADA)', () => {
-  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500 }] };
+  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500, signo: 1 }] };
   const fechaPico = fecha(1);
   const sensores = [{ id_sensor: 1n, tipo_sensor: 'HUMO', lecturas: [
     { valor: 600, fecha_hora: new Date(+fechaPico - 5000), estado_lectura: 'ANOMALA', id_alerta: 1n },
@@ -140,7 +155,7 @@ test('Ventana de correccion: silencio tras el pico sostiene la alerta (CONFIRMAD
   assert.equal(r.estado, 'CONFIRMADA'); assert.equal(r.clasificacion, 'INCENDIO');
 });
 test('Ventana de correccion: lecturas mezcladas tambien sostienen la alerta', () => {
-  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500 }] };
+  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500, signo: 1 }] };
   const fechaPico = fecha(1);
   const sensores = [{ id_sensor: 1n, tipo_sensor: 'HUMO', lecturas: [
     { valor: 600, fecha_hora: new Date(+fechaPico - 5000), estado_lectura: 'ANOMALA', id_alerta: 1n },
@@ -153,7 +168,7 @@ test('Ventana de correccion: lecturas mezcladas tambien sostienen la alerta', ()
   assert.equal(r.estado, 'CONFIRMADA');
 });
 test('Ventana de correccion: todas las lecturas normales corrigen la alerta', () => {
-  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500 }] };
+  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500, signo: 1 }] };
   const fechaPico = fecha(1);
   const sensores = [{ id_sensor: 1n, tipo_sensor: 'HUMO', lecturas: [
     { valor: 600, fecha_hora: new Date(+fechaPico - 5000), estado_lectura: 'ANOMALA', id_alerta: 1n },

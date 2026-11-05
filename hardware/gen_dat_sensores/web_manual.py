@@ -6,6 +6,8 @@ from hmac import compare_digest
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.serving import make_server
 
+from cliente_predio import ESCENARIOS_MANUALES
+
 
 def crear_app(clientes):
     app = Flask(__name__)
@@ -51,7 +53,7 @@ def crear_app(clientes):
             "manual.html",
             sensores=opciones,
             predios=predios_ordenados,
-            escenarios={"gas": "Gas", "calor": "Calor", "incendio": "Incendio combinado"},
+            escenarios=ESCENARIOS_MANUALES,
         )
 
     @app.get("/api/predios/<int:id_predio>/estado")

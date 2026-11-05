@@ -53,17 +53,23 @@ No subas este archivo ni compartas su contenido. Si falta la contraseña de un p
 ```powershell
 .venv\Scripts\python.exe main.py --escenario gas --duracion 900
 .venv\Scripts\python.exe main.py --escenario calor --duracion 900
+.venv\Scripts\python.exe main.py --escenario co --duracion 900
+.venv\Scripts\python.exe main.py --escenario humo --duracion 900
+.venv\Scripts\python.exe main.py --escenario humedad --duracion 900
 .venv\Scripts\python.exe main.py --escenario pico --duracion 600
 .venv\Scripts\python.exe main.py --escenario incendio --duracion 900
 ```
 
 - `normal`: ruido alrededor de la base de cada sensor.
-- `gas`: aumento sintético de CO₂ y %LEL.
-- `calor`: incremento gradual de temperatura en los predios.
+- `gas`: aumento sintético de CO₂ y %LEL, con rampa de 15 segundos.
+- `calor`: incremento de temperatura a 80 °C desde la primera lectura del evento.
+- `co`: aumento sintético de CO desde la primera lectura, con rampa de 10 segundos.
+- `humo`: supera 500 ppm desde la primera lectura del evento si el rango del sensor lo permite.
+- `humedad`: baja a 19 % desde la primera lectura del evento si el rango del sensor lo permite.
 - `pico`: pico breve del primer sensor TEMPERATURA del primer predio, manteniendo los demás en su variación normal.
-- `incendio`: incremento gradual de temperatura, CO₂ y %LEL, sin forzar humo ni CO.
+- `incendio`: combina temperatura, CO₂, %LEL, CO, humo y humedad. Respeta los límites configurados de cada sensor, así que algunos objetivos pueden quedar recortados por esos rangos.
 
-En modo automático, el escenario empieza después de **3 segundos** de línea base por defecto (`--inicio-evento`). En `calor` e `incendio`, la primera lectura de temperatura del evento pasa a **80 °C**. El generador amplía solo su límite local de simulación a 80 °C; no modifica el rango guardado del sensor. Por ello, el sistema backend puede aplicar todavía las reglas o límites configurados para el sensor. CO₂ y %LEL de `incendio` conservan la rampa de **10 segundos**; `gas` conserva su rampa de 15 segundos. Las lecturas se publican cada 15 segundos por defecto; ajusta el intervalo con `--intervalo` (entre 5 y 60 segundos) según la frecuencia requerida por el motor de detección. Puedes aumentar el tiempo de línea base, por ejemplo `--inicio-evento 420`, para obtener más lecturas previas al evento. `--semilla` hace reproducible el ruido.
+En modo automático, el escenario empieza después de **3 segundos** de línea base por defecto (`--inicio-evento`). En `calor` e `incendio`, la primera lectura de temperatura del evento pasa a **80 °C**. El generador amplía solo su límite local de simulación a 80 °C; no modifica el rango guardado del sensor. CO₂, %LEL y CO de `incendio` completan una rampa sintética de **10 segundos**; la humedad baja a **19 %** y el humo sube a **501 ppm** desde la primera lectura del evento, cuando los rangos configurados lo permiten. `gas` completa su rampa en **15 segundos**. La interfaz local ofrece un selector para `gas`, `calor`, `co`, `humo`, `humedad` e `incendio combinado`; cada escenario individual modifica solo su tipo de sensor y deja las demás variables en su variación normal. Las lecturas se publican cada 15 segundos por defecto; ajusta el intervalo con `--intervalo` (entre 5 y 60 segundos) según la frecuencia requerida por el motor de detección. Puedes aumentar el tiempo de línea base, por ejemplo `--inicio-evento 420`, para obtener más lecturas previas al evento. `--semilla` hace reproducible el ruido.
 
 Los rangos `rango_min`/`rango_max` son límites configurados del sensor, no sus valores normales ni umbrales de alerta. La temperatura sintética de prueba alcanza 80 °C aunque el máximo configurado sea menor; esto no modifica el registro del sensor. Son escenarios para probar software, no modelos físicos de combustión ni validación de umbrales. El backend puede evaluar estas lecturas conforme a su propia configuración y no necesariamente generar una alerta. No sustituir CO₂/%LEL por humo/CO para forzarlo.
 

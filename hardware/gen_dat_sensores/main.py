@@ -29,7 +29,11 @@ def main():
     parser.add_argument("--credenciales", help="Archivo con contrasenas MQTT provisionadas por predio (default runtime/credenciales_predios.json)")
     parser.add_argument("--broker", help="mqtt://host:1883 o mqtts://host:8883")
     parser.add_argument("--ca", help="CA del broker TLS")
-    parser.add_argument("--escenario", choices=["normal", "gas", "calor", "pico", "incendio"], default="normal")
+    parser.add_argument(
+        "--escenario",
+        choices=["normal", "gas", "calor", "pico", "co", "humo", "humedad", "incendio"],
+        default="normal",
+    )
     parser.add_argument("--inicio-evento", type=float, default=3, help="Segundos de linea base antes del escenario (predeterminado: 3)")
     parser.add_argument("--duracion", type=float, default=0, help="0: ejecutar hasta Ctrl+C")
     parser.add_argument("--semilla", type=int, default=42)

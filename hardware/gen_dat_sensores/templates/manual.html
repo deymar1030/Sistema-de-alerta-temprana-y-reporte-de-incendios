@@ -125,12 +125,12 @@
           <div>
             <label for="scenario-selector">Tipo de escenario</label>
             <select id="scenario-selector" name="escenario">
-              {% for clave, etiqueta in escenarios.items() %}
-                <option value="{{ clave }}">{{ etiqueta }}</option>
+              {% for clave, escenario in escenarios.items() %}
+                <option value="{{ clave }}">{{ escenario.etiqueta }}</option>
               {% endfor %}
             </select>
           </div>
-          <p id="scenario-description" class="scenario-info">Aumento gradual de temperatura, CO₂ y %LEL. Las lecturas permanecen dentro del rango de cada sensor.</p>
+          <p id="scenario-description" class="scenario-info">{{ escenarios['gas'].descripcion }}</p>
           <button id="start-scenario" type="submit" data-api-action="{{ url_for('api_iniciar_escenario') }}">Iniciar escenario</button>
           <button id="stop-scenario" class="secondary" type="submit" data-api-action="{{ url_for('api_detener_escenario') }}" formaction="{{ url_for('detener_escenario') }}" formnovalidate>Detener escenario</button>
         </form>
@@ -213,11 +213,7 @@
     const sensorRequestsInProgress = new Set();
     let bulkSensorRequestInProgress = false;
     let scenarioRequestInProgress = false;
-    const scenarioOptions = {
-      gas: "Aumenta gradualmente CO₂ y %LEL en este predio.",
-      calor: "La temperatura simulada sube directamente a 80 °C en la primera lectura publicada.",
-      incendio: "La temperatura simulada sube directamente a 80 °C en la primera lectura; CO₂ y %LEL mantienen su rampa de 10 segundos. No fuerza valores de humo o CO."
-    };
+    const scenarioOptions = {{ escenarios | tojson }};
 
     function updateSensorOptions() {
       const predioId = selector.value;
@@ -247,7 +243,7 @@
         const activeScenario = predio.escenario;
         const scenarioStatus = document.getElementById("scenario-status");
         scenarioStatus.textContent = activeScenario
-          ? scenarioOptions[activeScenario] || activeScenario
+          ? scenarioOptions[activeScenario]?.etiqueta || activeScenario
           : "Ninguno";
         scenarioStatus.className = `badge ${activeScenario ? "bad" : ""}`;
         if (!scenarioRequestInProgress) {
@@ -429,7 +425,8 @@
     });
 
     document.getElementById("scenario-selector").addEventListener("change", event => {
-      document.getElementById("scenario-description").textContent = scenarioOptions[event.target.value];
+      document.getElementById("scenario-description").textContent =
+        scenarioOptions[event.target.value].descripcion;
     });
     scenarioForm.addEventListener("submit", async event => {
       event.preventDefault();

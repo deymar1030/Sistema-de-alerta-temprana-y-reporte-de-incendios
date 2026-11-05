@@ -15,6 +15,37 @@ import paho.mqtt.client as mqtt
 INTERVALO_MIN_SEGUNDOS = 5
 INTERVALO_MAX_SEGUNDOS = 60
 INTERVALO_PREDETERMINADO_SEGUNDOS = 15
+CO_INCENDIO_INCREMENTO_PPM = 100.0
+CO_INCENDIO_INCREMENTO_INICIAL_PPM = 10.0
+HUMEDAD_INCENDIO_MAX_PORCENTAJE = 19.0
+HUMO_INCENDIO_MINIMO_PPM = 501.0
+
+ESCENARIOS_MANUALES = {
+    "gas": {
+        "etiqueta": "Gas combustible (CO₂ y %LEL)",
+        "descripcion": "Aumenta gradualmente CO₂ y %LEL durante 15 segundos; otras variables siguen su variación normal.",
+    },
+    "calor": {
+        "etiqueta": "Calor (temperatura)",
+        "descripcion": "Lleva las lecturas de temperatura a 80 °C desde la primera lectura del escenario. Las demás variables siguen su variación normal.",
+    },
+    "co": {
+        "etiqueta": "Monóxido de carbono (CO)",
+        "descripcion": "Aumenta CO desde la primera lectura y llega a un incremento sintético de 100 ppm en 10 segundos; las demás variables siguen su variación normal.",
+    },
+    "humo": {
+        "etiqueta": "Humo",
+        "descripcion": "Eleva el humo por encima de 500 ppm desde la primera lectura si el rango máximo del sensor lo permite; las demás variables siguen su variación normal.",
+    },
+    "humedad": {
+        "etiqueta": "Baja humedad",
+        "descripcion": "Reduce la humedad a 19 % desde la primera lectura si el rango mínimo del sensor lo permite; las demás variables siguen su variación normal.",
+    },
+    "incendio": {
+        "etiqueta": "Incendio combinado (todas las variables)",
+        "descripcion": "Combina temperatura (80 °C), CO₂, %LEL, CO, humo (>500 ppm) y humedad (<20 %) cuando los rangos de cada sensor lo permiten.",
+    },
+}
 
 
 def generar_valor(sensor_cfg, rng=None, escenario="normal", segundos=0, inicio_evento=420, sensor_pico_id=None):
@@ -22,10 +53,22 @@ def generar_valor(sensor_cfg, rng=None, escenario="normal", segundos=0, inicio_e
     valor = sensor_cfg["valor_base"] + rng.gauss(0, sensor_cfg["sigma"])
     # Escenarios de prueba, no magnitudes fisicas calibradas ni evidencia de incendio.
     if segundos >= inicio_evento:
-        duracion_rampa = 10 if escenario == "incendio" else 120
+        duracion_rampa = {
+            "gas": 15,
+            "co": 10,
+            "incendio": 10,
+        }.get(escenario, 120)
         avance = min(1.0, (segundos - inicio_evento) / duracion_rampa)
         if escenario in {"gas", "incendio"} and sensor_cfg["tipo_variable"] in {"CO2", "GAS_LEL"}:
             valor += {"CO2": 1800, "GAS_LEL": 18}[sensor_cfg["tipo_variable"]] * avance
+        if escenario in {"co", "incendio"} and sensor_cfg["tipo_variable"] == "CO":
+            valor += CO_INCENDIO_INCREMENTO_INICIAL_PPM + (
+                CO_INCENDIO_INCREMENTO_PPM - CO_INCENDIO_INCREMENTO_INICIAL_PPM
+            ) * avance
+        if escenario in {"humedad", "incendio"} and sensor_cfg["tipo_variable"] == "HUMEDAD":
+            valor = min(valor, HUMEDAD_INCENDIO_MAX_PORCENTAJE)
+        if escenario in {"humo", "incendio"} and sensor_cfg["tipo_variable"] == "HUMO":
+            valor = max(valor, HUMO_INCENDIO_MINIMO_PPM)
         if escenario in {"calor", "incendio"} and sensor_cfg["tipo_variable"] == "TEMPERATURA":
             valor = max(valor, sensor_cfg.get("temperatura_escenario_max", valor))
         elif escenario == "pico" and sensor_cfg["id_sensor"] == sensor_pico_id and segundos - inicio_evento < 10:
@@ -151,7 +194,7 @@ class ClientePredio:
             return self._sensores_publicacion_habilitados.get(id_sensor, False)
 
     def iniciar_escenario_manual(self, escenario):
-        if escenario not in {"gas", "calor", "incendio"}:
+        if escenario not in ESCENARIOS_MANUALES:
             raise ValueError("Selecciona un escenario valido")
         with self._escenario_manual_lock:
             self._escenario_manual = escenario

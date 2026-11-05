@@ -327,8 +327,10 @@ class LecturasManualesTest(unittest.TestCase):
             "rango_max": 125.0,
         }
         valores = {}
-        for tipo in ("TEMPERATURA", "CO2", "GAS_LEL", "HUMO", "CO"):
+        for tipo in ("TEMPERATURA", "CO2", "GAS_LEL", "HUMEDAD", "HUMO", "CO"):
             sensor = {**base, "id_sensor": 1, "tipo_variable": tipo}
+            if tipo == "HUMO":
+                sensor["rango_max"] = 1000.0
             if tipo == "TEMPERATURA":
                 sensor["temperatura_escenario_max"] = 80.0
             valores[tipo] = generar_valor(
@@ -340,8 +342,74 @@ class LecturasManualesTest(unittest.TestCase):
         self.assertEqual(valores["TEMPERATURA"], 80.0)
         self.assertGreater(valores["CO2"], base["valor_base"])
         self.assertGreater(valores["GAS_LEL"], base["valor_base"])
-        self.assertEqual(valores["HUMO"], base["valor_base"])
-        self.assertEqual(valores["CO"], base["valor_base"])
+        self.assertLess(valores["HUMEDAD"], 20.0)
+        self.assertGreater(valores["HUMO"], 500.0)
+        self.assertGreater(valores["CO"], base["valor_base"])
+
+    def test_humo_supera_500_desde_el_inicio_del_incendio(self):
+        from cliente_predio import generar_valor
+
+        sensor = {
+            "valor_base": 5.0,
+            "sigma": 0.0,
+            "rango_min": 0.0,
+            "rango_max": 1000.0,
+            "tipo_variable": "HUMO",
+        }
+        inicio = generar_valor(sensor, escenario="incendio", segundos=3, inicio_evento=3)
+        antes = generar_valor(sensor, escenario="incendio", segundos=2, inicio_evento=3)
+        self.assertGreater(inicio, 500.0)
+        self.assertEqual(antes, sensor["valor_base"])
+
+    def test_humo_de_incendio_respeta_el_maximo_configurado(self):
+        from cliente_predio import generar_valor
+
+        sensor = {
+            "valor_base": 5.0,
+            "sigma": 0.0,
+            "rango_min": 0.0,
+            "rango_max": 400.0,
+            "tipo_variable": "HUMO",
+        }
+        valor = generar_valor(sensor, escenario="incendio", segundos=3, inicio_evento=3)
+        self.assertEqual(valor, sensor["rango_max"])
+
+    def test_incendio_varia_co_y_humedad_desde_el_inicio_del_evento(self):
+        from cliente_predio import generar_valor
+
+        base = {
+            "valor_base": 50.0,
+            "sigma": 0.0,
+            "rango_min": 0.0,
+            "rango_max": 1000.0,
+        }
+        co = generar_valor(
+            {**base, "tipo_variable": "CO"},
+            escenario="incendio",
+            segundos=1,
+            inicio_evento=1,
+        )
+        humedad = generar_valor(
+            {**base, "tipo_variable": "HUMEDAD", "rango_max": 100.0},
+            escenario="incendio",
+            segundos=1,
+            inicio_evento=1,
+        )
+        self.assertGreater(co, base["valor_base"])
+        self.assertLess(humedad, 20.0)
+
+    def test_humedad_de_incendio_respeta_el_minimo_configurado(self):
+        from cliente_predio import generar_valor
+
+        sensor = {
+            "valor_base": 50.0,
+            "sigma": 0.0,
+            "rango_min": 25.0,
+            "rango_max": 100.0,
+            "tipo_variable": "HUMEDAD",
+        }
+        valor = generar_valor(sensor, escenario="incendio", segundos=10, inicio_evento=0)
+        self.assertEqual(valor, 25.0)
 
     def test_temperatura_de_incendio_sube_completa_desde_la_primera_lectura(self):
         from cliente_predio import generar_valor
@@ -391,6 +459,61 @@ class LecturasManualesTest(unittest.TestCase):
         }
         valor = generar_valor(sensor, escenario="incendio", segundos=2, inicio_evento=3)
         self.assertEqual(valor, 21.0)
+
+    def test_escenarios_individuales_afectan_solo_su_variable(self):
+        from cliente_predio import generar_valor
+
+        base = {
+            "valor_base": 50.0,
+            "sigma": 0.0,
+            "rango_min": 0.0,
+            "rango_max": 1000.0,
+        }
+        casos = (
+            ("co", "CO", 60.0),
+            ("humo", "HUMO", 501.0),
+            ("humedad", "HUMEDAD", 19.0),
+        )
+        for escenario, variable, esperado in casos:
+            with self.subTest(escenario=escenario):
+                sensor = {**base, "tipo_variable": variable}
+                valor = generar_valor(sensor, escenario=escenario, segundos=0, inicio_evento=0)
+                self.assertEqual(valor, esperado)
+
+                otra_variable = {
+                    **base,
+                    "tipo_variable": "TEMPERATURA",
+                    "rango_max": 125.0,
+                }
+                valor_no_afectado = generar_valor(
+                    otra_variable, escenario=escenario, segundos=10, inicio_evento=0
+                )
+                self.assertEqual(valor_no_afectado, base["valor_base"])
+
+    def test_escenario_gas_completa_rampa_en_quince_segundos(self):
+        from cliente_predio import generar_valor
+
+        sensor = {
+            "valor_base": 420.0,
+            "sigma": 0.0,
+            "rango_min": 0.0,
+            "rango_max": 10000.0,
+            "tipo_variable": "CO2",
+        }
+        mitad = generar_valor(sensor, escenario="gas", segundos=7.5, inicio_evento=0)
+        final = generar_valor(sensor, escenario="gas", segundos=15, inicio_evento=0)
+        self.assertEqual(mitad, 1320.0)
+        self.assertEqual(final, 2220.0)
+
+    def test_selector_muestra_escenarios_individuales_y_combinado(self):
+        app = crear_app([self.cliente])
+        app.testing = True
+        respuesta = app.test_client().get("/")
+        self.assertEqual(respuesta.status_code, 200)
+        for escenario in ("gas", "calor", "co", "humo", "humedad", "incendio"):
+            with self.subTest(escenario=escenario):
+                self.assertIn(f'value="{escenario}"'.encode(), respuesta.data)
+        self.assertIn("Incendio combinado".encode(), respuesta.data)
 
     def test_gas_en_incendio_conserva_rampa_de_diez_segundos(self):
         from cliente_predio import generar_valor

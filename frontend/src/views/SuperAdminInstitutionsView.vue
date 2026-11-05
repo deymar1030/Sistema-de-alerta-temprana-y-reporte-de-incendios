@@ -381,7 +381,7 @@ async function save() {
 
 <template>
   <div
-    class="admin-page mx-auto max-w-[1600px] space-y-6 p-0 sm:p-2 lg:p-4"
+    class="al-modern-screen admin-page mx-auto max-w-[1600px] space-y-6 p-0 sm:p-2 lg:p-4"
   >
     <header
       class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"

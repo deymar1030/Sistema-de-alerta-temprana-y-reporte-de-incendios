@@ -45,7 +45,7 @@ onBeforeUnmount(() => { if (pollTimer) clearInterval(pollTimer) })
 </script>
 
 <template>
-  <main class="admin-page mx-auto max-w-[1600px] space-y-5">
+  <main class="al-modern-screen admin-page mx-auto max-w-[1600px] space-y-5">
     <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div class="min-w-0"><p class="text-xs font-bold uppercase tracking-widest text-orange-600">Monitoreo</p><h1 class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">Lecturas de sensores</h1><p class="mt-2 text-sm text-slate-600">Mediciones del backend. Actualización automática cada 60 segundos mientras la pantalla esta activa.</p></div>
       <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-50" :disabled="store.loading" @click="refresh()"><RefreshCw class="h-4 w-4" :class="{ 'animate-spin': store.loading }" aria-hidden="true" /> Actualizar</button>

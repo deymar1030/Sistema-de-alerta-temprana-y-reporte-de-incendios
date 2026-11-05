@@ -199,7 +199,7 @@ function institutionName(user: User) {
 </script>
 
 <template>
-  <div class="admin-page mx-auto max-w-[1600px] space-y-5">
+  <div class="al-modern-screen admin-page mx-auto max-w-[1600px] space-y-5">
     <header class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div class="min-w-0">
         <p class="text-xs font-bold uppercase tracking-wider text-orange-600">Administración</p>

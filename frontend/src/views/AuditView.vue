@@ -27,7 +27,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="mx-auto max-w-[1500px] space-y-6">
+  <main class="al-modern-screen mx-auto max-w-[1500px] space-y-6">
     <header>
       <p class="text-xs font-bold uppercase tracking-wider text-orange-600">Consulta exclusiva · AUDITOR</p>
       <h1 class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">Auditoría del sistema</h1>

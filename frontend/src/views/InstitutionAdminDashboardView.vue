@@ -96,7 +96,7 @@ onMounted(() => { void load() })
 </script>
 
 <template>
-  <main class="admin-page mx-auto max-w-[1600px] space-y-6">
+  <main class="al-modern-screen admin-page mx-auto max-w-[1600px] space-y-6">
     <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p class="text-xs font-bold uppercase tracking-wider text-orange-600">Administración institucional</p>

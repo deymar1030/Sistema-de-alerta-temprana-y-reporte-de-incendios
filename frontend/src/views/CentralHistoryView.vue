@@ -17,7 +17,7 @@ async function load() {
 onMounted(load)
 </script>
 <template>
-  <div class="admin-page mx-auto max-w-5xl space-y-5 p-0 sm:p-2">
+  <div class="al-modern-screen admin-page mx-auto max-w-5xl space-y-5 p-0 sm:p-2">
     <header class="flex flex-wrap items-center justify-between gap-3">
       <div><p class="text-xs font-bold uppercase tracking-widest text-orange-600">Centro de monitoreo</p>
       <h1 class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">Historial de alertas</h1>

@@ -1,0 +1,210 @@
+/*
+ * ALERTA 2026 | Estilo institucional adaptado al tablero y las alertas aprobados.
+ * Solo afecta a vistas que tengan la clase raiz .al-modern-screen.
+ * No modifica fuentes de datos, rutas, metodos HTTP ni permisos.
+ * El verde, ambar y rojo siguen reservados para los estados operativos.
+ */
+.al-modern-screen {
+  --al-ink: #262626;
+  --al-subtle: #69717b;
+  --al-border: #e5e7eb;
+  --al-surface: #fff;
+  --al-wash: #f9f9f9;
+  --al-ember: #c2410c;
+  --al-ember-bright: #ea580c;
+  --al-ember-halo: #fff1e8;
+  color: var(--al-ink);
+  width: 100%;
+  min-width: 0;
+  max-width: 1600px;
+  margin-inline: auto;
+  padding: clamp(10px, 1.5vw, 22px);
+  font-family: 'Inter', 'Manrope', 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+}
+
+/* Encabezados: jerarquia editorial, coherente con las pantallas aprobadas. */
+.al-modern-screen > header,
+.al-modern-screen > section:first-child:not([class*="bg-white"]):not([class*="bg-slate"]):not([class*="border"]):has(h1, h2),
+.al-modern-screen > div:first-child:has(> header) > header {
+  padding: clamp(12px, 2vw, 24px) 0 clamp(10px, 1.5vw, 18px);
+}
+.al-modern-screen > header h1,
+.al-modern-screen > section:first-child:not([class*="bg-white"]):not([class*="bg-slate"]):has(h1, h2) h1,
+.al-modern-screen > div:first-child > header h1 {
+  font-size: clamp(29px, 3.2vw, 42px) !important;
+  line-height: 1.13 !important;
+  letter-spacing: -0.035em !important;
+  font-weight: 650 !important;
+  color: var(--al-ink) !important;
+}
+.al-modern-screen > header h1::after,
+.al-modern-screen > section:first-child:not([class*="bg-white"]):not([class*="bg-slate"]):has(h1, h2) h1::after {
+  content: '.';
+  color: var(--al-ember-bright);
+}
+.al-modern-screen > header p:first-child,
+.al-modern-screen > header > div p:first-child,
+.al-modern-screen > section:first-child:not([class*="bg-white"]):not([class*="bg-slate"]):has(h1, h2) p:first-child {
+  color: #a64220 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: .12em !important;
+  text-transform: uppercase;
+}
+.al-modern-screen > header h1 ~ p,
+.al-modern-screen > header > div h1 ~ p,
+.al-modern-screen > section:first-child:not([class*="bg-white"]):not([class*="bg-slate"]):has(h1, h2) h1 ~ p {
+  color: var(--al-subtle) !important;
+  font-size: 15px !important;
+  line-height: 1.65 !important;
+  max-width: 72ch;
+}
+
+/* Paneles: fondo limpio, bordes sutiles, relieve practicamente plano. */
+.al-modern-screen :is(section, article, div)[class*="bg-white"][class*="rounded-2xl"],
+.al-modern-screen :is(section, article, div)[class*="bg-white"][class*="rounded-xl"],
+.al-modern-screen :is(section, article, div)[class*="bg-white"][class*="rounded-3xl"] {
+  background: var(--al-surface) !important;
+  border-color: var(--al-border) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 24px rgba(20, 28, 38, .025), 0 1px 2px rgba(20, 28, 38, .025) !important;
+}
+.al-modern-screen :is(section, article)[class*="bg-slate-50"][class*="rounded"] {
+  background: var(--al-wash) !important;
+  border-color: var(--al-border) !important;
+}
+.al-modern-screen :is(h2, h3)[class*="font-bold"],
+.al-modern-screen :is(h2, h3)[class*="font-extrabold"] {
+  letter-spacing: -.025em;
+  color: var(--al-ink);
+}
+.al-modern-screen :is(section,article)[class*="bg-white"] > :is(h2,h3):first-child {
+  font-weight: 650;
+}
+
+/* Controles: tactiles, claros y accesibles, sin interferir con los controles Leaflet. */
+.al-modern-screen :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]) {
+  min-height: 44px;
+  border-color: #d5dbe1;
+  border-radius: 10px;
+  background-color: #fff;
+  color: #262626;
+  font-size: 15px;
+}
+.al-modern-screen :is(input, textarea)::placeholder { color: #88929e; opacity: 1; }
+.al-modern-screen :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 2px;
+  border-color: #ea580c;
+}
+.al-modern-screen :is(button, a)[class*="rounded"]:not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out) {
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.al-modern-screen button[class*="bg-orange-"],
+.al-modern-screen button[class*="bg-[#f24a23]"] {
+  border-radius: 999px !important;
+  background-color: var(--al-ember) !important;
+  color: #fff !important;
+  font-weight: 650 !important;
+  min-height: 44px;
+  box-shadow: 0 0 0 4px rgba(234, 88, 12, .075);
+}
+.al-modern-screen button[class*="bg-orange-"]:hover:not(:disabled),
+.al-modern-screen button[class*="bg-[#f24a23]"]:hover:not(:disabled) {
+  background-color: #9a3412 !important;
+}
+.al-modern-screen :is(button, a)[class*="bg-white"][class*="border"] {
+  border-radius: 999px !important;
+  background: #fff !important;
+  border-color: #d7dce1 !important;
+}
+.al-modern-screen :is(button, a)[class*="bg-white"][class*="border"]:hover:not(:disabled) {
+  background: #f9fafb !important;
+  border-color: #b9c0c9 !important;
+}
+.al-modern-screen :is(button, a):focus-visible {
+  outline: 3px solid #fdba74;
+  outline-offset: 3px;
+}
+.al-modern-screen :is(button, input, select):disabled { opacity: .6; cursor: not-allowed; }
+
+/* Directorios, listados y formularios. No cambiamos los modelos ni los v-model. */
+.al-modern-screen table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.al-modern-screen table thead {
+  background: #f8f9fa !important;
+  color: #4b5563;
+  font-size: 12px;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.al-modern-screen table thead th {
+  font-weight: 650;
+  border-bottom: 1px solid var(--al-border);
+  padding-block: 15px;
+}
+.al-modern-screen table tbody tr {
+  transition: background-color .12s ease;
+}
+.al-modern-screen table tbody tr:hover { background: #fafafa; }
+.al-modern-screen table tbody td { border-bottom: 1px solid #f0f1f3; padding-block: 13px; }
+.al-modern-screen table tbody tr:last-child td { border-bottom: 0; }
+.al-modern-screen :is(p,span)[class*="text-slate-500"],
+.al-modern-screen :is(p,span)[class*="text-slate-600"] { line-height: 1.55; }
+.al-modern-screen [class*="overflow-x-auto"] { overscroll-behavior-x: contain; }
+
+/* Formulario / modal: solo se retocan superficies; comportamiento original intacto. */
+.al-modern-screen [role="dialog"] [class*="bg-white"],
+.al-modern-screen [aria-modal="true"] [class*="bg-white"] {
+  border-color: var(--al-border);
+}
+.al-modern-screen [role="dialog"] h2,
+.al-modern-screen [aria-modal="true"] h2 {
+  letter-spacing: -.025em;
+}
+
+/* Estados semanticos mantienen su tono (verde/ambar/rojo). */
+.al-modern-screen [role="alert"] { font-weight: 500; }
+.al-modern-screen [class*="bg-red-50"] { border-color: #fecaca; }
+.al-modern-screen [class*="bg-green-50"] { border-color: #bbf7d0; }
+.al-modern-screen [class*="bg-amber-50"] { border-color: #fde68a; }
+.al-modern-screen .leaflet-container { isolation: isolate; border-radius: 12px; }
+
+@media (max-width: 767px) {
+  .al-modern-screen { padding: 8px 4px; }
+  .al-modern-screen > header { gap: 16px; }
+  .al-modern-screen > header :is(button, a) { max-width: 100%; }
+  .al-modern-screen table { font-size: 14px; }
+  .al-modern-screen table :is(td, th) { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .al-modern-screen *, .al-modern-screen *::before, .al-modern-screen *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
+/*
+ * Predios - alternador del mapa.
+ * El boton contiene hover:bg-orange-50, que coincidia por accidente
+ * con la regla global de botones principales [class*="bg-orange-"].
+ * Eso dejaba texto blanco sobre fondo blanco. Este ajuste esta limitado
+ * al boton aria-pressed de la cabecera de Predios; no cambia el v-model
+ * ni ningun otro control o modulo.
+ */
+.al-modern-screen > header button[aria-pressed][class*="bg-white"][class*="text-orange-700"] {
+  color: #9a3412 !important;
+  background-color: #ffffff !important;
+  border-color: #fdba74 !important;
+  box-shadow: none !important;
+}
+.al-modern-screen > header button[aria-pressed][class*="bg-white"][class*="text-orange-700"]:hover:not(:disabled) {
+  color: #7c2d12 !important;
+  background-color: #fff7ed !important;
+  border-color: #fb923c !important;
+}
+.al-modern-screen > header button[aria-pressed="true"][class*="bg-white"][class*="text-orange-700"] {
+  color: #9a3412 !important;
+  background-color: #fff7ed !important;
+  border-color: #fb923c !important;
+}

@@ -1,5 +1,6 @@
 import type { Reading, RiskLevel } from '../types'
 import { apiFetch } from './http'
+import { readingPagination, readingQuery, type ReadingFilters } from '../utils/reading-pagination'
 
 interface ApiReading {
   id_lectura: string | number
@@ -53,17 +54,13 @@ function mapApiReading(item: ApiReading): Reading {
 
 export const readingService = {
   /** GET /api/lecturas devuelve un objeto PAGINADO, no un array. */
-  async getReadingsPage(page = 1, pageSize = 100, filters: { id_predio?: string; id_sensor?: string } = {}): Promise<ReadingPage> {
-    const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
-    if (filters.id_predio) query.set('id_predio', filters.id_predio)
-    if (filters.id_sensor) query.set('id_sensor', filters.id_sensor)
-    const data = await apiFetch<PageResponse<ApiReading>>(`/lecturas?${query}`)
+  async getReadingsPage(page = 1, pageSize = 25, filters: ReadingFilters = {}, signal?: AbortSignal): Promise<ReadingPage> {
+    const query = readingQuery(page, pageSize, filters)
+    const data = await apiFetch<PageResponse<ApiReading>>(`/lecturas?${query}`, { signal })
     if (!data || !Array.isArray(data.items)) throw new Error('Respuesta de lecturas sin data.items.')
     return {
       items: data.items.map(mapApiReading),
-      total: data.total,
-      page: data.page,
-      pageSize: data.pageSize,
+      ...readingPagination(data, data.items.length),
     }
   },
   async getReadings(): Promise<Reading[]> {

@@ -1,3 +1,10 @@
 <template>
-  <div class="admin-page mx-auto max-w-[1100px] space-y-5"><header><p class="text-xs font-bold uppercase tracking-wider text-orange-600">Administración</p><h1 class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">Auditoría</h1></header><section class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><h2 class="text-lg font-bold text-slate-900">Historial de auditoría no conectado</h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">El contrato compartido todavía no especifica un endpoint para consultar registros de auditoría. Esta pantalla no muestra acciones inventadas; cuando backend publique el contrato se podrán consultar los eventos persistidos.</p></section></div>
+  <main class="al-modern-screen mx-auto max-w-[900px] space-y-5">
+    <header><p class="text-xs font-bold uppercase tracking-wider text-orange-600">Administración</p><h1 class="text-2xl font-extrabold text-slate-900">Auditoría</h1></header>
+    <section role="status" class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
+      El backend establece que <strong>GET /api/auditoria</strong> y <strong>GET /api/auditoria/usuarios</strong>
+      son exclusivos del rol <strong>AUDITOR</strong>, incluso para usuarios ADMIN devuelven HTTP 403.
+      Esta pantalla no inventa registros ni intenta eludir esa restricción.
+    </section>
+  </main>
 </template>

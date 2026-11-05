@@ -30,12 +30,12 @@ onMounted(load)
 </script>
 
 <template>
-  <main class="space-y-5">
+  <main class="al-modern-screen space-y-5">
     <header class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p class="text-xs font-semibold uppercase tracking-wide text-orange-700">Institución</p>
         <h1 class="mt-1 text-2xl font-bold text-slate-900">Alertas recibidas</h1>
-        <p class="mt-2 text-sm text-slate-600">Distribución automática confirmada por el backend. La gestión del personal operativo corresponde al móvil.</p>
+        <p class="mt-2 text-sm text-slate-600">Distribución automática confirmada por el backend. El jefe de institución puede asignar operativos desde el detalle; la atención en campo continúa en el flujo móvil.</p>
       </div>
       <button type="button" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white disabled:opacity-50" :disabled="loading" @click="load">Actualizar</button>
     </header>
@@ -52,7 +52,7 @@ onMounted(load)
         </div>
         <p class="mt-3 text-sm text-slate-700">Clasificación: {{ alert.clasificacion ?? 'Sin clasificar' }}</p>
         <p class="mt-1 text-sm text-slate-600">{{ alert.fecha }} {{ alert.hora }}</p>
-        <RouterLink :to="`/institucion/alertas/${encodeURIComponent(String(alert.id_alerta))}`" class="mt-4 inline-flex font-semibold text-orange-700 underline underline-offset-4">Ver estado del envío</RouterLink>
+        <RouterLink :to="`/institucion/alertas/${encodeURIComponent(String(alert.id_alerta))}`" class="mt-4 inline-flex font-semibold text-orange-700 underline underline-offset-4">{{ authStore.role === 'JEFE_INSTITUCION' ? 'Ver alerta y ruta' : 'Ver estado del envío' }}</RouterLink>
       </article>
     </section>
   </main>

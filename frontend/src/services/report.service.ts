@@ -55,10 +55,9 @@ export interface InformeCampos {
   recomendaciones?: string
 }
 
+// El servidor obtiene id_institucion e id_usuario de la cookie de sesión.
 export type CreateAttentionReportInput = {
-  id_alerta: string
-  id_institucion: string
-  id_usuario: string
+  id_alerta: number
 } & InformeCampos
 
 export type UpdateAttentionReportInput = InformeCampos

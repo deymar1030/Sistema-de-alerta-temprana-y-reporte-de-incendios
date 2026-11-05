@@ -24,6 +24,7 @@ import {
 } from 'lucide-vue-next'
 
 import { useAuthStore } from '../stores/auth.store'
+import { useInstitutionStore } from '../stores/institution.store'
 import { useReportStore } from '../stores/report.store'
 
 import {
@@ -89,6 +90,7 @@ const textFields = [
 ] as const
 
 const auth = useAuthStore()
+const institutionStore = useInstitutionStore()
 const reportsStore = useReportStore()
 
 const { reports, loading, error } = storeToRefs(reportsStore)
@@ -176,12 +178,24 @@ const visibleReports = computed(() => {
     )
 })
 
-const canWrite = computed(() =>
+const hasInstitutionSession = computed(() =>
   Boolean(institutionId.value && userId.value)
 )
 
+const myInstitution = computed(() =>
+  institutionStore.institutions.find(item => String(item.id) === institutionId.value)
+)
+
+// Un rol institucional no basta: solo la categoría BOMBEROS puede redactar/completar.
+// Si no pudimos confirmar la categoría, el formulario permanece en solo lectura.
+const canWrite = computed(() =>
+  hasInstitutionSession.value &&
+  ['JEFE_INSTITUCION', 'OPERATIVO'].includes(auth.role ?? '') &&
+  myInstitution.value?.tipo === 'BOMBEROS'
+)
+
 const isReadOnly = computed(() =>
-  mode.value === 'detail'
+  mode.value === 'detail' || !canWrite.value
 )
 
 function friendlyError(cause: unknown): string {
@@ -225,7 +239,7 @@ function wholeId(raw: unknown, name: string): string {
 async function reload() {
   notice.value = ''
 
-  if (!canWrite.value) {
+  if (!hasInstitutionSession.value) {
     reportsStore.clear()
 
     notice.value =
@@ -282,7 +296,7 @@ function closeDialog() {
 function newReport() {
   if (!canWrite.value) {
     notice.value =
-      'Debes iniciar sesión con una institución asignada.'
+      'Solo las instituciones de categoría BOMBEROS pueden crear informes de atención.'
 
     noticeIsError.value = true
     return
@@ -365,6 +379,9 @@ async function showReport(
   busy.value = true
 
   try {
+    if (selectedMode === 'edit' && !canWrite.value) {
+      throw new Error('Solo las instituciones de categoría BOMBEROS pueden editar informes.')
+    }
     const report = await reportService.getReportById(id)
 
     if (report.id_institucion !== institutionId.value) {
@@ -507,7 +524,7 @@ async function save() {
     if (
       changes.estado === 'COMPLETADO' &&
       !window.confirm(
-        '¿Confirmas que el informe debe quedar COMPLETADO en el servidor?'
+        `¿Confirmas que el informe pasará a COMPLETADO? Esto cerrará la alerta #${idAlerta} y liberará al personal operativo asignado.`
       )
     ) {
       return
@@ -516,6 +533,10 @@ async function save() {
     formError.value = friendlyError(cause)
     return
   }
+
+  const closesAlert = changes.estado === 'COMPLETADO' && (
+    mode.value === 'create' || original.estado === 'BORRADOR'
+  )
 
   busy.value = true
 
@@ -529,9 +550,7 @@ async function save() {
       )
     } else {
       const input: CreateAttentionReportInput = {
-        id_alerta: idAlerta,
-        id_institucion: institutionId.value,
-        id_usuario: userId.value,
+        id_alerta: Number(idAlerta),
         ...changes,
       }
 
@@ -549,9 +568,11 @@ async function save() {
 
     notice.value = reportsStore.error
       ? 'La operación fue aceptada por el servidor, pero no se pudo actualizar el listado. Usa Actualizar antes de repetirla.'
-      : wasEditing
-        ? 'Informe actualizado en el servidor.'
-        : 'Informe creado en el servidor.'
+      : closesAlert
+        ? `Alerta #${idAlerta} marcada como controlada y CERRADA. Los operativos asignados fueron liberados por el servidor.`
+        : wasEditing
+          ? 'Informe actualizado en el servidor.'
+          : 'Informe creado en el servidor.'
   } catch (cause) {
     formError.value = friendlyError(cause)
   } finally {
@@ -607,6 +628,7 @@ function onKeydown(event: KeyboardEvent) {
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
 
+  void institutionStore.fetchInstitutions()
   void reload()
   void loadAlertOptions()
 })
@@ -622,7 +644,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main
-    class="admin-page mx-auto w-full max-w-[1500px] space-y-5 p-0 sm:p-2 lg:p-4"
+    class="al-modern-screen admin-page mx-auto w-full max-w-[1500px] space-y-5 p-0 sm:p-2 lg:p-4"
   >
     <header
       class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
@@ -643,21 +665,44 @@ onBeforeUnmount(() => {
         <p
           class="mt-2 text-sm leading-relaxed text-slate-600"
         >
-          Registra y consulta las actuaciones de tu institución.
-          Los datos se guardan en el backend, sin PDF.
+          {{ canWrite
+            ? 'Registra y consulta las actuaciones de tu institución. Los datos se guardan en el backend, sin PDF.'
+            : 'Consulta los informes de atención de tu institución. La creación y modificación está reservada a las instituciones de categoría BOMBEROS.' }}
         </p>
       </div>
 
       <button
+        v-if="canWrite"
         type="button"
-        :disabled="!canWrite"
-        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-50"
+        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
         @click="newReport"
       >
         <FilePlus2 class="h-5 w-5" aria-hidden="true" />
         Nuevo informe
       </button>
+
+      <span
+        v-else-if="hasInstitutionSession && !institutionStore.loading"
+        role="status"
+        class="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 sm:self-auto"
+      >
+        <Eye class="h-4 w-4 text-slate-500" aria-hidden="true" />
+        Solo consulta
+      </span>
     </header>
+
+    <div
+      v-if="hasInstitutionSession && !canWrite && !institutionStore.loading"
+      role="status"
+      class="flex min-w-0 items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+    >
+      <AlertCircle class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+      <p class="min-w-0 leading-relaxed">
+        {{ institutionStore.error
+          ? 'No se pudo confirmar la categoría de tu institución. El acceso permanecerá en modo solo consulta.'
+          : 'Tu institución puede consultar los informes de atención, pero no crearlos ni modificarlos. Esa función está reservada a las instituciones de categoría BOMBEROS.' }}
+      </p>
+    </div>
 
     <div
       v-if="notice"
@@ -753,7 +798,7 @@ onBeforeUnmount(() => {
       </div>
 
       <p
-        v-if="!canWrite"
+        v-if="!hasInstitutionSession"
         class="m-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
         role="alert"
       >
@@ -834,6 +879,7 @@ onBeforeUnmount(() => {
 
               <button
                 type="button"
+                v-if="canWrite"
                 class="min-h-11 rounded-lg border border-orange-200 px-3 text-sm font-semibold text-orange-700"
                 @click="showReport(report.id_informe_atencion, 'edit')"
               >
@@ -917,6 +963,7 @@ onBeforeUnmount(() => {
                     <button
                       type="button"
                       class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 text-orange-700"
+                      v-if="canWrite"
                       aria-label="Editar informe"
                       title="Editar informe"
                       @click="showReport(report.id_informe_atencion, 'edit')"
@@ -1208,4 +1255,3 @@ onBeforeUnmount(() => {
     </Teleport>
   </main>
 </template>
-

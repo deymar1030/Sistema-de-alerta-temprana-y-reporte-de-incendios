@@ -13,6 +13,7 @@ import {
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
+import { homeForRole, isCompatibleRedirect } from '../utils/auth-navigation'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,7 +27,7 @@ const loading = ref(false)
 const error = ref(
   route.query.access === 'mobile'
     ? 'Este acceso está disponible únicamente en la aplicación móvil.'
-    : '',
+    : route.query.mfa === 'restart' ? 'Inicia sesión nuevamente para continuar la verificación de tu cuenta.' : '',
 )
 
 const useDemoMode = import.meta.env.VITE_USE_MOCKS === 'true'
@@ -57,40 +58,6 @@ const demoAccounts = useDemoMode
     ]
   : [] as const
 
-const homeByRole = (rol?: string) => {
-  switch (rol ?? 'ADMIN') {
-    case 'CIUDADANO':
-      return '/ciudadano/inicio'
-    case 'JEFE_INSTITUCION':
-    case 'OPERATIVO':
-      return '/institucion/dashboard'
-    case 'ADMIN':
-    default:
-      return '/super-admin/dashboard'
-  }
-}
-
-const isCompatibleRedirect = (
-  redirect: string | undefined,
-  rol?: string
-) => {
-  if (!redirect || !redirect.startsWith('/')) return false
-
-  const normalized = redirect.split('?')[0]
-
-  switch (rol ?? 'ADMIN') {
-    case 'ADMIN':
-      return normalized.startsWith('/super-admin')
-    case 'JEFE_INSTITUCION':
-    case 'OPERATIVO':
-      return normalized.startsWith('/institucion')
-    case 'CIUDADANO':
-      return normalized.startsWith('/ciudadano')
-    default:
-      return false
-  }
-}
-
 const seleccionarCuenta = (
   correoSeleccionado: string,
   passSeleccionada: string
@@ -113,7 +80,12 @@ const ingresar = async () => {
       password.value
     )
 
-    const role = user.role ?? user.rol ?? 'ADMIN'
+    password.value = ''
+    if (!user) {
+      if (authStore.mfaPending) await router.replace({ path: '/mfa', query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : {} })
+      return
+    }
+    const role = user.role ?? user.rol
 
     const redirectPath =
       typeof route.query.redirect === 'string'
@@ -128,7 +100,7 @@ const ingresar = async () => {
       return
     }
 
-    await router.push(homeByRole(role))
+    await router.push(homeForRole(role))
   } catch (err) {
     error.value =
       err instanceof Error

@@ -1,6 +1,17 @@
 
 import { apiFetch } from './http'
 
+// Ruta mas corta (por calle real, Dijkstra sobre OSM) calculada por el
+// routing-service entre la institucion y el predio/reporte de la alerta.
+// Se calcula en segundo plano tras confirmar la alerta: puede no estar lista
+// todavia (ruta === null y ruta_error === null) cuando se abre el detalle.
+export interface RouteInfo {
+  origin: { latitude: number; longitude: number }
+  destination: { latitude: number; longitude: number }
+  distance_m: number
+  geometry: [number, number][]
+}
+
 // Instituciones notificadas sobre una alerta.
 export interface InstitutionDelivery {
   id_institucion: string
@@ -13,6 +24,9 @@ export interface InstitutionDelivery {
     | string
   fecha_envio: string
   fecha_actualizacion: string | null
+  ruta?: RouteInfo | null
+  ruta_calculada_en?: string | null
+  ruta_error?: string | null
 }
 
 // Ubicación geográfica de una alerta.
@@ -123,8 +137,12 @@ function assertMapAlerts(value: unknown): MapAlert[] {
 
 export const backendAlertsService = {
   // NUEVO: alertas con sus coordenadas geográficas.
-  async map(): Promise<MapAlert[]> {
-    const data = await apiFetch<unknown>('/alertas/mapa')
+  async map(institutionId?: string, signal?: AbortSignal): Promise<MapAlert[]> {
+    if (institutionId !== undefined && !institutionId.trim()) {
+      throw new Error('Tu cuenta no tiene una institución asignada.')
+    }
+    const query = institutionId === undefined ? '' : `?id_institucion=${encodeURIComponent(institutionId)}`
+    const data = await apiFetch<unknown>(`/alertas/mapa${query}`, { signal })
 
     return assertMapAlerts(data)
   },
@@ -155,9 +173,9 @@ export const backendAlertsService = {
   },
 
   // Obtener el detalle de una alerta.
-  async detail(id: string): Promise<BackendAlert> {
+  async detail(id: string, signal?: AbortSignal): Promise<BackendAlert> {
     const detail = await apiFetch<BackendAlert>(
-      `/alertas/${encodeURIComponent(id)}`
+      `/alertas/${encodeURIComponent(id)}`, { signal }
     )
 
     if (!detail || detail.id_alerta == null) {

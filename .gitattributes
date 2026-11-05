@@ -1,0 +1,2 @@
+# Los pesos del modelo se distribuyen como artefactos Git LFS, no como blobs Git.
+backend/ml-service/models/*.pth filter=lfs diff=lfs merge=lfs -text

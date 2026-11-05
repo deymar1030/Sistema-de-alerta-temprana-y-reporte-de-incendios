@@ -20,9 +20,20 @@ export async function distribuirAlerta(db, { alerta, ahora, titulo, mensaje, des
     ] },
     select: { id_institucion: true, latitud: true, longitud: true },
   });
+  // Esta funcion se llama de nuevo para la MISMA alerta cuando, tras el
+  // aviso critico (ver ventana de correccion en evaluarPredio.js), el
+  // episodio se resuelve como CONFIRMADA: las instituciones ya tienen su
+  // fila `envia` del aviso critico, y pk_envia (id_alerta, id_institucion)
+  // no admite una segunda. Sin este filtro, esa segunda llamada revienta
+  // con "Unique constraint failed on pk_envia" y la alerta queda trabada en
+  // EN_EVALUACION para siempre (el error se repite en cada reintento).
+  const yaNotificadas = new Set((await db.envia.findMany({
+    where: { id_alerta: alerta.id_alerta }, select: { id_institucion: true },
+  })).map((e) => String(e.id_institucion)));
   const envios = [];
   const rutasPendientes = [];
   for (const institucion of instituciones) {
+    if (yaNotificadas.has(String(institucion.id_institucion))) continue;
     const envio = await db.envia.create({ data: {
       id_alerta: alerta.id_alerta, id_institucion: institucion.id_institucion,
       estado: 'ENVIADA', fecha_envio: ahora,

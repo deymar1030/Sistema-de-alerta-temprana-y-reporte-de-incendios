@@ -2,9 +2,10 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { authService } from '../services/auth.service'
+import { authService, AuthHttpError } from '../services/auth.service'
 import type { User } from '../types'
 import { normalizeRole } from '../types'
+import type { MfaState } from '../utils/mfa'
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
 
@@ -12,6 +13,16 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const initialized = ref(false)
   const loading = ref(false)
+
+  const mfaPending = ref<{ state: MfaState; email: string; expiresAt: number } | null>(null)
+  let authRevision = 0
+
+  function clearMfa() {
+    authRevision++
+    mfaPending.value = null
+    user.value = null
+    initialized.value = true
+  }
 
   let initialization: Promise<User | null> | null = null
 
@@ -32,6 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
   const initialize = async (
     force = false
   ): Promise<User | null> => {
+    if (mfaPending.value) return null
     if (initialization) {
       return initialization
     }
@@ -61,42 +73,64 @@ export const useAuthStore = defineStore('auth', () => {
     return initialization
   }
 
-  const login = async (
-    correo: string,
-    contrasena: string
-  ): Promise<User> => {
+  const login = async (correo: string, contrasena: string): Promise<User | null> => {
+    if (loading.value) throw new Error('Espera a que termine la solicitud actual.')
+    clearMfa()
+    const revision = authRevision
     loading.value = true
-    user.value = null
-
     try {
-      const loginUser = await authService.login(
-        correo,
-        contrasena
-      )
-
-      // Un HTTP 200 en login no garantiza que el
-      // navegador haya conservado la cookie sid.
-      const confirmed = USE_MOCKS
-        ? loginUser
-        : await authService.getCurrentUser()
-
-      if (!confirmed) {
-        throw new Error(
-          'El servidor aceptó el login, pero no confirmó la sesión. Revisa la cookie sid y el proxy HTTPS.'
-        )
+      const result = await authService.login(correo, contrasena)
+      if (revision !== authRevision) return null
+      if (result.kind === 'mfa') {
+        mfaPending.value = { state: result.state, email: correo.trim(), expiresAt: Date.now() + 5 * 60_000 }
+        // /auth/me rechaza una sesión pendiente y borra su cookie. No consultarlo aquí.
+        return null
       }
+      const confirmed = USE_MOCKS ? result.user : await authService.getCurrentUser()
+      if (revision !== authRevision) return null
+      if (!confirmed || String(confirmed.id) !== String(result.user.id)) {
+        throw new Error('El servidor no confirmó la sesión de esta cuenta. Inicia sesión nuevamente.')
+      }
+      user.value = confirmed
+      return confirmed
+    } finally {
+      if (revision === authRevision) loading.value = false
+    }
+  }
 
+  const verifyMfa = async (codigo: string): Promise<User> => {
+    if (loading.value) throw new Error('Espera a que termine la verificación actual.')
+    if (!mfaPending.value || Date.now() >= mfaPending.value.expiresAt) {
+      clearMfa()
+      throw new Error('La verificación expiró. Inicia sesión nuevamente.')
+    }
+    const revision = authRevision
+    loading.value = true
+    try {
+      const verified = await authService.verifyMfa(codigo)
+      if (revision !== authRevision) throw new Error('La verificación ya no está vigente.')
+      const confirmed = await authService.getCurrentUser()
+      if (revision !== authRevision) throw new Error('La verificación ya no está vigente.')
+      if (!confirmed || String(confirmed.id) !== String(verified.id)) {
+        clearMfa()
+        throw new Error('No se pudo confirmar la sesión verificada. Inicia sesión nuevamente.')
+      }
+      mfaPending.value = null
       user.value = confirmed
       initialized.value = true
-
       return confirmed
     } catch (error) {
-      user.value = null
-      initialized.value = true
+      if (revision === authRevision && error instanceof AuthHttpError &&
+          (error.status === 403 || (error.status === 401 && error.code !== 'MFA_INVALIDO'))) clearMfa()
       throw error
-    } finally {
-      loading.value = false
-    }
+    } finally { loading.value = false }
+  }
+
+  const cancelMfa = async () => {
+    if (loading.value) return
+    clearMfa()
+    loading.value = true
+    try { await authService.logout() } finally { loading.value = false }
   }
 
   /** Recarga la cuenta logueada desde la cookie de sesion del backend. */
@@ -176,6 +210,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const logout = async () => {
+    clearMfa()
     try {
       // POST /auth/logout.
       // La cookie HttpOnly es administrada por el navegador.
@@ -224,6 +259,10 @@ export const useAuthStore = defineStore('auth', () => {
     role,
     initialized,
     isAuthenticated,
+    mfaPending,
+    verifyMfa,
+    cancelMfa,
+    clearMfa,
     initialize,
     login,
     registerCitizen,

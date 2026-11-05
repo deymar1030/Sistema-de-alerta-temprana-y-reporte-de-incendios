@@ -8,24 +8,24 @@ import {
   Clock3,
   Flame,
   LayoutDashboard,
-  MapPin,
   RefreshCw,
   ShieldCheck,
   Users,
 } from 'lucide-vue-next'
-import MonitoringMap from '../components/dashboard/MonitoringMap.vue'
+import DashboardAlertsMap from '../components/dashboard/DashboardAlertsMap.vue'
 import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
 import { useInstitutionStore } from '../stores/institution.store'
 import { useUserStore } from '../stores/user.store'
 
 const institutionStore = useInstitutionStore()
 const userStore = useUserStore()
+const dashboardMap = ref<InstanceType<typeof DashboardAlertsMap> | null>(null)
 const alerts = ref<BackendAlert[]>([])
 const loading = ref(false)
 const error = ref('')
 
 // Se conservan las mismas fuentes y reglas de conteo del dashboard original.
-const active = computed(() => alerts.value.filter(a => !['CERRADA', 'DESCARTADA'].includes(a.estado)).length)
+const active = computed(() => alerts.value.filter(a => !['CERRADA', 'DESCARTADA', 'CANCELADA'].includes(a.estado)).length)
 const recent = computed(() => [...alerts.value]
   .sort((a, b) => `${b.fecha}T${b.hora}`.localeCompare(`${a.fecha}T${a.hora}`))
   .slice(0, 5))
@@ -87,6 +87,7 @@ function readableStatus(status: string): string {
 }
 
 async function load() {
+  void dashboardMap.value?.refresh()
   loading.value = true
   error.value = ''
   await Promise.all([userStore.fetchUsers(), institutionStore.fetchInstitutions()])
@@ -150,6 +151,8 @@ onMounted(() => { void load() })
       </article>
     </section>
 
+    <DashboardAlertsMap ref="dashboardMap" scope="admin" class="mb-6" />
+
     <div class="dashboard-content-grid">
       <section class="content-card" aria-labelledby="recent-alerts-title">
         <div class="card-heading">
@@ -207,25 +210,6 @@ onMounted(() => { void load() })
       </section>
     </div>
 
-    <section class="content-card map-card" aria-labelledby="institutions-map-title">
-      <div class="card-heading map-heading">
-        <div>
-          <div class="section-kicker"><MapPin :size="14" aria-hidden="true" /> UBICACIONES</div>
-          <h2 id="institutions-map-title">Mapa de instituciones</h2>
-          <p>Distribución geográfica de instituciones registradas.</p>
-        </div>
-        <span class="map-source">Mapa interactivo</span>
-      </div>
-      <div class="map-container-frame">
-        <MonitoringMap
-          :show-sensors="false"
-          :show-incidents="false"
-          :show-institutions="true"
-          :show-reports="false"
-          height-class="h-[330px]"
-        />
-      </div>
-    </section>
   </div>
 </template>
 

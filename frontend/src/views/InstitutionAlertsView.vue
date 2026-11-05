@@ -52,7 +52,7 @@ onMounted(load)
         </div>
         <p class="mt-3 text-sm text-slate-700">Clasificación: {{ alert.clasificacion ?? 'Sin clasificar' }}</p>
         <p class="mt-1 text-sm text-slate-600">{{ alert.fecha }} {{ alert.hora }}</p>
-        <RouterLink :to="`/institucion/alertas/${encodeURIComponent(String(alert.id_alerta))}`" class="mt-4 inline-flex font-semibold text-orange-700 underline underline-offset-4">Ver estado del envío</RouterLink>
+        <RouterLink :to="`/institucion/alertas/${encodeURIComponent(String(alert.id_alerta))}`" class="mt-4 inline-flex font-semibold text-orange-700 underline underline-offset-4">{{ authStore.role === 'JEFE_INSTITUCION' ? 'Ver alerta y ruta' : 'Ver estado del envío' }}</RouterLink>
       </article>
     </section>
   </main>

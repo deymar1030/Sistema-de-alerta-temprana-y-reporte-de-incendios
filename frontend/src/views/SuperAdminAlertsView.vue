@@ -8,6 +8,7 @@ import {
   ref,
 } from 'vue'
 import L from 'leaflet'
+import AlertRoutePanel from '../components/alerts/AlertRoutePanel.vue'
 import {
   AlertTriangle,
   MapPin,
@@ -330,7 +331,7 @@ function onDialogKeydown(event: KeyboardEvent) {
   if (!detailModalOpen.value) return
   if (event.key === 'Escape') { event.preventDefault(); closeDetail(); return }
   if (event.key !== 'Tab' || !detailDialog.value) return
-  const focusable = [...detailDialog.value.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled)')]
+  const focusable = [...detailDialog.value.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])')]
     .filter(item => item.getClientRects().length > 0)
   if (!focusable.length) return
   const first = focusable[0]!, last = focusable[focusable.length - 1]!
@@ -409,6 +410,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  ++detailRequestVersion
   document.removeEventListener('keydown', onDialogKeydown)
   if (detailModalOpen.value) document.body.style.overflow = bodyOverflowBeforeDetail
   if (pollTimer) clearInterval(pollTimer)
@@ -518,8 +520,8 @@ onBeforeUnmount(() => {
               <p v-if="updatedScoreIds.includes(String(alert.id_alerta))" class="alerts-updated-note"><TrendingUp :size="14" aria-hidden="true" /> Puntaje de confianza actualizado</p>
               <div class="alerts-record-bottom">
                 <span>Puntaje: <strong>{{ alert.puntaje == null ? 'No disponible' : alert.puntaje }}</strong></span>
-                <button type="button" class="alerts-detail-action" :aria-label="`Ver detalle de alerta ${alert.id_alerta}`" @click="openDetail(String(alert.id_alerta))">
-                  Ver detalle <ArrowUpRight :size="16" aria-hidden="true" />
+                <button type="button" class="alerts-detail-action" :aria-label="`Ver alerta y rutas de alerta ${alert.id_alerta}`" @click="openDetail(String(alert.id_alerta))">
+                  Ver alerta y rutas <ArrowUpRight :size="16" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -572,6 +574,7 @@ onBeforeUnmount(() => {
             <div v-if="detailLoading" class="alerts-list-message" role="status"><RefreshCw :size="19" class="animate-spin" aria-hidden="true" /> Consultando el detalle...</div>
             <p v-else-if="detailError" class="alerts-inline-error" role="alert">{{ detailError }}</p>
             <template v-else-if="selected">
+              <AlertRoutePanel :key="String(selected.id_alerta)" :alert="selected" administration class="mb-5" @updated="selected = $event" />
               <div class="alerts-dialog-summary">
                 <div class="alerts-detail-field">
                   <span>Estado global</span>
@@ -700,7 +703,7 @@ onBeforeUnmount(() => {
 .legend-red { background: #dc2626; }.legend-amber { background: #f59e0b; }.legend-blue { background: #059669; }.legend-gray { background: #64748b; }
 .alerts-map-footnote { margin: 15px 0 0; color: #7a838a; font-size: 12px; line-height: 1.5; }
 .alerts-backdrop { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(15, 23, 42, .68); }
-.alerts-dialog { display: flex; flex-direction: column; overflow: hidden; width: 100%; max-width: 820px; max-height: 92dvh; border: 1px solid #e5e7eb; border-radius: 18px; background: #fff; box-shadow: 0 30px 80px rgba(9, 13, 19, .22); }
+.alerts-dialog { display: flex; flex-direction: column; overflow: hidden; width: 100%; max-width: 1152px; max-height: 92dvh; border: 1px solid #e5e7eb; border-radius: 18px; background: #fff; box-shadow: 0 30px 80px rgba(9, 13, 19, .22); }
 .alerts-dialog-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; flex: none; padding: 22px 25px; border-bottom: 1px solid #e5e7eb; }
 .alerts-dialog-header h2 { margin: 8px 0 5px; font-size: 27px; line-height: 1.2; font-weight: 760; letter-spacing: -.03em; }
 .alerts-dialog-header p { margin: 0; color: #67717a; font-size: 13px; line-height: 1.5; }

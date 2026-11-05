@@ -63,6 +63,7 @@ const institutionRoles: UserRole[] = ['JEFE_INSTITUCION', 'OPERATIVO']
 const citizenRoles: UserRole[] = ['CIUDADANO']
 
 export const routes: RouteRecordRaw[] = [
+  { path: '/mfa', name: 'mfa', component: () => import('../views/MfaView.vue'), meta: { title: 'Verificación de cuenta' } },
   { path: '/login', name: 'login', component: LoginView, meta: { title: 'Acceso' } },
   { path: '/ciudadano/welcome', name: 'citizen-welcome', component: CitizenWelcomeView, meta: { title: 'Bienvenida ciudadana' } },
   { path: '/ciudadano/login', name: 'citizen-login', component: CitizenLoginView, meta: { title: 'Iniciar sesión' } },

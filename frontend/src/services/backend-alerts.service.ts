@@ -137,8 +137,12 @@ function assertMapAlerts(value: unknown): MapAlert[] {
 
 export const backendAlertsService = {
   // NUEVO: alertas con sus coordenadas geográficas.
-  async map(): Promise<MapAlert[]> {
-    const data = await apiFetch<unknown>('/alertas/mapa')
+  async map(institutionId?: string, signal?: AbortSignal): Promise<MapAlert[]> {
+    if (institutionId !== undefined && !institutionId.trim()) {
+      throw new Error('Tu cuenta no tiene una institución asignada.')
+    }
+    const query = institutionId === undefined ? '' : `?id_institucion=${encodeURIComponent(institutionId)}`
+    const data = await apiFetch<unknown>(`/alertas/mapa${query}`, { signal })
 
     return assertMapAlerts(data)
   },
@@ -169,9 +173,9 @@ export const backendAlertsService = {
   },
 
   // Obtener el detalle de una alerta.
-  async detail(id: string): Promise<BackendAlert> {
+  async detail(id: string, signal?: AbortSignal): Promise<BackendAlert> {
     const detail = await apiFetch<BackendAlert>(
-      `/alertas/${encodeURIComponent(id)}`
+      `/alertas/${encodeURIComponent(id)}`, { signal }
     )
 
     if (!detail || detail.id_alerta == null) {

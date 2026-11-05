@@ -8,7 +8,8 @@ import './styles/alerta-modulos-2026.css'
 import App from './App.vue'
 import { routes } from './router'
 import { useAuthStore } from './stores/auth.store'
-import { isWebUserRole, type WebUserRole, type UserRole } from './types'
+import type { UserRole } from './types'
+import { homeForRole, isCompatibleRedirect } from './utils/auth-navigation'
 
 const app = createApp(App)
 
@@ -22,68 +23,20 @@ const router = createRouter({
 app.use(pinia)
 app.use(router)
 
-const fallback: Record<WebUserRole, string> = {
-  ADMIN: '/super-admin/dashboard',
-  AUDITOR: '/auditor/auditoria',
-  JEFE_INSTITUCION: '/institucion/dashboard',
-  OPERATIVO: '/institucion/dashboard',
-}
-
-const homeForRole = (role: UserRole | null | undefined) => {
-  if (!role) return '/login'
-
-  if (role === 'ADMIN') {
-    return '/super-admin/dashboard'
-  }
-
-  if (role === 'AUDITOR') {
-    return '/auditor/auditoria'
-  }
-
-  if (role === 'CIUDADANO') {
-    return '/ciudadano/inicio'
-  }
-
-  if (role === 'JEFE_INSTITUCION' || role === 'OPERATIVO') {
-    return '/institucion/dashboard'
-  }
-
-  if (isWebUserRole(role)) {
-    return fallback[role]
-  }
-
-  return '/login'
-}
-
-const isCompatibleRedirect = (redirect: string | undefined, role: UserRole | null | undefined) => {
-  if (!redirect || !redirect.startsWith('/')) return false
-
-  const normalized = redirect.split('?')[0]
-
-  switch (role) {
-    case 'ADMIN':
-      return normalized.startsWith('/super-admin')
-    case 'AUDITOR':
-      return normalized.startsWith('/auditor')
-    case 'JEFE_INSTITUCION':
-    case 'OPERATIVO':
-      return normalized.startsWith('/institucion')
-    case 'CIUDADANO':
-      return normalized.startsWith('/ciudadano')
-    default:
-      return false
-  }
-}
-
 const authStore = useAuthStore(pinia)
 
 router.beforeEach(async (to) => {
+  if (authStore.mfaPending) {
+    if (to.path === '/mfa') return true
+    return { path: '/mfa', query: { redirect: typeof to.query.redirect === 'string' ? to.query.redirect : to.fullPath } }
+  }
   await authStore.initialize()
 
   const user = authStore.user
   const effectiveRole = authStore.role
 
   if (!user) {
+    if (to.path === '/mfa') return { path: '/login', query: { ...(typeof to.query.redirect === 'string' ? { redirect: to.query.redirect } : {}), mfa: 'restart' } }
     if (['/login', '/ciudadano/welcome', '/ciudadano/login', '/ciudadano/registro', '/ciudadano/recuperar-password'].includes(to.path)) {
       return true
     }
@@ -112,7 +65,7 @@ router.beforeEach(async (to) => {
     return '/auditor/auditoria'
   }
 
-  if (to.path === '/login') {
+  if (to.path === '/login' || to.path === '/mfa') {
     if (to.query.access === 'mobile') {
       return true
     }

@@ -1,6 +1,7 @@
 import { normalizeRole, normalizeStatus, type User } from '../types'
+import { isMfaCode, readMfaEnrollment, readMfaState, type MfaState } from '../utils/mfa'
 
-const API_URL = import.meta.env.VITE_API_URL ?? '/api'
+const API_URL = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
 
 interface ApiUser {
@@ -169,44 +170,60 @@ const readBackendUser = (payload: unknown): User | null => {
   return null
 }
 
+export type LoginResult = { kind: 'authenticated'; user: User } | { kind: 'mfa'; state: MfaState }
+
+export class AuthHttpError extends Error {
+  status: number
+  code: string
+  constructor(message: string, status: number, code: string) {
+    super(message)
+    this.name = 'AuthHttpError'
+    this.status = status
+    this.code = code
+  }
+}
+
+async function authRequest(path: string, body: object, signal?: AbortSignal): Promise<ApiEnvelope<unknown>> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'POST', credentials: 'include', cache: 'no-store', signal,
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const payload = await response.json().catch(() => null) as ApiEnvelope<unknown> | null
+  if (!response.ok || payload?.success !== true) {
+    const message = typeof payload?.error === 'string' ? payload.error : typeof payload?.message === 'string' ? payload.message : 'No se pudo completar la autenticación.'
+    throw new AuthHttpError(message, response.status, payload?.code ?? '')
+  }
+  return payload
+}
+
 export const authService = {
-  async login(correo: string, contrasena: string): Promise<User> {
-    try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ correo, contrasena }),
-      })
-
-      const payload = (await response.json().catch(() => null)) as ApiEnvelope<ApiUser> | null
-
-      if (!response.ok || payload?.success !== true || !payload?.data) {
-        const message = payload?.message ?? payload?.error ?? 'No se pudo iniciar sesión.'
-        throw new Error(message)
-      }
-
-      const user = readBackendUser(payload)
-      if (!user) {
-        throw new Error('El backend no devolvió un usuario válido.')
-      }
-
-      return user
-    } catch (error) {
-      if (!USE_MOCKS) {
-        throw error instanceof Error ? error : new Error('No se pudo iniciar sesión.')
-      }
-
-      const match = demoUsers.find((entry) => entry.email.toLowerCase() === correo.trim().toLowerCase() && entry.password === contrasena)
-      if (!match) {
-        throw new Error('Credenciales inválidas.')
-      }
-
-      return match.user
+  async login(correo: string, contrasena: string): Promise<LoginResult> {
+    // El modo demo es explícito: nunca convertir un rechazo real de MFA en acceso demo.
+    if (USE_MOCKS) {
+      const match = demoUsers.find(entry => entry.email.toLowerCase() === correo.trim().toLowerCase() && entry.password === contrasena)
+      if (!match) throw new Error('Credenciales inválidas.')
+      return { kind: 'authenticated', user: match.user }
     }
+    const payload = await authRequest('/auth/login', { correo, contrasena })
+    const state = readMfaState(payload)
+    if (state) return { kind: 'mfa', state }
+    const user = readBackendUser(payload)
+    if (!user) throw new Error('El backend no devolvió un usuario válido.')
+    return { kind: 'authenticated', user }
+  },
+
+  async configureMfa(signal?: AbortSignal) {
+    const payload = await authRequest('/auth/mfa/configurar', {}, signal)
+    return readMfaEnrollment(payload.data)
+  },
+
+  async verifyMfa(codigo: string): Promise<User> {
+    if (!isMfaCode(codigo)) throw new Error('Ingresa el código de 6 dígitos de tu autenticador.')
+    const payload = await authRequest('/auth/mfa/verificar', { codigo })
+    const user = readBackendUser(payload)
+    if (!user) throw new Error('El servidor no confirmó el usuario verificado.')
+    return user
   },
 
   async getCurrentUser(): Promise<User | null> {

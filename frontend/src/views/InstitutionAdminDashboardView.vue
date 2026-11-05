@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth.store'
 import { useInstitutionStore } from '../stores/institution.store'
 import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
 import { operativeAssignmentService, type InstitutionOperative } from '../services/operative-assignment.service'
-import MonitoringMap from '../components/dashboard/MonitoringMap.vue'
+import DashboardAlertsMap from '../components/dashboard/DashboardAlertsMap.vue'
 
 const auth = useAuthStore()
 const institutions = useInstitutionStore()
@@ -14,6 +14,7 @@ const isHead = computed(() => auth.role === 'JEFE_INSTITUCION')
 const institution = computed(() => institutions.institutions.find(item => String(item.id) === String(id.value)))
 const availability = computed(() => institution.value?.disponibilidad ?? 'DISPONIBLE')
 const isUnavailable = computed(() => availability.value === 'NO_DISPONIBLE')
+const dashboardMap = ref<InstanceType<typeof DashboardAlertsMap> | null>(null)
 const alerts = ref<BackendAlert[]>([])
 const operatives = ref<InstitutionOperative[]>([])
 const operativesLoaded = ref(false)
@@ -33,6 +34,7 @@ function fmt(value: string) {
 }
 
 async function load() {
+  void dashboardMap.value?.refresh()
   error.value = ''
   operativeError.value = ''
   operativesLoaded.value = false
@@ -82,6 +84,7 @@ async function toggleAvailability() {
   availabilityNotice.value = ''
   try {
     await institutions.updateAvailability(String(id.value), next)
+    void dashboardMap.value?.refresh()
     availabilityNotice.value = next === 'NO_DISPONIBLE'
       ? 'Tu institución se marcó como no disponible.'
       : 'Tu institución vuelve a estar disponible para nuevas alertas.'
@@ -136,7 +139,9 @@ onMounted(() => { void load() })
       </div>
     </section>
 
-    <div class="grid min-w-0 gap-5 xl:grid-cols-2">
+    <DashboardAlertsMap ref="dashboardMap" scope="institution" :institution-id="id" />
+
+    <div class="min-w-0">
       <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div class="flex flex-wrap justify-between gap-2"><h2 class="text-lg font-extrabold text-slate-900">Actividad reciente</h2><RouterLink to="/institucion/alertas" class="text-sm font-bold text-orange-700">Ver todas</RouterLink></div>
         <p v-if="loading" class="mt-4 text-sm text-slate-600">Cargando...</p>
@@ -147,10 +152,6 @@ onMounted(() => { void load() })
             <span class="rounded-full bg-orange-50 px-2 py-1 text-xs font-bold text-orange-800">{{ entry.instituciones_notificadas?.find(row => String(row.id_institucion) === String(id))?.estado ?? 'Sin estado' }}</span>
           </li>
         </ul>
-      </section>
-      <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 class="mb-4 text-lg font-extrabold text-slate-900">Ubicación de la institución</h2>
-        <MonitoringMap :show-sensors="false" :show-incidents="false" :show-institutions="true" :show-reports="false" height-class="h-[300px]" />
       </section>
     </div>
   </main>

@@ -14,6 +14,8 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   Pencil,
   Plus,
@@ -76,6 +78,40 @@ const detailError = ref('')
 const readings = ref<Reading[]>([])
 const readingsLoading = ref(false)
 const readingsError = ref('')
+const readingsPage = ref(1)
+const readingsTotal = ref(0)
+const readingsPageSize = 10
+const readingsPages = computed(() => Math.max(1, Math.ceil(readingsTotal.value / readingsPageSize)))
+let readingsRequest = 0
+let readingsController: AbortController | null = null
+
+async function loadReadings(id: string, page = 1) {
+  const request = ++readingsRequest
+  readingsController?.abort()
+  readingsController = new AbortController()
+  const signal = readingsController.signal
+  readingsLoading.value = true
+  readingsError.value = ''
+  try {
+    let result = await readingService.getReadingsPage(page, readingsPageSize, { id_sensor: id }, signal)
+    if (request !== readingsRequest || String(route.params.id ?? '') !== id) return
+    if (result.page > Math.max(1, Math.ceil(result.total / result.pageSize))) {
+      result = await readingService.getReadingsPage(1, readingsPageSize, { id_sensor: id }, signal)
+    }
+    if (request !== readingsRequest || String(route.params.id ?? '') !== id) return
+    readings.value = result.items
+    readingsPage.value = result.page
+    readingsTotal.value = result.total
+  } catch (error) {
+    if (request !== readingsRequest || String(route.params.id ?? '') !== id) return
+    readings.value = []
+    readingsTotal.value = 0
+    readingsError.value = errorMessage(error)
+  } finally {
+    if (request === readingsRequest) readingsLoading.value = false
+  }
+}
+onBeforeUnmount(() => { readingsRequest++; readingsController?.abort() })
 
 function unitFor(type: string): string {
   return (
@@ -515,6 +551,11 @@ async function openDetail(id: string) {
 }
 
 async function refreshDetail(id: string) {
+  readingsRequest++
+  readingsController?.abort()
+  readingsLoading.value = false
+  readingsPage.value = 1
+  readingsTotal.value = 0
   detailLoading.value = true
   detailError.value = ''
   selected.value = null
@@ -559,30 +600,7 @@ async function refreshDetail(id: string) {
     return
   }
 
-  readingsLoading.value = true
-
-  try {
-    const items =
-      await readingService.getReadingsBySensor(id)
-
-    if (
-      String(route.params.id ?? '') === id
-    ) {
-      readings.value = items
-    }
-  } catch (error) {
-    if (
-      String(route.params.id ?? '') === id
-    ) {
-      readingsError.value = errorMessage(error)
-    }
-  } finally {
-    if (
-      String(route.params.id ?? '') === id
-    ) {
-      readingsLoading.value = false
-    }
-  }
+  await loadReadings(id)
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -1176,6 +1194,7 @@ onBeforeUnmount(() => {
           >
             Lecturas registradas
           </h4>
+          <RouterLink :to="{ path: '/super-admin/lecturas', query: { id_sensor: selected.id_sensor } }" class="inline-flex min-h-11 items-center text-sm font-semibold text-orange-700 hover:underline">Ver historial completo y filtrar</RouterLink>
 
           <p
             v-if="readingsLoading"
@@ -1205,7 +1224,7 @@ onBeforeUnmount(() => {
             class="mt-3 space-y-2"
           >
             <div
-              v-for="reading in readings.slice(0, 10)"
+              v-for="reading in readings"
               :key="reading.id_lectura"
               class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-3 text-sm"
             >
@@ -1213,6 +1232,7 @@ onBeforeUnmount(() => {
                 class="font-medium text-slate-800"
               >
                 {{ reading.variable }}
+                <span class="block text-xs font-normal text-slate-600">#{{ reading.id_lectura }} · {{ dateLabel(reading.fecha_hora) }}</span>
               </span>
 
               <span class="text-slate-800">
@@ -1221,6 +1241,14 @@ onBeforeUnmount(() => {
                 ·
                 {{ reading.estado }}
               </span>
+            </div>
+          </div>
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+            <p role="status">{{ readingsLoading ? 'Consultando resultados…' : readingsError ? 'Resultados no disponibles' : `${readingsTotal} lecturas · Página ${readingsPage} de ${readingsPages}` }}</p>
+            <div class="flex flex-wrap gap-2">
+              <button v-if="readingsError" type="button" class="min-h-11 rounded-lg border border-slate-200 px-3 font-semibold" @click="loadReadings(selected.id_sensor, readingsPage)">Reintentar lecturas</button>
+              <button type="button" class="inline-flex min-h-11 items-center gap-1 rounded-lg border border-slate-200 px-3 font-semibold disabled:opacity-40" :disabled="readingsLoading || !!readingsError || readingsPage <= 1" @click="loadReadings(selected.id_sensor, readingsPage - 1)"><ChevronLeft :size="16" aria-hidden="true" /> Anterior</button>
+              <button type="button" class="inline-flex min-h-11 items-center gap-1 rounded-lg border border-slate-200 px-3 font-semibold disabled:opacity-40" :disabled="readingsLoading || !!readingsError || readingsPage >= readingsPages" @click="loadReadings(selected.id_sensor, readingsPage + 1)">Siguiente <ChevronRight :size="16" aria-hidden="true" /></button>
             </div>
           </div>
         </div>

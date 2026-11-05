@@ -38,8 +38,10 @@ export function resolverConfiguracion(motor, personalizada = {}) {
     if (!base) continue;
     const p = { ...base, ...personalizada.variables?.[variable], ...especifica.variables?.[variable] };
     for (const clave of ['peso', 'bmax', 'madMin']) positivo(p[clave], `${variable}.${clave}`);
-    p.signo = Number(fila.signo);
-    if (![1, -1].includes(p.signo)) throw new Error(`Signo invalido: ${variable}`);
+    // Sin signo configurado para este motor/variable, no se evalua (igual que
+    // umbral_critico nulo): nunca se inventa una direccion por defecto.
+    p.signo = fila.signo == null ? null : Number(fila.signo);
+    if (p.signo != null && ![1, -1].includes(p.signo)) throw new Error(`Signo invalido: ${variable}`);
     if (p.maxSaltoPorMinuto != null) positivo(p.maxSaltoPorMinuto, `${variable}.maxSaltoPorMinuto`);
     p.umbralCritico = fila.umbral_critico == null ? null : Number(fila.umbral_critico);
     if (p.umbralCritico != null) positivo(p.umbralCritico, `${variable}.umbralCritico`);

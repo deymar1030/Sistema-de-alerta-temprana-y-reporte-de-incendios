@@ -19,7 +19,9 @@ function senalSensor(sensor, motor, config, ahora) {
     .sort((a, b) => +a.fecha_hora - +b.fecha_hora);
   const actual = registros.at(-1);
   const fresca = actual && +ahora - +actual.fecha_hora <= config.frescuraSegundos * 1000;
-  if (!p || !fresca) return { id_sensor: sensor.id_sensor, variable, fresca: false, anomala: false, z: null, b: null, zrob: null };
+  // Sin signo configurado para esta variable/motor, no hay direccion definida
+  // para interpretarla: se ignora en vez de asumir una por defecto.
+  if (!p || p.signo == null || !fresca) return { id_sensor: sensor.id_sensor, variable, fresca: false, anomala: false, z: null, b: null, zrob: null };
   const referencia = registros.filter((l) => l.estado_lectura === 'VALIDA' && l.id_alerta == null &&
     +l.fecha_hora < +actual.fecha_hora && +l.fecha_hora >= +ahora - Number(motor.ventana_base_min) * 60000);
   const valores = referencia.length >= config.minLecturasBase ? referencia.map((l) => Number(l.valor) * p.signo) : [];

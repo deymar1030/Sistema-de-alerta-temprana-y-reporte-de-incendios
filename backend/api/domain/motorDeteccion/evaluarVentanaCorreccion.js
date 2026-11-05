@@ -10,7 +10,7 @@ export function ventanaCorregida({ sensoresEvidencia, motor, config, fechaPicoCr
   for (const sensor of sensoresEvidencia) {
     const variable = normalizarVariable(sensor.tipo_sensor);
     const p = config.variables[variable];
-    if (!p) continue;
+    if (!p || p.signo == null) continue;
     const registros = sensor.lecturas
       .filter((l) => l.estado_lectura !== 'INVALIDA')
       .sort((a, b) => +a.fecha_hora - +b.fecha_hora);

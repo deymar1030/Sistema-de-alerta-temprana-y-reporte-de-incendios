@@ -122,6 +122,17 @@ test('REGRESION: HUMEDAD con signo=-1 es critica cuando BAJA del umbral, no cuan
   assert.equal(humedadBaja.sensores[0].critico, true);
 });
 
+test('REGRESION: variable sin signo configurado no se evalua (no revienta, no falso critico)', () => {
+  const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMEDAD', umbral_critico: 20, signo: null }] };
+  const config = resolverConfiguracion(m);
+  assert.equal(config.variables.HUMEDAD.signo, null);
+  const r = evaluarPredio({ sensores: [{ id_sensor: 1n, tipo_sensor: 'HUMEDAD', lecturas: [
+    { ...lectura(15, 1), estado_lectura: 'VALIDA', id_alerta: null },
+  ] }], motor: m, config, ahora: fecha(1) });
+  assert.equal(r.sensores[0].fresca, false);
+  assert.equal(r.sensores[0].anomala, false);
+});
+
 test('Humo critico respaldado avisa de inmediato pero no confirma hasta la ventana de correccion', () => {
   const m = { ...configuracionBD, parametro_variable: [{ tipo_variable: 'HUMO', umbral_critico: 500, signo: 1 }] };
   const ahora = fecha(1);

@@ -1,6 +1,17 @@
 
 import { apiFetch } from './http'
 
+// Ruta mas corta (por calle real, Dijkstra sobre OSM) calculada por el
+// routing-service entre la institucion y el predio/reporte de la alerta.
+// Se calcula en segundo plano tras confirmar la alerta: puede no estar lista
+// todavia (ruta === null y ruta_error === null) cuando se abre el detalle.
+export interface RouteInfo {
+  origin: { latitude: number; longitude: number }
+  destination: { latitude: number; longitude: number }
+  distance_m: number
+  geometry: [number, number][]
+}
+
 // Instituciones notificadas sobre una alerta.
 export interface InstitutionDelivery {
   id_institucion: string
@@ -13,6 +24,9 @@ export interface InstitutionDelivery {
     | string
   fecha_envio: string
   fecha_actualizacion: string | null
+  ruta?: RouteInfo | null
+  ruta_calculada_en?: string | null
+  ruta_error?: string | null
 }
 
 // Ubicación geográfica de una alerta.

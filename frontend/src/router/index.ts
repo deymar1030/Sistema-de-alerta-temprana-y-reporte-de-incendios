@@ -28,6 +28,7 @@ import InstitutionAlertsView from '../views/InstitutionAlertsView.vue'
 import InstitutionAlertDetailView from '../views/InstitutionAlertDetailView.vue'
 import InstitutionHistoryView from '../views/InstitutionHistoryView.vue'
 import InstitutionReportsView from '../views/InstitutionReportsView.vue'
+import ChatView from '../views/ChatView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
 
 // Ciudadano
@@ -114,6 +115,7 @@ export const routes: RouteRecordRaw[] = [
       { path: 'alertas/:id', name: 'institution-admin-alert-detail', component: InstitutionAlertDetailView, meta: { roles: institutionRoles, title: 'Detalle de alerta' } },
       { path: 'usuarios', name: 'institution-users', component: AdminUsersView, meta: { roles: headRoles, title: 'Personal y usuarios' } },
       { path: 'informes', name: 'institution-reports', component: InstitutionReportsView, meta: { roles: institutionRoles, title: 'Informes de Atención' } },
+      { path: 'chat', name: 'institution-chat', component: ChatView, meta: { roles: institutionRoles, title: 'Chat de coordinación' } },
       { path: 'historial', name: 'institution-history', component: InstitutionHistoryView, meta: { roles: institutionRoles, title: 'Historial' } },
       { path: 'configuracion', name: 'institution-settings', component: SettingsView, meta: { roles: institutionRoles, title: 'Configuración' } },
     ],

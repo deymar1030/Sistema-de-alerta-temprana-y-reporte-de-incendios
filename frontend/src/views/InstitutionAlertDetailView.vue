@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import L from 'leaflet'
 import { useAuthStore } from '../stores/auth.store'
 import { backendAlertsService, type BackendAlert, type InstitutionDelivery } from '../services/backend-alerts.service'
 import { operativeAssignmentService, type InstitutionOperative } from '../services/operative-assignment.service'
@@ -110,6 +111,54 @@ async function assign() {
 
 onMounted(() => { void load() })
 watch(() => route.params.id, () => { void load() })
+
+// Mapa de la ruta mas corta (institucion -> predio/reporte), calculada por
+// el routing-service y persistida en envia.ruta_json. Es fire-and-forget en
+// el backend: puede tardar unos segundos tras confirmarse la alerta.
+const routeMapContainer = ref<HTMLElement | null>(null)
+let routeMap: L.Map | null = null
+const distanceKmLabel = computed(() => {
+  const metros = myDelivery.value?.ruta?.distance_m
+  return typeof metros === 'number' ? `${(metros / 1000).toFixed(1)} km` : null
+})
+
+function renderRouteMap() {
+  const ruta = myDelivery.value?.ruta
+  if (!routeMapContainer.value || !ruta) return
+
+  if (routeMap) {
+    routeMap.remove()
+    routeMap = null
+  }
+
+  routeMap = L.map(routeMapContainer.value, { zoomControl: true, scrollWheelZoom: false })
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19,
+  }).addTo(routeMap)
+
+  const origen: [number, number] = [ruta.origin.latitude, ruta.origin.longitude]
+  const destino: [number, number] = [ruta.destination.latitude, ruta.destination.longitude]
+
+  L.circleMarker(origen, { radius: 9, color: '#ffffff', weight: 3, fillColor: '#335f76', fillOpacity: 0.95 })
+    .bindPopup('Institución (origen)')
+    .addTo(routeMap)
+  L.circleMarker(destino, { radius: 9, color: '#ffffff', weight: 3, fillColor: '#e4473d', fillOpacity: 0.95 })
+    .bindPopup('Incendio (destino)')
+    .addTo(routeMap)
+
+  const linea = L.polyline(ruta.geometry, { color: '#d62828', weight: 5, opacity: 0.9 }).addTo(routeMap)
+  routeMap.fitBounds(linea.getBounds(), { padding: [24, 24] })
+
+  nextTick(() => routeMap?.invalidateSize())
+}
+
+watch(() => myDelivery.value?.ruta, () => nextTick(renderRouteMap))
+
+onBeforeUnmount(() => {
+  routeMap?.remove()
+  routeMap = null
+})
 </script>
 
 <template>
@@ -137,6 +186,19 @@ watch(() => route.params.id, () => { void load() })
         <div class="sm:col-span-2"><dt class="font-semibold">Ubicación</dt><dd>{{ alert.predio?.nombre ?? alert.reporte_origen?.ubicacion_tipo ?? 'No disponible' }}</dd></div>
         <div v-if="alert.reporte_origen?.descripcion" class="sm:col-span-2"><dt class="font-semibold">Reporte de origen</dt><dd>{{ alert.reporte_origen.descripcion }}</dd></div>
       </dl>
+
+      <div class="space-y-2 border-t pt-4">
+        <h2 class="text-base font-bold text-slate-900">Ruta más corta hacia el incendio</h2>
+        <p v-if="myDelivery.ruta" class="text-slate-700">Distancia por calle: <strong>{{ distanceKmLabel }}</strong></p>
+        <p v-else-if="myDelivery.ruta_error" role="alert" class="text-sm text-red-700">No se pudo calcular la ruta: {{ myDelivery.ruta_error }}</p>
+        <p v-else class="text-sm text-slate-500">Calculando ruta… Presiona "Actualizar" en unos segundos.</p>
+        <div
+          v-if="myDelivery.ruta"
+          ref="routeMapContainer"
+          class="h-[320px] w-full overflow-hidden rounded-xl border border-slate-200"
+        ></div>
+      </div>
+
       <p class="border-t pt-4 text-sm text-slate-500">La atención de alertas se registra mediante el flujo operativo existente. La asignación del personal desde la web corresponde únicamente al jefe de institución.</p>
     </section>
 

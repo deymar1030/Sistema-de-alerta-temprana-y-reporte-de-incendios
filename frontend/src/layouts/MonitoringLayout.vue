@@ -22,6 +22,7 @@ import {
   History,
   LogOut,
   MapPinned,
+  MessageCircle,
   Menu,
   Settings,
   UserRound,
@@ -56,11 +57,13 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
     { label: 'Alertas recibidas', to: '/institucion/alertas', icon: AlertTriangle },
     { label: 'Usuarios', to: '/institucion/usuarios', icon: Users },
     { label: 'Informes de Atención', to: '/institucion/informes', icon: ClipboardList },
+    { label: 'Chat de coordinación', to: '/institucion/chat', icon: MessageCircle },
     { label: 'Historial', to: '/institucion/historial', icon: History },
   ],
   OPERATIVO: [
     { label: 'Dashboard', to: '/institucion/dashboard', icon: Gauge },
     { label: 'Alertas recibidas', to: '/institucion/alertas', icon: AlertTriangle },
+    { label: 'Chat de coordinación', to: '/institucion/chat', icon: MessageCircle },
     { label: 'Historial', to: '/institucion/historial', icon: History },
   ],
 }

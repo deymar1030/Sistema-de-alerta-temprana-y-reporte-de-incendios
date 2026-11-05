@@ -85,8 +85,8 @@ onMounted(() => {
       <p v-else-if="!userEvents.length" class="mt-4 rounded-xl bg-slate-50 p-5 text-sm text-slate-600">No se encontraron acciones con estos filtros.</p>
       <div v-else class="mt-4 overflow-x-auto">
         <table class="w-full min-w-[750px] text-left text-sm">
-          <thead class="bg-slate-50 text-slate-600"><tr><th class="p-3">ID</th><th class="p-3">Usuario</th><th class="p-3">Fecha y hora</th><th class="p-3">Acción</th><th class="p-3">Detalle</th></tr></thead>
-          <tbody><tr v-for="entry in userEvents" :key="entry.id_auditoriau" class="border-t border-slate-100"><td class="p-3 font-semibold">{{ entry.id_auditoriau }}</td><td class="p-3">#{{ entry.id_usuario }}</td><td class="p-3">{{ formatDate(entry.fecha_hora) }}</td><td class="p-3">{{ entry.accion }}</td><td class="break-words p-3">{{ entry.detalle ?? '—' }}</td></tr></tbody>
+          <thead class="bg-slate-50 text-slate-600"><tr><th class="p-3">ID</th><th class="p-3">Usuario</th><th class="p-3">Fecha y hora</th><th class="p-3">Acción</th><th class="p-3">IP</th><th class="p-3">Detalle</th></tr></thead>
+          <tbody><tr v-for="entry in userEvents" :key="entry.id_auditoriau" class="border-t border-slate-100"><td class="p-3 font-semibold">{{ entry.id_auditoriau }}</td><td class="p-3">#{{ entry.id_usuario }}</td><td class="p-3">{{ formatDate(entry.fecha_hora) }}</td><td class="p-3">{{ entry.accion }}</td><td class="p-3">{{ entry.ip_origen ?? '—' }}</td><td class="break-words p-3">{{ entry.detalle ?? '—' }}</td></tr></tbody>
         </table>
       </div>
     </section>

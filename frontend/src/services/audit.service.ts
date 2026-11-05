@@ -14,6 +14,7 @@ export interface UserAuditEntry {
   accion: string
   detalle: string | null
   fecha_hora: string
+  ip_origen: string | null
 }
 
 export interface SystemAuditFilters {
@@ -65,6 +66,7 @@ export const auditService = {
       accion: String(row.accion ?? ''),
       detalle: row.detalle == null ? null : String(row.detalle),
       fecha_hora: String(row.fecha_hora ?? ''),
+      ip_origen: row.ip_origen == null ? null : String(row.ip_origen),
     }))
   },
 }

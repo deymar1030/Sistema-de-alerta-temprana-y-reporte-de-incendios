@@ -192,6 +192,7 @@ export const useAuthStore = defineStore('auth', () => {
         { useAlertStore },
         { useReadingStore },
         { useAuditStore },
+        { useChatStore },
       ] = await Promise.all([
         import('./user.store'),
         import('./institution.store'),
@@ -200,6 +201,7 @@ export const useAuthStore = defineStore('auth', () => {
         import('./alert.store'),
         import('./reading.store'),
         import('./audit.store'),
+        import('./chat.store'),
       ])
 
       useUserStore().users = []
@@ -212,6 +214,7 @@ export const useAuthStore = defineStore('auth', () => {
       useAlertStore().alerts = []
       useReadingStore().readings = []
       useAuditStore().clear()
+      useChatStore().clear()
     }
   }
 

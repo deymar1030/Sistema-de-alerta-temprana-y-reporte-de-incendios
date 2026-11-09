@@ -1,4 +1,5 @@
 import UsuarioRepository from "../../../../application/usuario/repositories/usuario.repository.js";
+import { conUsuarioActual } from "../../../prismaConfig/conUsuarioActual.js";
 
 function limpiar(data) {
   return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
@@ -10,20 +11,24 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     this.prisma = prisma;
   }
 
-  async create(usuarioData) {
-    return await this.prisma.usuario.create({
-      data: {
-        id_rol: usuarioData.id_rol,
-        id_institucion: usuarioData.id_institucion,
-        nombre: usuarioData.nombre,
-        telefono: usuarioData.telefono,
-        contrasena: usuarioData.contrasena,
-        correo: usuarioData.correo,
-        primer_apellido: usuarioData.primer_apellido,
-        segundo_apellido: usuarioData.segundo_apellido,
-      },
-      include: { rol: { select: { nombre_rol: true } } },
-    });
+  // id_usuario_actor: quien queda registrado como autor de la creacion (ver
+  // conUsuarioActual.js). null en autoregistro publico, donde no hay sesion.
+  async create(usuarioData, id_usuario_actor = null) {
+    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+      tx.usuario.create({
+        data: {
+          id_rol: usuarioData.id_rol,
+          id_institucion: usuarioData.id_institucion,
+          nombre: usuarioData.nombre,
+          telefono: usuarioData.telefono,
+          contrasena: usuarioData.contrasena,
+          correo: usuarioData.correo,
+          primer_apellido: usuarioData.primer_apellido,
+          segundo_apellido: usuarioData.segundo_apellido,
+        },
+        include: { rol: { select: { nombre_rol: true } } },
+      })
+    );
   }
 
   async findAll(filters = {}) {
@@ -60,37 +65,48 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     });
   }
 
-  async update(id, usuarioData) {
-    return await this.prisma.usuario.update({
-      where: { id_usuario: Number(id) },
-      data: limpiar({
-        id_rol: usuarioData.id_rol,
-        id_institucion: usuarioData.id_institucion,
-        nombre: usuarioData.nombre,
-        telefono: usuarioData.telefono,
-        correo: usuarioData.correo,
-        contrasena: usuarioData.contrasena,
-        primer_apellido: usuarioData.primer_apellido,
-        segundo_apellido: usuarioData.segundo_apellido,
-      }),
-      include: { rol: { select: { nombre_rol: true } } },
-    });
+  // id_usuario_actor es quien queda registrado en auditoriau por
+  // trg_escalada_privilegios si esta llamada cambia id_rol (ver
+  // conUsuarioActual.js). Sin cambio de id_rol el trigger no hace nada,
+  // pero igual conviene fijarlo siempre: es barato y evita el caso donde
+  // el llamador no sabe de antemano si datos.id_rol difiere del actual.
+  async update(id, usuarioData, id_usuario_actor = null) {
+    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+      tx.usuario.update({
+        where: { id_usuario: Number(id) },
+        data: limpiar({
+          id_rol: usuarioData.id_rol,
+          id_institucion: usuarioData.id_institucion,
+          nombre: usuarioData.nombre,
+          telefono: usuarioData.telefono,
+          correo: usuarioData.correo,
+          contrasena: usuarioData.contrasena,
+          primer_apellido: usuarioData.primer_apellido,
+          segundo_apellido: usuarioData.segundo_apellido,
+        }),
+        include: { rol: { select: { nombre_rol: true } } },
+      })
+    );
   }
 
-  async desactivar(id) {
-    return await this.prisma.usuario.update({
-      where: { id_usuario: Number(id) },
-      data: { fecha_eliminacion: new Date(), estado: false },
-      include: { rol: { select: { nombre_rol: true } } },
-    });
+  async desactivar(id, id_usuario_actor = null) {
+    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+      tx.usuario.update({
+        where: { id_usuario: Number(id) },
+        data: { fecha_eliminacion: new Date(), estado: false },
+        include: { rol: { select: { nombre_rol: true } } },
+      })
+    );
   }
 
-  async reactivar(id) {
-    return await this.prisma.usuario.update({
-      where: { id_usuario: Number(id) },
-      data: { fecha_eliminacion: null, estado: true },
-      include: { rol: { select: { nombre_rol: true } } },
-    });
+  async reactivar(id, id_usuario_actor = null) {
+    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+      tx.usuario.update({
+        where: { id_usuario: Number(id) },
+        data: { fecha_eliminacion: null, estado: true },
+        include: { rol: { select: { nombre_rol: true } } },
+      })
+    );
   }
 
   // Devuelve el contador ya incrementado para que el caller decida si llego

@@ -1,4 +1,5 @@
 import RolRepository from "../../../../application/rol/repositories/rol.repository.js";
+import { conUsuarioActual } from "../../../prismaConfig/conUsuarioActual.js";
 
 export default class PrismaRolRepository extends RolRepository {
   constructor(prisma) {
@@ -6,10 +7,14 @@ export default class PrismaRolRepository extends RolRepository {
     this.prisma = prisma;
   }
 
-  async findOrCreateByNombre(nombre_rol) {
-    return (
-      (await this.prisma.rol.findUnique({ where: { nombre_rol } })) ??
-      (await this.prisma.rol.create({ data: { nombre_rol } }))
+  // id_usuario_actor es quien queda registrado en auditoriau por
+  // trg_historial_rol si esta llamada termina creando el rol (ver
+  // conUsuarioActual.js). find() no dispara ese trigger, no necesita actor.
+  async findOrCreateByNombre(nombre_rol, id_usuario_actor = null) {
+    const existente = await this.prisma.rol.findUnique({ where: { nombre_rol } });
+    if (existente) return existente;
+    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+      tx.rol.create({ data: { nombre_rol } })
     );
   }
 }

@@ -37,7 +37,7 @@ export class UsuarioController {
     try {
       const usuarioData = mapUsuarioCreateRequest(req.body);
 
-      const result = await this.usuarioService.create(usuarioData);
+      const result = await this.usuarioService.create(usuarioData, req.auth?.usuario?.id_usuario);
 
       res.status(201).json({
         success: true,
@@ -106,7 +106,7 @@ export class UsuarioController {
     try {
       const usuarioData = mapUsuarioUpdateRequest(req.body);
 
-      const result = await this.usuarioService.update(req.params.id, usuarioData);
+      const result = await this.usuarioService.update(req.params.id, usuarioData, req.auth?.usuario?.id_usuario);
 
       res.json({
         success: true,
@@ -122,7 +122,7 @@ export class UsuarioController {
 
   desactivar = async (req, res) => {
     try {
-      const result = await this.usuarioService.desactivar(req.params.id);
+      const result = await this.usuarioService.desactivar(req.params.id, req.auth?.usuario?.id_usuario);
 
       res.json({
         success: true,
@@ -138,7 +138,7 @@ export class UsuarioController {
 
   reactivar = async (req, res) => {
     try {
-      const result = await this.usuarioService.reactivar(req.params.id);
+      const result = await this.usuarioService.reactivar(req.params.id, req.auth?.usuario?.id_usuario);
 
       res.json({
         success: true,

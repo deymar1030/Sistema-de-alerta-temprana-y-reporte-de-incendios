@@ -7,7 +7,11 @@ export default class UpdateUsuarioUseCase {
     this.rolRepository = rolRepository;
   }
 
-  async execute(id, usuarioData) {
+  // id_usuario_actor: quien esta autenticado y pide el cambio (null si no
+  // aplica). Se reenvia a los repositorios para que los triggers de
+  // auditoria de BD (trg_historial_rol, trg_escalada_privilegios) sepan a
+  // quien atribuirlo -- ver conUsuarioActual.js.
+  async execute(id, usuarioData, id_usuario_actor = null) {
     const errors = UpdateUsuarioDTO.validate(id);
 
     if (errors.length > 0) {
@@ -22,7 +26,7 @@ export default class UpdateUsuarioUseCase {
 
     const { nombre_rol, ...datos } = usuarioData;
     if (nombre_rol) {
-      const rol = await this.rolRepository.findOrCreateByNombre(nombre_rol);
+      const rol = await this.rolRepository.findOrCreateByNombre(nombre_rol, id_usuario_actor);
       datos.id_rol = rol.id_rol;
     }
 
@@ -32,6 +36,6 @@ export default class UpdateUsuarioUseCase {
 
     const usuarioDTO = new UpdateUsuarioDTO(datos);
 
-    return await this.usuarioRepository.update(id, usuarioDTO);
+    return await this.usuarioRepository.update(id, usuarioDTO, id_usuario_actor);
   }
 }

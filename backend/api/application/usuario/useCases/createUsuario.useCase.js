@@ -9,13 +9,14 @@ export default class CreateUsuarioUseCase {
   }
 
   // id_usuario_actor: quien esta autenticado y crea este usuario (null si no
-  // aplica, ej. autoregistro publico). Se reenvia a rolRepository para que
-  // trg_historial_rol sepa a quien atribuir la creacion del rol, si hace
-  // falta crear uno nuevo -- ver conUsuarioActual.js.
-  async execute(usuarioData, id_usuario_actor = null) {
+  // aplica, ej. autoregistro publico). ip_origen: la IP de esa peticion.
+  // Ambos se reenvian a rolRepository para que trg_historial_rol sepa a
+  // quien y desde donde atribuir la creacion del rol, si hace falta crear
+  // uno nuevo -- ver conUsuarioActual.js.
+  async execute(usuarioData, id_usuario_actor = null, ip_origen = null) {
     const { nombre_rol, ...datos } = usuarioData;
     if (nombre_rol) {
-      const rol = await this.rolRepository.findOrCreateByNombre(nombre_rol, id_usuario_actor);
+      const rol = await this.rolRepository.findOrCreateByNombre(nombre_rol, id_usuario_actor, ip_origen);
       datos.id_rol = rol.id_rol;
     }
 
@@ -35,6 +36,6 @@ export default class CreateUsuarioUseCase {
       ...usuarioDTO,
     });
 
-    return await this.usuarioRepository.create(usuarioEntity, id_usuario_actor);
+    return await this.usuarioRepository.create(usuarioEntity, id_usuario_actor, ip_origen);
   }
 }

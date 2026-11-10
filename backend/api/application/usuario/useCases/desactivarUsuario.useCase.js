@@ -5,7 +5,7 @@ export default class DesactivarUsuarioUseCase {
     this.usuarioRepository = usuarioRepository;
   }
 
-  async execute(id, id_usuario_actor = null) {
+  async execute(id, id_usuario_actor = null, ip_origen = null) {
     if (!Validators.isValidId(id)) {
       throw new Error("Validation errors: ID not valid");
     }
@@ -15,6 +15,6 @@ export default class DesactivarUsuarioUseCase {
       throw new Error("Usuario not found");
     }
 
-    return await this.usuarioRepository.desactivar(id, id_usuario_actor);
+    return await this.usuarioRepository.desactivar(id, id_usuario_actor, ip_origen);
   }
 }

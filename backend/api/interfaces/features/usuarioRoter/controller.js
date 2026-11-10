@@ -71,7 +71,7 @@ export class UsuarioController {
         if (String(usuarioData.id_institucion) !== String(actor.id_institucion)) return forbidden(res);
       }
 
-      const result = await this.usuarioService.create(usuarioData, actor?.id_usuario);
+      const result = await this.usuarioService.create(usuarioData, actor?.id_usuario, req.ip);
 
       res.status(201).json({
         success: true,
@@ -174,7 +174,7 @@ export class UsuarioController {
         }
       }
 
-      const result = await this.usuarioService.update(req.params.id, usuarioData, actor?.id_usuario);
+      const result = await this.usuarioService.update(req.params.id, usuarioData, actor?.id_usuario, req.ip);
 
       res.json({
         success: true,
@@ -197,7 +197,7 @@ export class UsuarioController {
         if (!esOperativoDeLaMismaInstitucion(existente, actor)) return forbidden(res);
       }
 
-      const result = await this.usuarioService.desactivar(req.params.id, actor?.id_usuario);
+      const result = await this.usuarioService.desactivar(req.params.id, actor?.id_usuario, req.ip);
 
       res.json({
         success: true,
@@ -220,7 +220,7 @@ export class UsuarioController {
         if (!esOperativoDeLaMismaInstitucion(existente, actor)) return forbidden(res);
       }
 
-      const result = await this.usuarioService.reactivar(req.params.id, actor?.id_usuario);
+      const result = await this.usuarioService.reactivar(req.params.id, actor?.id_usuario, req.ip);
 
       res.json({
         success: true,

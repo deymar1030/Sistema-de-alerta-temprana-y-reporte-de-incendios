@@ -13,8 +13,8 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
 
   // id_usuario_actor: quien queda registrado como autor de la creacion (ver
   // conUsuarioActual.js). null en autoregistro publico, donde no hay sesion.
-  async create(usuarioData, id_usuario_actor = null) {
-    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+  async create(usuarioData, id_usuario_actor = null, ip_origen = null) {
+    return conUsuarioActual(this.prisma, id_usuario_actor, ip_origen, (tx) =>
       tx.usuario.create({
         data: {
           id_rol: usuarioData.id_rol,
@@ -70,8 +70,8 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
   // conUsuarioActual.js). Sin cambio de id_rol el trigger no hace nada,
   // pero igual conviene fijarlo siempre: es barato y evita el caso donde
   // el llamador no sabe de antemano si datos.id_rol difiere del actual.
-  async update(id, usuarioData, id_usuario_actor = null) {
-    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+  async update(id, usuarioData, id_usuario_actor = null, ip_origen = null) {
+    return conUsuarioActual(this.prisma, id_usuario_actor, ip_origen, (tx) =>
       tx.usuario.update({
         where: { id_usuario: Number(id) },
         data: limpiar({
@@ -89,8 +89,8 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     );
   }
 
-  async desactivar(id, id_usuario_actor = null) {
-    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+  async desactivar(id, id_usuario_actor = null, ip_origen = null) {
+    return conUsuarioActual(this.prisma, id_usuario_actor, ip_origen, (tx) =>
       tx.usuario.update({
         where: { id_usuario: Number(id) },
         data: { fecha_eliminacion: new Date(), estado: false },
@@ -99,8 +99,8 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
     );
   }
 
-  async reactivar(id, id_usuario_actor = null) {
-    return conUsuarioActual(this.prisma, id_usuario_actor, (tx) =>
+  async reactivar(id, id_usuario_actor = null, ip_origen = null) {
+    return conUsuarioActual(this.prisma, id_usuario_actor, ip_origen, (tx) =>
       tx.usuario.update({
         where: { id_usuario: Number(id) },
         data: { fecha_eliminacion: null, estado: true },

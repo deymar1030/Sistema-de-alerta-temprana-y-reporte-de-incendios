@@ -1,5 +1,5 @@
 export default class UsuarioRepository {
-  async create(usuarioData, id_usuario_actor) {
+  async create(usuarioData, id_usuario_actor, ip_origen) {
     throw new Error("Method not implemented");
   }
 
@@ -15,15 +15,15 @@ export default class UsuarioRepository {
     throw new Error("Method not implemented");
   }
 
-  async update(id, usuarioData, id_usuario_actor) {
+  async update(id, usuarioData, id_usuario_actor, ip_origen) {
     throw new Error("Method not implemented");
   }
 
-  async desactivar(id, id_usuario_actor) {
+  async desactivar(id, id_usuario_actor, ip_origen) {
     throw new Error("Method not implemented");
   }
 
-  async reactivar(id, id_usuario_actor) {
+  async reactivar(id, id_usuario_actor, ip_origen) {
     throw new Error("Method not implemented");
   }
 

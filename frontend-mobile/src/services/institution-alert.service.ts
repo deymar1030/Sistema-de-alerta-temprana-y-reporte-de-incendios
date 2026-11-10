@@ -2,6 +2,7 @@ import type { AlertItem, RiskLevel } from '../types'
 import { API_URL, readBackendError } from './api'
 import { parseEnvioEstado, resolveStatus } from './alert-status'
 import { sessionService } from './session.service'
+import { assignmentService } from './assignment.service'
 
 const normalizeRiskLevel = (value: unknown): RiskLevel => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -43,10 +44,15 @@ export const institutionAlertService = {
     const institutionId = await sessionService.getInstitutionId()
     if (!institutionId) return []
 
-    const response = await fetch(`${API_URL}/alertas?id_institucion=${encodeURIComponent(institutionId)}`, {
-      method: 'GET',
-      credentials: 'include',
-    })
+    // Igual que en incident.service.ts: esta app es exclusiva de OPERATIVO,
+    // asi que solo debe listar lo que le asigno su jefe de institucion.
+    const [response, idsAsignados] = await Promise.all([
+      fetch(`${API_URL}/alertas?id_institucion=${encodeURIComponent(institutionId)}`, {
+        method: 'GET',
+        credentials: 'include',
+      }),
+      assignmentService.getIdsAsignados(),
+    ])
 
     if (!response.ok) {
       throw new Error(await readBackendError(response, 'No se pudieron cargar las alertas.'))
@@ -55,7 +61,9 @@ export const institutionAlertService = {
     const json = await response.json()
     if (!json.success || !Array.isArray(json.data)) throw new Error('Respuesta inválida del servidor.')
 
-    return json.data.map((item: any): AlertItem => {
+    return json.data
+      .filter((item: any) => idsAsignados.has(String(item.id_alerta ?? item.id)))
+      .map((item: any): AlertItem => {
       const envioEstado = parseEnvioEstado(item.mi_envio)
       const locations = Array.isArray(item.ubicaciones) ? item.ubicaciones : []
       const loc = locations[0] ?? null

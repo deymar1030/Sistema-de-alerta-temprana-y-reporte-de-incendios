@@ -2,6 +2,7 @@ import type { AlertLocation, EnvioEstado, Incident, RiskLevel } from '../types'
 import { API_URL, readBackendError } from './api'
 import { parseEnvioEstado, resolveStatus } from './alert-status'
 import { sessionService } from './session.service'
+import { assignmentService } from './assignment.service'
 import { isValidCoordinate } from '../utils/map-markers'
 
 export type EnvioAccion = 'recibir' | 'atender' | 'cerrar'
@@ -55,16 +56,26 @@ export const incidentService = {
     const institutionId = await sessionService.getInstitutionId()
     if (!institutionId) return []
 
-    const response = await fetch(`${API_URL}/alertas/mapa?id_institucion=${encodeURIComponent(institutionId)}`, {
-      method: 'GET',
-      credentials: 'include',
-    })
+    // La seccion /institucion de esta app es exclusiva de OPERATIVO (ver
+    // auth.service.ts: JEFE_INSTITUCION no puede iniciar sesion aqui), asi
+    // que todo lo que ve este rol debe acotarse a lo que le asigno su jefe
+    // (recepciona.estado = ASIGNADO), nunca a todas las alertas de la
+    // institucion -- eso es lo que ve la plataforma web.
+    const [response, idsAsignados] = await Promise.all([
+      fetch(`${API_URL}/alertas/mapa?id_institucion=${encodeURIComponent(institutionId)}`, {
+        method: 'GET',
+        credentials: 'include',
+      }),
+      assignmentService.getIdsAsignados(),
+    ])
     if (!response.ok) throw new Error(await readBackendError(response, 'No se pudieron cargar las alertas.'))
 
     const json = await response.json()
     if (!json.success || !Array.isArray(json.data)) throw new Error('Respuesta inválida del servidor.')
 
-    return json.data.map((item: any): Incident => {
+    return json.data
+      .filter((item: any) => idsAsignados.has(String(item.id_alerta)))
+      .map((item: any): Incident => {
       const envioEstado = parseEnvioEstado(item.mi_envio)
       const locations = toLocations(item.ubicaciones)
       const first = locations[0]

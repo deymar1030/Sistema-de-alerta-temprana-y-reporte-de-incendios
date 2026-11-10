@@ -20,6 +20,8 @@ import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import { useIncidentStore } from '../../stores/incident.store'
 import { useInstitutionAlertStore } from '../../stores/institution-alert.store'
 import { useAuthStore } from '../../stores/auth.store'
+import { API_URL } from '../../services/api'
+import { sessionService } from '../../services/session.service'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -42,17 +44,16 @@ const showToast = (msg: string, color: 'success' | 'warning' | 'danger') => {
 }
 
 // Estados del mapa
-const mapAlerts = ref<any[]>([])
-const assignedAlertIds = ref<Set<string>>(new Set())
 const userLocation = ref<{ lat: number, lng: number } | null>(null)
 
 // Computados
 const alertsPending = computed(() => alertStore.alerts.filter((item) => item.status !== 'FINALIZADA').length)
 const alertsToday = computed(() => alertStore.alerts.filter((item) => item.status === 'FINALIZADA').length)
 
-const alertaAsignadaPropia = computed(() => {
-  return mapAlerts.value.find(a => assignedAlertIds.value.has(a.id_alerta.toString()));
-})
+// incidentStore.incidents ya viene acotado a lo que le asignaron a este
+// operativo (ver incident.service.ts): la primera pendiente es la que
+// destaca el banner, sin volver a cruzar contra otra lista.
+const alertaAsignadaPropia = computed(() => incidentStore.pendingIncidents()[0] ?? null)
 
 const onLogout = async () => {
   await authStore.logout()
@@ -96,35 +97,18 @@ const obtenerUbicacionUsuario = async () => {
   }
 }
 
-// 2. Obtener los datos del backend
-const obtenerDatosInstitucionYMapa = async () => {
+// 2. Nombre de la institución (las alertas y asignaciones ya las trae
+// incidentStore, que comparte esta misma pantalla con el banner y el mapa).
+const obtenerNombreInstitucion = async () => {
   try {
-    const meResponse = await fetch('https://alertaincendios.duckdns.org/api/auth/me', { credentials: 'include' });
-    const meData = await meResponse.json();
-    
-    if (meData.success && meData.data.id_institucion) {
-      const idInst = meData.data.id_institucion;
-      
-      const instResponse = await fetch(`https://alertaincendios.duckdns.org/api/instituciones/${idInst}`, { credentials: 'include' });
-      const instData = await instResponse.json();
-      nombreInstitucion.value = instData.success && instData.data.nombre ? instData.data.nombre : `Institución #${idInst}`;
-
-      const asigRes = await fetch('https://alertaincendios.duckdns.org/api/notificaciones/asignaciones', { credentials: 'include' });
-      const asigData = await asigRes.json();
-      if (asigData.success && asigData.data) {
-        assignedAlertIds.value = new Set(asigData.data.map((a: any) => a.id_alerta.toString()));
-      }
-
-      const mapRes = await fetch(`https://alertaincendios.duckdns.org/api/alertas/mapa?id_institucion=${idInst}`, { credentials: 'include' });
-      const mapResData = await mapRes.json();
-      if (mapResData.success && mapResData.data) {
-        mapAlerts.value = mapResData.data;
-        dibujarMapa();
-      }
-    }
+    const institutionId = await sessionService.getInstitutionId()
+    if (!institutionId) return
+    const response = await fetch(`${API_URL}/instituciones/${encodeURIComponent(institutionId)}`, { credentials: 'include' })
+    const data = await response.json()
+    nombreInstitucion.value = data.success && data.data?.nombre ? data.data.nombre : `Institución #${institutionId}`
   } catch (error) {
-    console.error('Error al obtener datos', error);
-    nombreInstitucion.value = 'Mi Institución'; 
+    console.error('Error al obtener la institución', error)
+    nombreInstitucion.value = 'Mi Institución'
   }
 }
 
@@ -151,55 +135,39 @@ const dibujarMapa = () => {
   }
 
   const markers: L.CircleMarker[] = [];
-  const groups: Record<string, any[]> = {};
 
-  // Agrupar alertas
-  mapAlerts.value.forEach(alerta => {
-    if (!alerta.ubicaciones || alerta.ubicaciones.length === 0) return;
-    const lat = alerta.ubicaciones[0].latitud;
-    const lng = alerta.ubicaciones[0].longitud;
-    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
-    
-    if (!groups[key]) groups[key] = [];
-    if (assignedAlertIds.value.has(alerta.id_alerta.toString())) {
-      groups[key].unshift(alerta);
-    } else {
-      groups[key].push(alerta);
-    }
-  });
-
-  // Dibujar Alertas
+  // Cada marcador es una alerta que le asignaron a ESTE operativo
+  // (incidentStore.incidents ya viene acotado, ver incident.service.ts).
   const radiusOffset = 0.00035;
-  Object.values(groups).forEach(group => {
-    group.forEach((alerta, index) => {
-      let finalLat = alerta.ubicaciones[0].latitud;
-      let finalLng = alerta.ubicaciones[0].longitud;
-      
-      if (group.length > 1 && index > 0) {
-        const angle = (2 * Math.PI * index) / (group.length - 1);
-        finalLat += radiusOffset * Math.cos(angle);
-        finalLng += radiusOffset * Math.sin(angle);
-      }
+  const conUbicacion = incidentStore.incidents.filter((incident) => incident.latitude !== 0 || incident.longitude !== 0);
+  conUbicacion.forEach((incident, index) => {
+    let finalLat = incident.latitude;
+    let finalLng = incident.longitude;
 
-      const isAssigned = assignedAlertIds.value.has(alerta.id_alerta.toString());
-      
-      const marker = L.circleMarker([finalLat, finalLng], {
-        radius: isAssigned ? 13 : 10,
-        fillColor: isAssigned ? '#d9382e' : '#f5b800',
-        color: '#ffffff',
-        weight: isAssigned ? 3 : 2,
-        fillOpacity: 1
-      }).addTo(mapInstance!);
+    // Si dos alertas asignadas cayeran en el mismo punto, se separan un poco
+    // para que ambas queden visibles (caso raro, pero no deben superponerse).
+    if (conUbicacion.length > 1 && index > 0) {
+      const angle = (2 * Math.PI * index) / conUbicacion.length;
+      finalLat += radiusOffset * Math.cos(angle);
+      finalLng += radiusOffset * Math.sin(angle);
+    }
 
-      marker.bindPopup(`
-        <div style="font-family: sans-serif; text-align: center;">
-          <strong style="font-size: 14px; color: #111;">Alerta #${alerta.id_alerta}</strong><br>
-          ${isAssigned ? '<span style="background: #fdeeee; color: #d9382e; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-top:4px; display:inline-block;">ASIGNADA A TI</span><br>' : ''}
-          <span style="font-size: 12px; color: #666; margin-top:4px; display:block;">${alerta.clasificacion}</span>
-        </div>
-      `);
-      markers.push(marker);
-    });
+    const marker = L.circleMarker([finalLat, finalLng], {
+      radius: 13,
+      fillColor: '#d9382e',
+      color: '#ffffff',
+      weight: 3,
+      fillOpacity: 1
+    }).addTo(mapInstance!);
+
+    marker.bindPopup(`
+      <div style="font-family: sans-serif; text-align: center;">
+        <strong style="font-size: 14px; color: #111;">Alerta #${incident.id}</strong><br>
+        <span style="background: #fdeeee; color: #d9382e; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-top:4px; display:inline-block;">ASIGNADA A TI</span><br>
+        <span style="font-size: 12px; color: #666; margin-top:4px; display:block;">${incident.title}</span>
+      </div>
+    `);
+    markers.push(marker);
   });
 
   // Dibujar Ubicación del Usuario (Punto Azul)
@@ -236,9 +204,10 @@ onIonViewDidEnter(() => {
 })
 
 onMounted(async () => {
-  obtenerDatosInstitucionYMapa();
+  void obtenerNombreInstitucion();
   obtenerUbicacionUsuario(); // Llamamos al GPS al montar la vista
   await Promise.all([incidentStore.fetchIncidents(), alertStore.fetchAlerts()]);
+  dibujarMapa();
 })
 </script>
 
@@ -267,7 +236,6 @@ onMounted(async () => {
             <div class="map-legend">
               <span class="legend-item"><span class="dot blue"></span>Tú</span>
               <span class="legend-item"><span class="dot red"></span>Asignadas</span>
-              <span class="legend-item"><span class="dot yellow"></span>Otras</span>
             </div>
           </ion-card-header>
           <ion-card-content class="map-content">
@@ -281,19 +249,19 @@ onMounted(async () => {
         </ion-card>
 
         <!-- BANNER INTELIGENTE: TIENES UNA ALERTA ASIGNADA -->
-        <ion-card 
-          v-if="alertaAsignadaPropia" 
-          class="assignment-banner" 
-          :class="alertaAsignadaPropia.mi_envio?.estado === 'ENVIADA' ? 'rojo' : 'verde'"
-          @click="router.push(`/institucion/emergencia/${alertaAsignadaPropia.id_alerta}`)"
+        <ion-card
+          v-if="alertaAsignadaPropia"
+          class="assignment-banner"
+          :class="alertaAsignadaPropia.envioEstado === 'ENVIADA' ? 'rojo' : 'verde'"
+          @click="router.push(`/institucion/emergencia/${alertaAsignadaPropia.id}`)"
         >
           <ion-card-content class="banner-content">
             <div class="banner-icon">
-              <ion-icon :icon="alertaAsignadaPropia.mi_envio?.estado === 'ENVIADA' ? alertOutline : checkmarkCircleOutline" />
+              <ion-icon :icon="alertaAsignadaPropia.envioEstado === 'ENVIADA' ? alertOutline : checkmarkCircleOutline" />
             </div>
             <div class="banner-text">
               <span class="banner-label">
-                {{ alertaAsignadaPropia.mi_envio?.estado === 'ENVIADA' ? 'TIENES UNA ALERTA ASIGNADA' : 'YA CONFIRMASTE ESTA ALERTA' }}
+                {{ alertaAsignadaPropia.envioEstado === 'ENVIADA' ? 'TIENES UNA ALERTA ASIGNADA' : 'YA CONFIRMASTE ESTA ALERTA' }}
               </span>
               <strong class="banner-action">Toca para ver el detalle</strong>
             </div>

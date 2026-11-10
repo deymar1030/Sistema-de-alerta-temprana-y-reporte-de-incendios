@@ -252,8 +252,11 @@ onIonViewWillEnter(() => {
   cargarTodo()
 })
 
-// Y en tiempo real cuando el servidor avisa de cambios
-const eventos = ['alerta:abierta', 'alerta:actualizada', 'alerta:confirmada', 'alerta:descartada']
+// Y en tiempo real cuando el servidor avisa de cambios. notificacion:nueva
+// cubre los avisos personales (p. ej. "tu reporte ya esta siendo atendido"
+// o "incendio controlado"), que no siempre vienen acompañados de un
+// evento alerta:* -- ver asignarAlertaOperativos.useCase.js.
+const eventos = ['alerta:abierta', 'alerta:actualizada', 'alerta:confirmada', 'alerta:descartada', 'notificacion:nueva']
 eventos.forEach((e) => socket.on(e, cargarTodo))
 
 onUnmounted(() => {

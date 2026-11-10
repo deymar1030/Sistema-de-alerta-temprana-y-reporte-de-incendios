@@ -1,38 +1,50 @@
-import type { Incident, IncidentStatus, RiskLevel } from '../types'
+import type { AlertLocation, EnvioEstado, Incident, RiskLevel } from '../types'
+import { API_URL, readBackendError } from './api'
+import { parseEnvioEstado, resolveStatus } from './alert-status'
+import { sessionService } from './session.service'
+import { isValidCoordinate } from '../utils/map-markers'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://alertaincendios.duckdns.org/api'
+export type EnvioAccion = 'recibir' | 'atender' | 'cerrar'
 
-const getInstitutionId = async () => {
-  const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
-  const json = await res.json()
-  return json.data?.id_institucion || 1
+// Flujo de estados: ENVIADA -> RECIBIDA -> ATENDIDA -> CERRADA
+export const ENVIO_ACCIONES: Record<Exclude<EnvioEstado, 'CERRADA'>, { accion: EnvioAccion; label: string }> = {
+  ENVIADA: { accion: 'recibir', label: 'CONFIRMAR RECEPCIÓN' },
+  RECIBIDA: { accion: 'atender', label: 'MARCAR EN ATENCIÓN' },
+  ATENDIDA: { accion: 'cerrar', label: 'FINALIZAR INTERVENCIÓN' },
 }
 
-const mapStatus = (estadoBackend: string): IncidentStatus => {
-  if (estadoBackend === 'CONFIRMADA') return 'NUEVA'
-  if (estadoBackend === 'RECIBIDA') return 'RECIBIDA'
-  if (estadoBackend === 'ATENDIDA') return 'EN_CAMINO'
-  if (estadoBackend === 'CERRADA' || estadoBackend === 'FINALIZADA') return 'FINALIZADA'
-  return 'NUEVA'
-}
+export const siguienteAccion = (estado: EnvioEstado | null | undefined) =>
+  estado && estado !== 'CERRADA' ? ENVIO_ACCIONES[estado] : null
 
-// Función que traduce coordenadas a calle. Tiene un try-catch para no romper nada si falla.
-const obtenerDireccionReal = async (lat: number, lon: number): Promise<string> => {
-  if (!lat || !lon) return 'Ubicación en mapa';
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`, {
-      headers: { 'Accept-Language': 'es' }
-    });
-    const data = await res.json();
-    if (data && data.display_name) {
-      // Cortamos para que no sea un texto gigante
-      return data.display_name.split(',').slice(0, 3).join(', ');
-    }
-    return 'Ubicación en mapa';
-  } catch (error) {
-    return 'Ubicación en mapa';
+const toLocations = (ubicaciones: any): AlertLocation[] => {
+  if (!Array.isArray(ubicaciones)) return []
+  const seen = new Set<string>()
+  const result: AlertLocation[] = []
+
+  for (const item of ubicaciones) {
+    if (!isValidCoordinate(item?.latitud, item?.longitud)) continue
+    const latitude = Number(item.latitud)
+    const longitude = Number(item.longitud)
+    const key = `${latitude.toFixed(5)},${longitude.toFixed(5)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    const name = typeof item.nombre === 'string' && item.nombre.trim() ? item.nombre.trim() : null
+    const direccion = typeof item.direccion === 'string' && item.direccion.trim() ? item.direccion.trim() : null
+    result.push({
+      origin: String(item.origen ?? ''),
+      reportId: item.id_reporte_u != null ? String(item.id_reporte_u) : null,
+      type: item.ubicacion_tipo ?? null,
+      name,
+      address: direccion ?? name,
+      latitude,
+      longitude,
+    })
   }
+  return result
 }
+
+const inFlight = new Set<string>()
 
 export const incidentService = {
   getInitialIncidents(): Incident[] {
@@ -40,81 +52,74 @@ export const incidentService = {
   },
 
   async getIncidents(): Promise<Incident[]> {
-    try {
-      const response = await fetch(`${API_URL}/alertas/mapa`, {
-        method: 'GET',
-        credentials: 'include'
-      })
+    const institutionId = await sessionService.getInstitutionId()
+    if (!institutionId) return []
 
-      if (!response.ok) return []
+    const response = await fetch(`${API_URL}/alertas/mapa?id_institucion=${encodeURIComponent(institutionId)}`, {
+      method: 'GET',
+      credentials: 'include',
+    })
+    if (!response.ok) throw new Error(await readBackendError(response, 'No se pudieron cargar las alertas.'))
 
-      const json = await response.json()
-      if (!json.success) return []
+    const json = await response.json()
+    if (!json.success || !Array.isArray(json.data)) throw new Error('Respuesta inválida del servidor.')
 
-      const emergenciasMap = await Promise.all(json.data.map(async (item: any) => {
-        const ubicacion = item.ubicaciones?.[0] || {}
-        
-        // CORRECCIÓN CLAVE: Forzar Number() para que el mapa Leaflet no explote
-        const latitud = Number(ubicacion.latitud) || 0;
-        const longitud = Number(ubicacion.longitud) || 0;
-        
-        let direccionFisica = ubicacion.nombre;
-        if (!direccionFisica || direccionFisica.trim() === '') {
-          direccionFisica = await obtenerDireccionReal(latitud, longitud);
-        }
+    return json.data.map((item: any): Incident => {
+      const envioEstado = parseEnvioEstado(item.mi_envio)
+      const locations = toLocations(item.ubicaciones)
+      const first = locations[0]
 
-        return {
-          id: String(item.id_alerta),
-          title: item.clasificacion || 'Emergencia',
-          status: mapStatus(item.estado),
-          risk: 'ALTO' as RiskLevel,
-          location: ubicacion.ubicacion_tipo || 'Punto de incendio',
-          address: direccionFisica,
-          description: 'Emergencia reportada y confirmada en el sistema.',
-          institutionId: '1',
-          institutionName: 'Mi Institución',
-          createdAt: item.fecha && item.hora ? `${item.fecha}T${item.hora}` : new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          distanceKm: 0,
-          latitude: latitud,   // <--- Ahora siempre será un número válido para el mapa
-          longitude: longitud, // <--- Ahora siempre será un número válido para el mapa
-          timeline: []
-        }
-      }))
-
-      return emergenciasMap;
-    } catch (error) {
-      console.error('Error en getIncidents:', error)
-      return []
-    }
+      return {
+        id: String(item.id_alerta),
+        title: item.clasificacion || 'Emergencia',
+        status: resolveStatus(envioEstado, item.estado),
+        risk: 'ALTO' as RiskLevel,
+        location: first?.type || 'Punto de incendio',
+        address: first?.address ?? '',
+        description: 'Emergencia reportada y confirmada en el sistema.',
+        institutionId,
+        institutionName: 'Mi Institución',
+        createdAt: item.fecha && item.hora ? `${item.fecha}T${item.hora}Z` : new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        distanceKm: 0,
+        latitude: first?.latitude ?? 0,
+        longitude: first?.longitude ?? 0,
+        timeline: [],
+        envioEstado,
+        locations,
+      }
+    })
   },
 
-  async updateStatus(id: string, status: IncidentStatus): Promise<Incident | undefined> {
+  async ejecutarAccion(id: string, accion: EnvioAccion): Promise<EnvioEstado> {
+    if (inFlight.has(id)) throw new Error('Ya hay una acción en curso para esta alerta.')
+    inFlight.add(id)
+
     try {
-      const instId = await getInstitutionId()
-      let endpoint = ''
+      const institutionId = await sessionService.getInstitutionId()
+      if (!institutionId) throw new Error('No se pudo determinar la institución de tu sesión.')
 
-      if (status === 'RECIBIDA') {
-        endpoint = `${API_URL}/alertas/${id}/instituciones/${instId}/recibir`
-      } else if (status === 'EN_CAMINO' || status === 'EN_SITIO' || status === 'CONTROLADA') {
-        endpoint = `${API_URL}/alertas/${id}/instituciones/${instId}/atender`
-      } else if (status === 'FINALIZADA') {
-        endpoint = `${API_URL}/alertas/${id}/instituciones/${instId}/cerrar`
-      }
+      const response = await fetch(
+        `${API_URL}/alertas/${encodeURIComponent(id)}/instituciones/${encodeURIComponent(institutionId)}/${accion}`,
+        { method: 'PATCH', credentials: 'include' },
+      ).catch(() => {
+        throw new Error('No se pudo conectar con el servidor. Revisa tu conexión.')
+      })
 
-      if (endpoint) {
-        await fetch(endpoint, {
-          method: 'PATCH',
-          credentials: 'include'
-        })
-      }
+      if (!response.ok) throw new Error(await readBackendError(response, 'No se pudo actualizar el estado.'))
 
-      const emergencias = await this.getIncidents()
-      return emergencias.find(e => e.id === id)
-
-    } catch (error) {
-      console.error('Error al actualizar el estado', error)
-      return undefined
+      const json = await response.json().catch(() => null)
+      
+      // Si el backend no devuelve el estado, inferimos el nuevo estado por la acción ejecutada exitosamente
+      let nuevoEstado: EnvioEstado = 'ENVIADA';
+      if (accion === 'recibir') nuevoEstado = 'RECIBIDA';
+      else if (accion === 'atender') nuevoEstado = 'ATENDIDA';
+      else if (accion === 'cerrar') nuevoEstado = 'CERRADA';
+      
+      const estado = parseEnvioEstado(json?.data) || nuevoEstado;
+      return estado
+    } finally {
+      inFlight.delete(id)
     }
   },
 }

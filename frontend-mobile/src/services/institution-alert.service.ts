@@ -1,20 +1,36 @@
-import type { AlertItem, AlertStatus, IncidentStatus, RiskLevel } from '../types'
+import type { AlertItem, RiskLevel } from '../types'
+import { API_URL, readBackendError } from './api'
+import { parseEnvioEstado, resolveStatus } from './alert-status'
+import { sessionService } from './session.service'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://alertaincendios.duckdns.org/api'
+const normalizeRiskLevel = (value: unknown): RiskLevel => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value >= 0.8) return 'CRITICO'
+    if (value >= 0.5) return 'ALTO'
+    if (value >= 0.2) return 'MEDIO'
+    return 'BAJO'
+  }
 
-// Obtenemos dinámicamente el ID usando la cookie de sesión
-const getInstitutionId = async () => {
-  const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
-  const json = await res.json()
-  return json.data?.id_institucion || 1
+  const raw = String(value ?? '').trim().toUpperCase()
+
+  if (raw === 'BAJO' || raw === 'LOW' || raw === 'BAJA') return 'BAJO'
+  if (raw === 'MEDIO' || raw === 'MEDIA' || raw === 'MODERADO') return 'MEDIO'
+  if (raw === 'ALTO' || raw === 'HIGH' || raw === 'ALTA') return 'ALTO'
+  if (raw === 'CRITICO' || raw === 'CRITICA' || raw === 'CRITICAL') return 'CRITICO'
+
+  return 'MEDIO'
 }
 
-const mapStatus = (estadoBackend: string): AlertStatus => {
-  if (estadoBackend === 'CONFIRMADA') return 'NUEVA'
-  if (estadoBackend === 'RECIBIDA') return 'RECIBIDA'
-  if (estadoBackend === 'ATENDIDA' || estadoBackend === 'EN_CURSO') return 'EN_CAMINO'
-  if (estadoBackend === 'CERRADA' || estadoBackend === 'FINALIZADA') return 'FINALIZADA'
-  return 'NUEVA'
+const normalizeSource = (value: unknown): AlertItem['source'] => {
+  const raw = String(value ?? '').trim().toLowerCase()
+  if (raw === 'sensor' || raw === 'sensors') return 'sensor'
+  if (raw === 'citizen' || raw === 'ciudadano' || raw === 'usuario') return 'citizen'
+  return 'manual'
+}
+
+const normalizeDate = (value: unknown, fallback: string): string => {
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  return fallback
 }
 
 export const institutionAlertService = {
@@ -22,50 +38,62 @@ export const institutionAlertService = {
     return []
   },
 
+  // GET /alertas?id_institucion=<id> : Filtra por la institución y trae el estado mi_envio
   async getAlerts(): Promise<AlertItem[]> {
-    try {
-      const response = await fetch(`${API_URL}/alertas`, {
-        method: 'GET',
-        credentials: 'include' // <- Esto envía la cookie automáticamente
-      })
+    const institutionId = await sessionService.getInstitutionId()
+    if (!institutionId) return []
 
-      if (!response.ok) return []
+    const response = await fetch(`${API_URL}/alertas?id_institucion=${encodeURIComponent(institutionId)}`, {
+      method: 'GET',
+      credentials: 'include',
+    })
 
-      const json = await response.json()
-      if (!json.success) return []
-
-      return json.data.map((item: any) => ({
-        id: String(item.id_alerta),
-        incidentId: String(item.id_alerta),
-        type: item.clasificacion || 'INCENDIO',
-        location: 'Ubicación de alerta',
-        risk: (item.puntaje > 0.8 ? 'CRITICO' : 'ALTO') as RiskLevel,
-        status: mapStatus(item.estado),
-        createdAt: item.fecha_confirmacion || new Date().toISOString(),
-        description: `Alerta detectada con puntaje ${item.puntaje}`,
-        institutionId: '1',
-        distanceKm: 0,
-        source: 'sensor'
-      }))
-    } catch (error) {
-      console.error('Error en getAlerts:', error)
-      return []
+    if (!response.ok) {
+      throw new Error(await readBackendError(response, 'No se pudieron cargar las alertas.'))
     }
-  },
 
-  async updateStatus(id: string, status: AlertStatus): Promise<AlertItem | undefined> {
-    if (status === 'RECIBIDA') {
-      const instId = await getInstitutionId()
-      await fetch(`${API_URL}/alertas/${id}/instituciones/${instId}/recibir`, {
-        method: 'PATCH',
-        credentials: 'include'
-      })
-    }
-    const alertas = await this.getAlerts()
-    return alertas.find(a => a.id === id)
-  },
+    const json = await response.json()
+    if (!json.success || !Array.isArray(json.data)) throw new Error('Respuesta inválida del servidor.')
 
-  async updateByIncidentId(incidentId: string, status: IncidentStatus): Promise<AlertItem | undefined> {
-    return this.updateStatus(incidentId, status as AlertStatus)
+    return json.data.map((item: any): AlertItem => {
+      const envioEstado = parseEnvioEstado(item.mi_envio)
+      const locations = Array.isArray(item.ubicaciones) ? item.ubicaciones : []
+      const loc = locations[0] ?? null
+      const fallbackDate = new Date().toISOString()
+
+      const location =
+        loc?.direccion ||
+        loc?.nombre ||
+        loc?.ubicacion_tipo ||
+        item.direccion ||
+        item.ubicacion ||
+        'Ubicación de alerta'
+
+      const distanceKm = Number(item.distancia_km ?? item.distancia ?? item.distanceKm ?? 0)
+      const createdAt =
+        item.fecha && item.hora
+          ? `${item.fecha}T${item.hora}Z`
+          : normalizeDate(item.fecha_hora ?? item.created_at ?? item.fecha_confirmacion, fallbackDate)
+
+      return {
+        id: String(item.id_alerta ?? item.id ?? 'alerta-sin-id'),
+        incidentId: String(item.id_alerta ?? item.id_incidente ?? item.id ?? 'alerta-sin-id'),
+        type: item.clasificacion || item.tipo || 'Emergencia',
+        location,
+        risk: normalizeRiskLevel(item.riesgo ?? item.nivel_riesgo ?? item.risk ?? item.puntaje ?? 'MEDIO'),
+        status: resolveStatus(envioEstado, item.estado),
+        createdAt,
+        description:
+          typeof item.descripcion === 'string' && item.descripcion.trim()
+            ? item.descripcion.trim()
+            : typeof item.mensaje === 'string' && item.mensaje.trim()
+              ? item.mensaje.trim()
+              : 'Alerta reportada por la institución.',
+        institutionId: String(item.id_institucion ?? institutionId),
+        distanceKm: Number.isFinite(distanceKm) ? distanceKm : 0,
+        source: normalizeSource(item.origen ?? item.source ?? item.tipo_origen),
+        envioEstado,
+      }
+    })
   },
 }

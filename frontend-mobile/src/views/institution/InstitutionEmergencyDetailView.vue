@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import {
   IonBackButton, IonButton, IonButtons, IonCard, IonCardContent, IonContent, IonHeader, IonIcon,
-  IonPage, IonRefresher, IonRefresherContent, IonTitle, IonToast, IonToolbar, onIonViewWillEnter,
-  onIonViewDidEnter, onIonViewDidLeave
+  IonPage, IonRefresher, IonRefresherContent, IonTitle, IonToast, IonToolbar, onIonViewWillEnter, onIonViewDidEnter
 } from '@ionic/vue'
 import {
-  checkmarkCircleOutline, flameOutline, locationOutline, navigateOutline, timeOutline
+  checkmarkCircleOutline, flameOutline, locationOutline, navigateOutline, timeOutline, locateOutline
 } from 'ionicons/icons'
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onUnmounted, ref, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Geolocation } from '@capacitor/geolocation'
+import { Capacitor } from '@capacitor/core'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useIncidentStore } from '../../stores/incident.store'
@@ -17,12 +18,16 @@ import StatusBadge from '../../components/common/StatusBadge.vue'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import { hapticsService } from '../../services/haptics.service'
-import type { IncidentStatus } from '../../types'
+import { geocodingService } from '../../services/geocoding.service'
+import { siguienteAccion } from '../../services/incident.service'
+import { useRealtimeRefresh } from '../../composables/useRealtimeRefresh'
 
 const route = useRoute()
+const router = useRouter()
 const incidentStore = useIncidentStore()
 const toastOpen = ref(false)
 const toastMessage = ref('')
+const toastColor = ref<'success' | 'warning' | 'danger'>('success')
 const isUpdating = ref(false)
 const confirmFinalization = ref(false)
 const primeraCarga = ref(true)
@@ -30,19 +35,16 @@ const primeraCarga = ref(true)
 const incidentId = computed(() => String(route.params.id ?? ''))
 const incident = computed(() => incidentStore.incidents.find((item) => item.id === incidentId.value))
 
-const nextActionByStatus: Partial<Record<IncidentStatus, { status: IncidentStatus; label: string }>> = {
-  NUEVA: { status: 'RECIBIDA', label: 'CONFIRMAR RECEPCIÓN' },
-  RECIBIDA: { status: 'EN_CAMINO', label: 'EN CAMINO' },
-  EN_CAMINO: { status: 'EN_SITIO', label: 'LLEGAMOS AL LUGAR' },
-  EN_SITIO: { status: 'CONTROLADA', label: 'INCENDIO CONTROLADO' },
-  CONTROLADA: { status: 'FINALIZADA', label: 'FINALIZAR INTERVENCIÓN' },
-}
-const nextAction = computed(() => incident.value ? nextActionByStatus[incident.value.status] ?? null : null)
+const envioEstado = computed(() => incident.value?.envioEstado ?? null)
+const nextAction = computed(() => siguienteAccion(envioEstado.value))
 const statusTone = computed(() => {
-  if (incident.value?.status === 'FINALIZADA') return 'success'
-  if (incident.value?.status === 'NUEVA') return 'warning'
+  if (envioEstado.value === 'CERRADA') return 'success'
+  if (envioEstado.value === 'ENVIADA') return 'warning'
   return 'info'
 })
+
+const direccionResuelta = ref('')
+const direccion = computed(() => incident.value?.address || direccionResuelta.value || 'Ubicación en mapa')
 
 const fechaHora = (iso: string) =>
   new Date(iso).toLocaleString('es-BO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -50,11 +52,46 @@ const fechaHora = (iso: string) =>
 const mapaEl = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
 let punto: L.CircleMarker | null = null
+let userMarker: L.CircleMarker | null = null
+let polyline: L.Polyline | null = null
 let observador: ResizeObserver | null = null
+
+const userLocation = ref<{ lat: number, lng: number } | null>(null)
+const calculatedDistance = ref<string>('')
 
 const tieneUbicacion = computed(
   () => !!incident.value && (incident.value.latitude !== 0 || incident.value.longitude !== 0)
 )
+
+const showToast = (message: string, color: 'success' | 'warning' | 'danger') => {
+  toastMessage.value = message
+  toastColor.value = color
+  toastOpen.value = true
+}
+
+// Lógica de GPS
+const obtenerUbicacionUsuario = async () => {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      let permisos = await Geolocation.checkPermissions();
+      if (permisos.location !== 'granted') {
+        permisos = await Geolocation.requestPermissions();
+      }
+      if (permisos.location !== 'granted') {
+        showToast('Permiso de GPS denegado. Ve a los ajustes para habilitarlo.', 'danger');
+        return;
+      }
+    }
+
+    const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+    userLocation.value = { lat: position.coords.latitude, lng: position.coords.longitude };
+    
+    dibujarMapa();
+  } catch (error: any) {
+    console.error('Error GPS:', error);
+    showToast('Activa el GPS para calcular la distancia a la emergencia.', 'warning');
+  }
+}
 
 const dibujarMapa = async () => {
   await nextTick()
@@ -63,52 +100,89 @@ const dibujarMapa = async () => {
   const pos: L.LatLngTuple = [inc.latitude, inc.longitude]
 
   if (!map) {
-    map = L.map(mapaEl.value).setView(pos, 16)
-    
-    // CORRECCIÓN: Usamos OpenStreetMap estándar que es 100% gratuito y no requiere API KEY
+    map = L.map(mapaEl.value, { zoomControl: false }).setView(pos, 16)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 19
+      attribution: '&copy; OpenStreetMap', maxZoom: 19
     }).addTo(map)
-    
-    punto = L.circleMarker(pos, {
-      radius: 12,
-      color: '#ffffff',
-      weight: 3,
-      fillColor: '#F24A23',
-      fillOpacity: 1
-    }).addTo(map)
+    L.control.zoom({ position: 'topleft' }).addTo(map);
     
     if ('ResizeObserver' in window) {
       observador = new ResizeObserver(() => map?.invalidateSize())
       observador.observe(mapaEl.value)
     }
-    setTimeout(() => map?.invalidateSize(), 300)
-  } else {
-    map.setView(pos, map.getZoom())
-    punto?.setLatLng(pos)
   }
+
+  // Limpiar capas anteriores para redibujar
+  if (punto) map.removeLayer(punto);
+  if (userMarker) map.removeLayer(userMarker);
+  if (polyline) map.removeLayer(polyline);
+
+  // 1. Dibujar Alerta (Rojo)
+  punto = L.circleMarker(pos, {
+    radius: 12, color: '#ffffff', weight: 3, fillColor: '#F24A23', fillOpacity: 1
+  }).addTo(map)
+  punto.bindPopup(`<strong>Emergencia</strong><br>${inc.title}`)
+
+  // 2. Dibujar Usuario y Línea (Si hay GPS)
+  if (userLocation.value) {
+    const userPos: L.LatLngTuple = [userLocation.value.lat, userLocation.value.lng]
+    
+    userMarker = L.circleMarker(userPos, {
+      radius: 9, fillColor: '#428cff', color: '#ffffff', weight: 3, fillOpacity: 1
+    }).addTo(map)
+    userMarker.bindPopup(`<strong>Tu ubicación</strong>`)
+
+    // Línea punteada
+    polyline = L.polyline([userPos, pos], { color: '#428cff', weight: 3, dashArray: '5, 8' }).addTo(map)
+
+    // Cálculo real de distancia
+    const distMeters = L.latLng(userPos).distanceTo(L.latLng(pos));
+    if (distMeters > 1000) {
+      calculatedDistance.value = (distMeters / 1000).toFixed(1) + ' km';
+    } else {
+      calculatedDistance.value = Math.round(distMeters) + ' m';
+    }
+
+    // Centrar mapa para ver ambos puntos
+    const bounds = L.latLngBounds([userPos, pos]);
+    map.fitBounds(bounds, { padding: [40, 40] });
+  } else {
+    map.setView(pos, 16);
+  }
+
+  setTimeout(() => map?.invalidateSize(), 400)
 }
 
 watch(() => [incident.value?.latitude, incident.value?.longitude], dibujarMapa, { immediate: true })
 
-const updateStatus = async (status: IncidentStatus) => {
-  if (!incident.value || isUpdating.value) return
+watch(
+  () => [incident.value?.address, incident.value?.latitude, incident.value?.longitude] as const,
+  async ([address, lat, lng]) => {
+    direccionResuelta.value = ''
+    if (address || !lat || !lng) return
+    const resolved = await geocodingService.resolveAddress(lat, lng)
+    if (resolved) direccionResuelta.value = resolved
+  },
+  { immediate: true },
+)
+
+const runAction = async () => {
+  const action = nextAction.value
+  const current = incident.value
+  if (!action || !current || isUpdating.value) return
   isUpdating.value = true
   try {
-    const updated = await incidentStore.updateStatus(incident.value.id, status)
-    if (!updated) {
-      toastMessage.value = 'No se pudo actualizar el estado.'
-      toastOpen.value = true
+    await incidentStore.avanzarEnvio(current.id)
+    await hapticsService.lightImpact()
+
+    if (action.accion === 'recibir') {
+      await router.replace('/institucion/inicio')
       return
     }
-    await hapticsService.lightImpact()
-    toastMessage.value = 'Estado actualizado'
-    toastOpen.value = true
+    showToast(action.accion === 'cerrar' ? 'Intervención finalizada' : 'Alerta marcada en atención', 'success')
   } catch (e: any) {
     console.error('Error al actualizar el estado', e)
-    toastMessage.value = e?.message || 'No se pudo actualizar el estado.'
-    toastOpen.value = true
+    showToast(e?.message || 'No se pudo actualizar el estado.', 'danger')
   } finally {
     isUpdating.value = false
   }
@@ -117,41 +191,44 @@ const updateStatus = async (status: IncidentStatus) => {
 const requestNextAction = async () => {
   const action = nextAction.value
   if (!action || isUpdating.value) return
-  if (action.status === 'FINALIZADA') {
+  if (action.accion === 'cerrar') {
     confirmFinalization.value = true
     return
   }
-  await updateStatus(action.status)
+  await runAction()
 }
 
 const finishFinalization = async () => {
   confirmFinalization.value = false
-  if (nextAction.value?.status === 'FINALIZADA') await updateStatus('FINALIZADA')
+  if (nextAction.value?.accion === 'cerrar') await runAction()
 }
 
 const cargar = async () => {
   try {
     await incidentStore.fetchIncidents()
-  } catch (e) {
-    console.error('Error cargando la emergencia', e)
   } finally {
     primeraCarga.value = false
   }
 }
 
-const refrescar = () => {
-  return cargar()
-}
+const { refresh: refrescar } = useRealtimeRefresh(cargar)
 
 const onRefresh = async (event: any) => {
   await refrescar()
   event.target.complete()
 }
 
-onIonViewWillEnter(() => { cargar() })
+onIonViewWillEnter(() => { void refrescar() })
 
-onIonViewDidLeave(() => {
-  // Limpieza al salir de la vista
+onIonViewDidEnter(() => {
+  const fixMap = () => { if (map) map.invalidateSize(); };
+  setTimeout(fixMap, 50);
+  setTimeout(fixMap, 250);
+  setTimeout(fixMap, 500);
+})
+
+onMounted(() => {
+  obtenerUbicacionUsuario(); // Pedir ubicación al abrir la alerta
 })
 
 onUnmounted(() => {
@@ -180,7 +257,6 @@ onUnmounted(() => {
       </ion-refresher>
 
       <div class="container" v-if="incident">
-        <!-- Tarjeta principal de la emergencia -->
         <ion-card class="hero-card">
           <ion-card-content>
             <div class="top-row">
@@ -199,13 +275,13 @@ onUnmounted(() => {
           <ion-card-content>
             <div class="current-status">
               <span>ESTADO ACTUAL</span>
-              <StatusBadge :state="incident.status" :tone="statusTone" />
+              <StatusBadge :state="envioEstado ?? incident.status" :tone="statusTone" />
             </div>
             <div v-if="nextAction" class="next-action-copy">
               <span>SIGUIENTE ACCIÓN</span>
               <strong>{{ nextAction.label }}</strong>
             </div>
-            <div v-else class="next-action-copy">
+            <div v-else-if="envioEstado === 'CERRADA'" class="next-action-copy">
               <span>Intervención finalizada</span>
             </div>
           </ion-card-content>
@@ -214,17 +290,25 @@ onUnmounted(() => {
         <ion-card>
           <ion-card-content>
             <div class="info-grid">
-              <div><span class="label"><ion-icon :icon="locationOutline" />UBICACIÓN</span><strong>{{ incident.location }}</strong></div>
-              <div><span class="label"><ion-icon :icon="locationOutline" />DIRECCIÓN</span><strong>{{ incident.address }}</strong></div>
+              <div><span class="label"><ion-icon :icon="locationOutline" />DIRECCIÓN</span><strong>{{ direccion }}</strong></div>
               <div><span class="label"><ion-icon :icon="timeOutline" />DETECTADA</span><strong>{{ fechaHora(incident.createdAt) }}</strong></div>
-              <div v-if="incident.distanceKm > 0"><span class="label"><ion-icon :icon="navigateOutline" />DISTANCIA</span><strong>{{ incident.distanceKm }} km</strong></div>
+              
+              <!-- Muestra la distancia calculada en vivo o la del backend -->
+              <div v-if="calculatedDistance || incident.distanceKm > 0">
+                <span class="label"><ion-icon :icon="navigateOutline" />DISTANCIA</span>
+                <strong style="color: #428cff;">{{ calculatedDistance || incident.distanceKm + ' km' }}</strong>
+              </div>
             </div>
           </ion-card-content>
         </ion-card>
 
         <ion-card v-if="tieneUbicacion">
-          <ion-card-content>
+          <ion-card-content class="map-card-content">
             <div ref="mapaEl" class="detalle-map"></div>
+            <!-- Botón flotante para GPS -->
+            <ion-button class="locate-btn" shape="round" color="light" @click="obtenerUbicacionUsuario">
+              <ion-icon :icon="locateOutline"></ion-icon>
+            </ion-button>
           </ion-card-content>
         </ion-card>
 
@@ -237,6 +321,8 @@ onUnmounted(() => {
             {{ isUpdating ? 'Actualizando...' : nextAction.label }}
           </ion-button>
         </div>
+
+        <div class="bottom-spacer"></div>
       </div>
 
       <div v-else-if="primeraCarga || incidentStore.isLoading" class="container">
@@ -251,12 +337,13 @@ onUnmounted(() => {
     <ion-toast
       :is-open="toastOpen"
       :message="toastMessage"
-      :duration="2600"
+      :color="toastColor"
+      :duration="toastColor === 'danger' ? 4000 : 2600"
       @didDismiss="toastOpen = false"
     />
     <ConfirmDialog
       :open="confirmFinalization"
-      message="¿Deseas finalizar esta intervención? Después de finalizar, la emergencia pasará al historial."
+      message="¿Deseas finalizar la intervención de tu institución? Esta acción no se puede deshacer."
       confirm-text="Finalizar"
       @confirm="finishFinalization"
       @cancel="confirmFinalization = false"
@@ -265,12 +352,11 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* CORRECCIÓN: Padding superior de 24px para evitar que se esconda bajo el header y padding inferior de 80px para que las pestañas no tapen el botón final */
 .container {
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  padding: 24px 16px 80px 16px; 
+  padding: 24px 16px 0px 16px; 
 }
 .hero-card { margin: 0 0 20px 0; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 .top-row {
@@ -343,14 +429,24 @@ ion-card { margin: 0 0 16px 0; border-radius: 14px; box-shadow: 0 2px 8px rgba(0
   overflow-wrap: anywhere;
 }
 
+.map-card-content { position: relative; padding: 0 !important; }
 .detalle-map {
   width: 100%;
-  height: clamp(200px, 35vh, 360px);
-  border-radius: 10px;
+  height: 250px !important;
+  min-height: 250px;
   background: #e9e9e9;
-  overflow: hidden;
-  position: relative;
   z-index: 1;
+}
+.locate-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 1000;
+  margin: 0;
+  --border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  --box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
 .action-block { margin-top: 24px; }
@@ -392,6 +488,8 @@ ion-card { margin: 0 0 16px 0; border-radius: 14px; box-shadow: 0 2px 8px rgba(0
   justify-content: center;
   color: var(--alerta-muted, #666);
 }
+.bottom-spacer { height: 100px; width: 100%; }
+
 @media (max-width: 420px) {
   .info-grid { grid-template-columns: 1fr; }
 }

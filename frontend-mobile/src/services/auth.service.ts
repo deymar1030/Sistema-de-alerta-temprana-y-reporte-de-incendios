@@ -21,7 +21,8 @@ const mapBackendUserToFrontend = (backendUser: any): User => {
     name: `${backendUser.nombre} ${backendUser.primer_apellido}`.trim(),
     role: mappedRole,
     roleLabel: backendUser.nombre_rol || 'Desconocido',
-    institutionName: backendUser.id_institucion ? `Institución #${backendUser.id_institucion}` : undefined
+    institutionName: backendUser.id_institucion ? `Institución #${backendUser.id_institucion}` : undefined,
+    institutionId: backendUser.id_institucion != null ? String(backendUser.id_institucion) : undefined
   }
 }
 

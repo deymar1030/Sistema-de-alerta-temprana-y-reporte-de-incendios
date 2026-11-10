@@ -9,6 +9,7 @@ export type IncidentStatus =
   | 'FINALIZADA'
 
 export type AlertStatus = 'NUEVA' | 'RECIBIDA' | 'EN_CAMINO' | 'EN_SITIO' | 'CONTROLADA' | 'FINALIZADA'
+export type EnvioEstado = 'ENVIADA' | 'RECIBIDA' | 'ATENDIDA' | 'CERRADA'
 export type RiskLevel = 'BAJO' | 'MEDIO' | 'ALTO' | 'CRITICO'
 export type CitizenReportStatus = 'RECIBIDO' | 'EN_REVISION' | 'VALIDADO' | 'DESCARTADO' | 'ATENDIDO'
 
@@ -36,6 +37,7 @@ export interface User {
   role: UserRole
   institutionName?: string
   roleLabel: string
+  institutionId?: string
 }
 
 export interface Location {
@@ -63,6 +65,16 @@ export interface Institution {
   longitude: number
 }
 
+export interface AlertLocation {
+  origin: string
+  reportId: string | null
+  type: string | null
+  name: string | null
+  address: string | null
+  latitude: number
+  longitude: number
+}
+
 export interface AlertItem {
   id: string
   incidentId?: string
@@ -75,6 +87,8 @@ export interface AlertItem {
   institutionId: string
   distanceKm: number
   source: 'sensor' | 'citizen' | 'manual'
+  /** Estado del envío a la institución del operativo (mi_envio.estado) */
+  envioEstado?: EnvioEstado | null
 }
 
 export type TimelineEventType =
@@ -108,6 +122,10 @@ export interface Incident {
   latitude: number
   longitude: number
   timeline: TimelineEvent[]
+  /** Estado del envío a la institución del operativo (mi_envio.estado) */
+  envioEstado?: EnvioEstado | null
+  /** Ubicaciones con coordenadas válidas de la alerta */
+  locations?: AlertLocation[]
 }
 
 export interface CitizenReport {

@@ -1,26 +1,32 @@
 <script setup lang="ts">
 import {
-  IonButton, IonButtons, IonCard, IonContent, IonHeader, IonIcon, IonPage,
-  IonRefresher, IonRefresherContent, IonTitle, IonToolbar, onIonViewWillEnter,
-  onIonViewDidEnter, onIonViewDidLeave
+  IonButton, IonCard, IonContent, IonHeader, IonIcon, IonPage,
+  IonRefresher, IonRefresherContent, IonTitle, IonToolbar, onIonViewWillEnter
 } from '@ionic/vue'
 import { arrowForwardOutline, flameOutline, locationOutline, timeOutline } from 'ionicons/icons'
 import { computed, ref } from 'vue'
 import { useInstitutionAlertStore } from '../../stores/institution-alert.store'
+import { useAssignmentStore } from '../../stores/assignment.store'
+import { useRealtimeRefresh } from '../../composables/useRealtimeRefresh'
+import AssignedBadge from '../../components/common/AssignedBadge.vue'
 import EmptyState from '../../components/common/EmptyState.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
-import { socket } from '../../services/realtime'
 import type { AlertStatus } from '../../types'
 
 const alertStore = useInstitutionAlertStore()
+const assignmentStore = useAssignmentStore()
 
-const error = ref('')
+const error = computed(() => alertStore.error)
 const primeraCarga = ref(true)
 const cargando = computed(() => primeraCarga.value || alertStore.isLoading)
 
+// Las alertas asignadas al operativo van primero; el resto conserva el orden habitual.
 const alertasOrdenadas = computed(() =>
   [...alertStore.alerts].sort((a, b) => {
+    const asignadaA = assignmentStore.isAssigned(a.id) ? 0 : 1
+    const asignadaB = assignmentStore.isAssigned(b.id) ? 0 : 1
+    if (asignadaA !== asignadaB) return asignadaA - asignadaB
     const fa = a.status === 'FINALIZADA' ? 1 : 0
     const fb = b.status === 'FINALIZADA' ? 1 : 0
     if (fa !== fb) return fa - fb
@@ -34,38 +40,24 @@ const tono = (status: AlertStatus): 'success' | 'warning' | 'info' =>
 const fechaHora = (iso: string) =>
   new Date(iso).toLocaleString('es-BO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 
+// Las asignaciones y las alertas se piden en paralelo; un fallo de asignaciones
+// devuelve un conjunto vacío y no afecta a la lista.
 const cargar = async () => {
-  error.value = ''
   try {
-    await alertStore.fetchAlerts()
-  } catch (e: any) {
-    console.error('Error cargando alertas', e)
-    error.value = e?.message || 'No se pudieron cargar las alertas.'
+    await Promise.all([assignmentStore.fetchAssignments(), alertStore.fetchAlerts()])
   } finally {
     primeraCarga.value = false
   }
 }
 
-const refrescar = () => {
-  return cargar()
-}
+const { refresh: refrescar } = useRealtimeRefresh(cargar)
 
 const onRefresh = async (event: any) => {
   await refrescar()
   event.target.complete()
 }
 
-onIonViewWillEnter(() => { cargar() })
-
-const eventos = ['alerta:abierta', 'alerta:actualizada', 'alerta:confirmada', 'alerta:descartada']
-
-onIonViewDidEnter(() => {
-  eventos.forEach((e) => socket.on(e, refrescar))
-})
-
-onIonViewDidLeave(() => {
-  eventos.forEach((e) => socket.off(e, refrescar))
-})
+onIonViewWillEnter(() => { void refrescar() })
 </script>
 
 <template>
@@ -97,14 +89,15 @@ onIonViewDidLeave(() => {
         />
 
         <div v-else class="list">
-          <ion-card v-for="alert in alertasOrdenadas" :key="alert.id" class="alert-item">
+          <ion-card v-for="alert in alertasOrdenadas" :key="alert.id" :class="['alert-item', { assigned: assignmentStore.isAssigned(alert.id) }]">
             <div class="card-head">
               <div>
                 <p class="muted">Alerta #{{ alert.id }}</p>
                 <h3>{{ alert.type }}</h3>
               </div>
-              <StatusBadge :state="alert.status" :tone="tono(alert.status)" />
+              <StatusBadge :state="alert.envioEstado ?? alert.status" :tone="tono(alert.status)" />
             </div>
+            <AssignedBadge v-if="assignmentStore.isAssigned(alert.id)" class="assigned-tag" />
             <p class="location"><ion-icon :icon="locationOutline" />{{ alert.location }}</p>
             <div class="meta-row">
               <span class="risk"><ion-icon :icon="flameOutline" />{{ alert.risk }}</span>
@@ -138,6 +131,10 @@ onIonViewDidLeave(() => {
   margin: 0;
   padding: 16px;
 }
+.alert-item.assigned {
+  border: 2px solid #d9382e;
+}
+.assigned-tag { margin-top: 8px; }
 .card-head {
   display: flex;
   align-items: flex-start;

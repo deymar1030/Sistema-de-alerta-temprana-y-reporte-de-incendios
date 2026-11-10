@@ -37,6 +37,14 @@ export default class PrismaRecepcionaRepository extends RecepcionaRepository {
     });
   }
 
+  async existeAsignacionParaAlerta(id_alerta) {
+    const existente = await this.prisma.recepciona.findFirst({
+      where: { id_alerta: BigInt(id_alerta) },
+      select: { id_usuario: true },
+    });
+    return Boolean(existente);
+  }
+
   async asignar(id_alerta, idsUsuarios) {
     const ahora = new Date();
     return await this.prisma.$transaction(

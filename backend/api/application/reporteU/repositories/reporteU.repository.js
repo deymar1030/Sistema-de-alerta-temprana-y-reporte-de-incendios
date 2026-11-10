@@ -22,4 +22,8 @@ export default class ReporteURepository {
   async vincularAlerta(id, id_alerta) {
     throw new Error("Method not implemented");
   }
+
+  async findCiudadanosByAlerta(id_alerta) {
+    throw new Error("Method not implemented");
+  }
 }

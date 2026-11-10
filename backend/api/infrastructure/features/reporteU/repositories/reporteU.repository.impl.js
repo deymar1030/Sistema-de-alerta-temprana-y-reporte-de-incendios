@@ -73,4 +73,16 @@ export default class PrismaReporteURepository extends ReporteURepository {
 
     return { id_alerta: Number(id_alerta), id_reporte_u: Number(id) };
   }
+
+  // Quienes reportaron esta alerta (puede ser mas de uno si varios
+  // ciudadanos corroboraron el mismo incendio). Un mismo ciudadano no se
+  // repite aunque haya mandado mas de un reporte vinculado.
+  async findCiudadanosByAlerta(id_alerta) {
+    const vinculos = await this.prisma.genera_ru.findMany({
+      where: { id_alerta: Number(id_alerta) },
+      select: { reporte_u: { select: { id_usuario: true } } },
+    });
+
+    return [...new Set(vinculos.map((v) => v.reporte_u.id_usuario))];
+  }
 }

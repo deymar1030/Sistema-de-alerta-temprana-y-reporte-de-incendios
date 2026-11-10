@@ -15,4 +15,11 @@ export default class RecepcionaRepository {
   async findAsignacionesActivasConAlerta(id_usuario) {
     throw new Error("Method not implemented");
   }
+
+  // true si esta alerta ya tuvo CUALQUIER asignacion de personal alguna
+  // vez (ASIGNADO o LIBERADO), no solo las vigentes -- sirve para detectar
+  // la PRIMERA vez que una institucion envia operativos a esta alerta.
+  async existeAsignacionParaAlerta(id_alerta) {
+    throw new Error("Method not implemented");
+  }
 }

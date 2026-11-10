@@ -1,8 +1,12 @@
 import { UpdateInformeAtencionDTO } from "../../../domain/informeAtencion/dtos/updateInformeAtencion.dto.js";
+import { notificarCierreAlerta } from "../notificarCierreAlerta.js";
 
 export default class UpdateInformeAtencionUseCase {
-  constructor(informeAtencionRepository) {
+  constructor({ informeAtencionRepository, reporteURepository, notificacionRepository, realtimeNotifier }) {
     this.informeAtencionRepository = informeAtencionRepository;
+    this.reporteURepository = reporteURepository;
+    this.notificacionRepository = notificacionRepository;
+    this.realtimeNotifier = realtimeNotifier;
   }
 
   async execute(id, informeData, usuario) {
@@ -18,10 +22,11 @@ export default class UpdateInformeAtencionUseCase {
     const informeDTO = new UpdateInformeAtencionDTO(informeData);
     // Solo la transicion a COMPLETADO cierra la alerta; pedirlo de nuevo
     // sobre un informe ya COMPLETADO es idempotente (no la reabre).
-    const { informe } = await this.informeAtencionRepository.actualizarYEvaluarCierre(Number(id), informeDTO, {
+    const { informe, alerta_actualizada } = await this.informeAtencionRepository.actualizarYEvaluarCierre(Number(id), informeDTO, {
       id_alerta: existing.id_alerta,
       yaCompletado: existing.estado === "COMPLETADO",
     });
+    await notificarCierreAlerta(alerta_actualizada, this);
     return informe;
   }
 }

@@ -7,11 +7,12 @@ import { RolNombres } from "../../../domain/rol/rolNombres.js";
 // alerta), una notificacion por destinatario, y emite en vivo por
 // WebSocket (rooms.usuario).
 export default class AsignarAlertaOperativosUseCase {
-  constructor({ notificacionRepository, usuarioRepository, enviaRepository, recepcionaRepository, realtimeNotifier }) {
+  constructor({ notificacionRepository, usuarioRepository, enviaRepository, recepcionaRepository, reporteURepository, realtimeNotifier }) {
     this.notificacionRepository = notificacionRepository;
     this.usuarioRepository = usuarioRepository;
     this.enviaRepository = enviaRepository;
     this.recepcionaRepository = recepcionaRepository;
+    this.reporteURepository = reporteURepository;
     this.realtimeNotifier = realtimeNotifier;
   }
 
@@ -51,6 +52,11 @@ export default class AsignarAlertaOperativosUseCase {
       throw new Error(`Usuario(s) ya asignado(s) a otra alerta activa: ${detalle}`);
     }
 
+    // Se chequea ANTES de asignar: es la unica forma de distinguir "esta es
+    // la primera vez que esta institucion (o cualquier otra) envia
+    // operativos a esta alerta" de una reasignacion/ampliacion posterior.
+    const esPrimeraAsignacion = !(await this.recepcionaRepository.existeAsignacionParaAlerta(id_alerta));
+
     await this.recepcionaRepository.asignar(id_alerta, idsSolicitados);
 
     const notificacionesData = idsSolicitados.map((id_usuario) => ({
@@ -66,6 +72,29 @@ export default class AsignarAlertaOperativosUseCase {
 
     await Promise.all(notificaciones.map((notificacion) => this.realtimeNotifier.emitNotificacion(notificacion)));
 
+    // Solo la PRIMERA vez que la alerta recibe operativos: a partir de ahi
+    // ya hay alguien yendo a atenderla, asi que quien la reporto no
+    // necesita seguir mandando mas reportes del mismo incendio. Si la
+    // alerta nacio de un sensor (sin reporte ciudadano), no hay a quien
+    // avisar y la lista sale vacia.
+    if (esPrimeraAsignacion) await this.notificarCiudadanosAtencion(id_alerta);
+
     return notificaciones;
+  }
+
+  async notificarCiudadanosAtencion(id_alerta) {
+    const idsCiudadanos = await this.reporteURepository.findCiudadanosByAlerta(id_alerta);
+    if (!idsCiudadanos.length) return;
+
+    const notificacionesData = idsCiudadanos.map((id_usuario) => ({
+      id_usuario,
+      id_alerta,
+      tipo: "REPORTE",
+      titulo: "Tu reporte ya está siendo atendido",
+      mensaje: "Una institución ya envió personal a atender el incendio que reportaste. No hace falta que envíes más reportes sobre este mismo incidente.",
+    }));
+
+    const notificaciones = await this.notificacionRepository.createMany(notificacionesData);
+    await Promise.all(notificaciones.map((notificacion) => this.realtimeNotifier.emitNotificacion(notificacion)));
   }
 }

@@ -186,4 +186,19 @@ export const backendAlertsService = {
 
     return detail
   },
+
+  // Ciclo de vida del envío a una institución puntual. Solo lo puede mover
+  // el personal (JEFE_INSTITUCION u OPERATIVO) de esa misma institución
+  // (ver AlertaController.autorizarInstitucion en el backend).
+  async recibir(idAlerta: string, institutionId: string): Promise<void> {
+    await apiFetch(`/alertas/${encodeURIComponent(idAlerta)}/instituciones/${encodeURIComponent(institutionId)}/recibir`, { method: 'PATCH' })
+  },
+
+  async atender(idAlerta: string, institutionId: string): Promise<void> {
+    await apiFetch(`/alertas/${encodeURIComponent(idAlerta)}/instituciones/${encodeURIComponent(institutionId)}/atender`, { method: 'PATCH' })
+  },
+
+  async cerrar(idAlerta: string, institutionId: string): Promise<void> {
+    await apiFetch(`/alertas/${encodeURIComponent(idAlerta)}/instituciones/${encodeURIComponent(institutionId)}/cerrar`, { method: 'PATCH' })
+  },
 }

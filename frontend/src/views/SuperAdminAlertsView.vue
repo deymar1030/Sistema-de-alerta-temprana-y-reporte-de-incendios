@@ -370,8 +370,13 @@ function dateLabel(
     : parsed.toLocaleString('es-BO')
 }
 
+function onRealtimeAlerta() {
+  if (document.visibilityState === 'visible' && !loading.value && !mapLoading.value) void refresh(true)
+}
+
 onMounted(async () => {
   document.addEventListener('keydown', onDialogKeydown)
+  window.addEventListener('realtime:alerta', onRealtimeAlerta)
   await nextTick()
 
   if (!mapContainer.value) return
@@ -400,8 +405,9 @@ onMounted(async () => {
   await refresh()
 
   map?.invalidateSize()
-  // Sin cliente Socket.IO en la versión suministrada: sincronización periódica.
-  // Nunca crea alertas locales; GET /alertas entrega los IDs persistidos.
+  // El layout (ver MonitoringLayout.vue) conecta el socket y reemite
+  // 'realtime:alerta' en window: ahí se refresca al instante. Este poll
+  // queda solo como red de seguridad si el socket se cae y no reconecta.
   pollTimer = setInterval(() => {
     if (document.visibilityState === 'visible' && !loading.value && !mapLoading.value) {
       void refresh(true)
@@ -412,6 +418,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   ++detailRequestVersion
   document.removeEventListener('keydown', onDialogKeydown)
+  window.removeEventListener('realtime:alerta', onRealtimeAlerta)
   if (detailModalOpen.value) document.body.style.overflow = bodyOverflowBeforeDetail
   if (pollTimer) clearInterval(pollTimer)
   resizeObserver?.disconnect()

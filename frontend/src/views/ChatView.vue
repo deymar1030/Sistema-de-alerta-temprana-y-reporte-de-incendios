@@ -108,18 +108,24 @@ onBeforeUnmount(() => {
         <div
           v-for="mensaje in canal.mensajes"
           :key="mensaje.id_mensaje"
-          class="flex"
-          :class="esMio(mensaje.id_usuario) ? 'justify-end' : 'justify-start'"
         >
-          <div
-            class="max-w-[80%] rounded-2xl px-4 py-2"
-            :class="esMio(mensaje.id_usuario) ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-900'"
-          >
-            <p v-if="!esMio(mensaje.id_usuario)" class="text-xs font-bold text-orange-700">
-              {{ mensaje.usuario_nombre ?? 'Usuario' }} · {{ mensaje.institucion_nombre ?? 'Institución' }}
+          <!-- Aviso automático (sin autor): centrado y distinto de una burbuja de conversación. -->
+          <div v-if="mensaje.tipo_mensaje === 'SISTEMA'" class="flex justify-center">
+            <p class="max-w-[90%] rounded-full bg-slate-100 px-3 py-1 text-center text-xs font-semibold text-slate-600">
+              {{ mensaje.contenido }} · {{ formatHora(mensaje.fecha_hora) }}
             </p>
-            <p class="whitespace-pre-wrap break-words text-sm">{{ mensaje.contenido }}</p>
-            <p class="mt-1 text-right text-[11px] opacity-75">{{ formatHora(mensaje.fecha_hora) }}</p>
+          </div>
+          <div v-else class="flex" :class="esMio(mensaje.id_usuario) ? 'justify-end' : 'justify-start'">
+            <div
+              class="max-w-[80%] rounded-2xl px-4 py-2"
+              :class="esMio(mensaje.id_usuario) ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-900'"
+            >
+              <p v-if="!esMio(mensaje.id_usuario)" class="text-xs font-bold text-orange-700">
+                {{ mensaje.usuario_nombre ?? 'Usuario' }} · {{ mensaje.institucion_nombre ?? 'Institución' }}
+              </p>
+              <p class="whitespace-pre-wrap break-words text-sm">{{ mensaje.contenido }}</p>
+              <p class="mt-1 text-right text-[11px] opacity-75">{{ formatHora(mensaje.fecha_hora) }}</p>
+            </div>
           </div>
         </div>
       </div>

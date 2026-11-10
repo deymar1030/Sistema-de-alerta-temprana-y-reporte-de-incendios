@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { AlertTriangle, Building2, CheckCircle2, RefreshCw } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth.store'
 import { useInstitutionStore } from '../stores/institution.store'
@@ -95,7 +95,13 @@ async function toggleAvailability() {
   }
 }
 
-onMounted(() => { void load() })
+function onRealtimeAlerta() { void load() }
+
+onMounted(() => {
+  void load()
+  window.addEventListener('realtime:alerta', onRealtimeAlerta)
+})
+onBeforeUnmount(() => window.removeEventListener('realtime:alerta', onRealtimeAlerta))
 </script>
 
 <template>

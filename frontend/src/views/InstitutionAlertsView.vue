@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAuthStore } from '../stores/auth.store'
 import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
 
@@ -26,7 +26,17 @@ async function load() {
   }
 }
 
-onMounted(load)
+function onRealtimeAlerta() { void load() }
+
+onMounted(() => {
+  void load()
+  window.addEventListener('realtime:alerta', onRealtimeAlerta)
+  window.addEventListener('realtime:envio', onRealtimeAlerta)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('realtime:alerta', onRealtimeAlerta)
+  window.removeEventListener('realtime:envio', onRealtimeAlerta)
+})
 </script>
 
 <template>

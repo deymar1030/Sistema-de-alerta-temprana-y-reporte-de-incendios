@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -101,7 +101,13 @@ async function load() {
   }
 }
 
-onMounted(() => { void load() })
+function onRealtimeAlerta() { void load() }
+
+onMounted(() => {
+  void load()
+  window.addEventListener('realtime:alerta', onRealtimeAlerta)
+})
+onBeforeUnmount(() => window.removeEventListener('realtime:alerta', onRealtimeAlerta))
 </script>
 
 <template>

@@ -20,6 +20,8 @@ const selected = ref<string[]>([])
 const assigning = ref(false)
 const assignmentError = ref('')
 const assignmentSuccess = ref('')
+const dispatchBusy = ref(false)
+const dispatchError = ref('')
 const context = computed(() => `${auth.user?.id}:${institutionId.value}:${route.params.id}`)
 let generation = 0
 let personnelRequest = 0
@@ -35,6 +37,33 @@ const activeAlert = computed(() =>
   Boolean(alert.value && !['CERRADA', 'DESCARTADA', 'CANCELADA'].includes(alert.value.estado)),
 )
 const canAssign = computed(() => isHead.value && activeAlert.value && Boolean(myDelivery.value))
+
+// JEFE_INSTITUCION u OPERATIVO de esta misma institución pueden mover el
+// envío (ver AlertaController.autorizarInstitucion en el backend); no hace
+// falta ser jefe para esto, a diferencia de la asignación de personal.
+const siguienteAccionEnvio = computed<{ accion: 'recibir' | 'atender' | 'cerrar'; etiqueta: string } | null>(() => {
+  switch (myDelivery.value?.estado) {
+    case 'ENVIADA': return { accion: 'recibir', etiqueta: 'Marcar como recibida' }
+    case 'RECIBIDA': return { accion: 'atender', etiqueta: 'Marcar como atendida' }
+    case 'ATENDIDA': return { accion: 'cerrar', etiqueta: 'Cerrar envío' }
+    default: return null
+  }
+})
+
+async function avanzarEnvio() {
+  const siguiente = siguienteAccionEnvio.value
+  if (!siguiente || dispatchBusy.value || !alert.value || !institutionId.value) return
+  dispatchBusy.value = true
+  dispatchError.value = ''
+  try {
+    await backendAlertsService[siguiente.accion](String(alert.value.id_alerta), String(institutionId.value))
+    await load()
+  } catch (cause) {
+    dispatchError.value = cause instanceof Error ? cause.message : 'No se pudo actualizar el estado del envío.'
+  } finally {
+    dispatchBusy.value = false
+  }
+}
 
 function formatDate(date?: string | null): string {
   if (!date) return 'No registrada'
@@ -143,7 +172,29 @@ watch(context, () => {
   assigning.value = false
   void load()
 }, { immediate: true })
-onBeforeUnmount(() => { generation += 1; controller?.abort() })
+
+function perteneceAEstaAlerta(detail: unknown): boolean {
+  const payload = detail as { payload?: { id_alerta?: unknown }; id_alerta?: unknown } | undefined
+  const id = payload?.payload?.id_alerta ?? payload?.id_alerta
+  return id != null && String(id) === String(route.params.id)
+}
+
+function onRealtimeAlerta(event: Event) {
+  if (perteneceAEstaAlerta((event as CustomEvent).detail)) void load()
+}
+
+function onRealtimeEnvio(event: Event) {
+  if (perteneceAEstaAlerta((event as CustomEvent).detail)) void load()
+}
+
+window.addEventListener('realtime:alerta', onRealtimeAlerta)
+window.addEventListener('realtime:envio', onRealtimeEnvio)
+onBeforeUnmount(() => {
+  generation += 1
+  controller?.abort()
+  window.removeEventListener('realtime:alerta', onRealtimeAlerta)
+  window.removeEventListener('realtime:envio', onRealtimeEnvio)
+})
 </script>
 
 <template>
@@ -157,12 +208,16 @@ onBeforeUnmount(() => { generation += 1; controller?.abort() })
     <p v-if="error" role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">{{ error }}</p>
 
     <section v-if="alert && myDelivery" class="space-y-3 border-y border-slate-200 py-4">
-      <dl class="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+      <dl class="flex flex-wrap items-end gap-x-8 gap-y-3 text-sm">
         <div><dt class="text-xs font-semibold text-slate-600">Estado global</dt><dd class="mt-1 font-bold text-slate-900">{{ alert.estado }}</dd></div>
         <div><dt class="text-xs font-semibold text-slate-600">Mi institución</dt><dd class="mt-1 font-bold text-slate-900">{{ myDelivery.estado }}</dd></div>
         <div><dt class="text-xs font-semibold text-slate-600">Clasificación</dt><dd class="mt-1 font-bold text-slate-900">{{ alert.clasificacion ?? 'Sin clasificar' }}</dd></div>
+        <div v-if="siguienteAccionEnvio">
+          <button type="button" class="min-h-11 rounded-xl bg-orange-700 px-4 text-sm font-bold text-white hover:bg-orange-800 disabled:opacity-50" :disabled="dispatchBusy || loading" @click="avanzarEnvio">{{ dispatchBusy ? 'Actualizando...' : siguienteAccionEnvio.etiqueta }}</button>
+        </div>
         <div v-if="isHead && canAssign && !operativeLoading && !operativeError" class="xl:ml-auto"><dt class="text-xs font-semibold text-slate-600">Personal libre</dt><dd class="mt-1 font-bold text-slate-900">{{ operatives.filter(person => person.disponible).length }} de {{ operatives.length }} <a href="#alert-personnel" class="ml-3 font-semibold text-orange-800 underline xl:hidden">Ir a personal</a></dd></div>
       </dl>
+      <p v-if="dispatchError" role="alert" class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ dispatchError }}</p>
     </section>
 
     <div v-if="alert && myDelivery && isHead" class="grid items-start gap-5 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">

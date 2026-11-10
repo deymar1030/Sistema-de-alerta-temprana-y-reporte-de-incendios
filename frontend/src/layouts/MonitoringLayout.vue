@@ -34,6 +34,9 @@ import { useAuthStore } from '../stores/auth.store'
 import { useInstitutionStore } from '../stores/institution.store'
 import { useNotificationStore } from '../stores/notification.store'
 import { getRoleLabel, isWebUserRole, type WebUserRole } from '../types'
+import { connectRealtime, disconnectRealtime } from '../services/realtime.service'
+import type { NotificationItem } from '../services/notification.service'
+import { useToast } from '../composables/useToast'
 
 type NavItem = { label: string; to: string; icon: Component }
 
@@ -73,6 +76,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const institutionStore = useInstitutionStore()
 const notificationStore = useNotificationStore()
+const { showToast } = useToast()
 
 const sidebarOpen = ref(false)
 const collapsed = ref(false)
@@ -291,6 +295,44 @@ watch([collapsed, sidebarOpen], () => {
   resizeTimer = setTimeout(() => window.dispatchEvent(new Event('resize')), 320)
 })
 
+const ALERTA_TITULOS: Record<string, string> = {
+  'alerta:abierta': 'Nueva alerta en evaluación',
+  'alerta:actualizada': 'Alerta en evaluación actualizada',
+  'alerta:confirmada': 'Alerta CONFIRMADA',
+  'alerta:descartada': 'Alerta descartada',
+}
+
+function onAlertaEvento(evento: string) {
+  return (payload: Record<string, unknown>) => {
+    const nombrePredio = (payload?.predio as { nombre?: string } | undefined)?.nombre
+    showToast({
+      type: evento === 'alerta:confirmada' ? 'error' : evento === 'alerta:descartada' ? 'info' : 'warning',
+      title: ALERTA_TITULOS[evento] ?? 'Alerta',
+      description: nombrePredio ? `Predio: ${nombrePredio}` : undefined,
+    }, 6000)
+    // Las vistas de alertas escuchan este evento para refrescar su propia
+    // lista sin que este layout conozca sus funciones de carga internas.
+    window.dispatchEvent(new CustomEvent('realtime:alerta', { detail: { evento, payload } }))
+  }
+}
+
+function onNotificacionNueva(payload: NotificationItem) {
+  notificationStore.notifications.unshift(payload)
+  notificationStore.unreadCount += 1
+  showToast({
+    type: 'info',
+    title: typeof payload.titulo === 'string' ? payload.titulo : 'Nueva notificación',
+    description: typeof payload.mensaje === 'string' ? payload.mensaje : undefined,
+  }, 6000)
+}
+
+function onEnvioActualizado(payload: Record<string, unknown>) {
+  window.dispatchEvent(new CustomEvent('realtime:envio', { detail: payload }))
+}
+
+const ALERTA_EVENTOS = ['alerta:abierta', 'alerta:actualizada', 'alerta:confirmada', 'alerta:descartada'] as const
+const alertaHandlers = ALERTA_EVENTOS.map((evento) => [evento, onAlertaEvento(evento)] as const)
+
 onMounted(() => {
   clockTimer = setInterval(() => { now.value = new Date() }, 30_000)
   document.addEventListener('pointerdown', onDocumentPointerDown)
@@ -301,6 +343,11 @@ onMounted(() => {
       institutionStore.fetchInstitutions(),
       notificationStore.fetchNotifications(),
     ])
+
+    const socket = connectRealtime()
+    for (const [evento, handler] of alertaHandlers) socket.on(evento, handler)
+    socket.on('notificacion:nueva', onNotificacionNueva)
+    socket.on('notificacion:envio-actualizado', onEnvioActualizado)
   }
 })
 
@@ -310,6 +357,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   document.removeEventListener('keydown', onDocumentKeydown)
   if (bodyWasLocked) document.body.style.overflow = previousBodyOverflow
+  if (authStore.role !== 'AUDITOR') disconnectRealtime()
 })
 </script>
 

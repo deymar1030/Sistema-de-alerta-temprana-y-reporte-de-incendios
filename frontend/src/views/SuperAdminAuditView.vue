@@ -1,23 +1,10 @@
-<script setup lang="ts">
-const logs = [
-  { id: 'AUD-001', action: 'CREATE_USER', performedBy: 'USR-SA-001', targetRole: 'ADMIN', timestamp: '2026-10-11T10:00:00Z' },
-  { id: 'AUD-002', action: 'EDIT_USER', performedBy: 'USR-SA-001', targetRole: 'JEFE_INSTITUCION', timestamp: '2026-10-11T09:15:00Z' },
-  { id: 'AUD-003', action: 'DEACTIVATE_USER', performedBy: 'USR-SA-001', targetRole: 'CIUDADANO', timestamp: '2026-10-10T18:20:00Z' },
-]
-</script>
-
 <template>
-  <div class="space-y-6 p-6">
-    <h1 class="text-3xl font-bold text-slate-900">Auditoría</h1>
-    <div class="space-y-3">
-      <div v-for="log in logs" :key="log.id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="flex items-center justify-between">
-          <p class="font-bold text-slate-900">{{ log.action }}</p>
-          <span class="rounded-full bg-orange-100 px-2 py-1 text-[10px] font-bold uppercase text-orange-700">{{ log.targetRole }}</span>
-        </div>
-        <p class="mt-2 text-sm text-slate-600">Realizado por: {{ log.performedBy }}</p>
-        <p class="mt-1 text-xs text-slate-500">{{ new Date(log.timestamp).toLocaleString() }}</p>
-      </div>
-    </div>
-  </div>
+  <main class="al-modern-screen mx-auto max-w-[900px] space-y-5">
+    <header><p class="text-xs font-bold uppercase tracking-wider text-orange-600">Administración</p><h1 class="text-2xl font-extrabold text-slate-900">Auditoría</h1></header>
+    <section role="status" class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
+      El backend establece que <strong>GET /api/auditoria</strong> y <strong>GET /api/auditoria/usuarios</strong>
+      son exclusivos del rol <strong>AUDITOR</strong>, incluso para usuarios ADMIN devuelven HTTP 403.
+      Esta pantalla no inventa registros ni intenta eludir esa restricción.
+    </section>
+  </main>
 </template>

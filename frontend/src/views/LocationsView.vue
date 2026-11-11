@@ -231,7 +231,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6 p-6">
+  <div class="al-modern-screen space-y-6 p-6">
     <!-- CABECERA -->
     <section
       class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"

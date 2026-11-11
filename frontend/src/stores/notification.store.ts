@@ -48,14 +48,10 @@ export const useNotificationStore = defineStore(
       }
     }
 
-    const getMyNotifications = async (userId?: string) => {
+    // Las notificaciones devueltas por el backend ya están acotadas a la sesión.
+    const getMyNotifications = async (_userId?: string) => {
       await fetchNotifications()
-      if (!userId) {
-        return notifications.value
-      }
-      return notifications.value.filter((notification) =>
-        notification.userId === userId || notification.id_notificacion?.toString().startsWith(userId),
-      )
+      return notifications.value
     }
 
     const markAllAsRead = async () => {

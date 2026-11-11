@@ -9,13 +9,17 @@ export const CONFIGURACION_BASE = {
   evaluacionMinutos: 2,
   contextoMinutos: 5,
   esperaMinutos: 15,
+  // signo (direccion peligrosa de la variable) NO va aca: viene de
+  // parametro_variable.signo en la BD, por motor (ver mas abajo). No es
+  // hardcodeado porque, a diferencia de peso/bmax/madMin, un valor
+  // incorrecto en signo invierte silenciosamente que se considera "critico".
   variables: {
-    TEMPERATURA: { peso: 0.25, bmax: 10, madMin: 0.1, signo: 1, unidad: '°C' },
-    HUMEDAD: { peso: 0.20, bmax: 10, madMin: 0.5, signo: -1, unidad: '%' },
-    HUMO: { peso: 0.30, bmax: 100, madMin: 1, signo: 1, unidad: 'µg/m³' },
-    CO: { peso: 0.25, bmax: 50, madMin: 1, signo: 1, unidad: 'ppm' },
-    CO2: { peso: 0.30, bmax: 300, madMin: 15, signo: 1, unidad: 'ppm' },
-    GAS_LEL: { peso: 0.25, bmax: 5, madMin: 0.6, signo: 1, unidad: '%LEL' },
+    TEMPERATURA: { peso: 0.25, bmax: 10, madMin: 0.1, unidad: '°C' },
+    HUMEDAD: { peso: 0.20, bmax: 10, madMin: 0.5, unidad: '%' },
+    HUMO: { peso: 0.30, bmax: 100, madMin: 1, unidad: 'µg/m³' },
+    CO: { peso: 0.25, bmax: 50, madMin: 1, unidad: 'ppm' },
+    CO2: { peso: 0.30, bmax: 300, madMin: 15, unidad: 'ppm' },
+    GAS_LEL: { peso: 0.25, bmax: 5, madMin: 0.6, unidad: '%LEL' },
   },
   confirmacion: {
     variablesEvidencia: ['HUMO', 'CO'],
@@ -34,7 +38,10 @@ export function resolverConfiguracion(motor, personalizada = {}) {
     if (!base) continue;
     const p = { ...base, ...personalizada.variables?.[variable], ...especifica.variables?.[variable] };
     for (const clave of ['peso', 'bmax', 'madMin']) positivo(p[clave], `${variable}.${clave}`);
-    if (![1, -1].includes(p.signo)) throw new Error(`Signo invalido: ${variable}`);
+    // Sin signo configurado para este motor/variable, no se evalua (igual que
+    // umbral_critico nulo): nunca se inventa una direccion por defecto.
+    p.signo = fila.signo == null ? null : Number(fila.signo);
+    if (p.signo != null && ![1, -1].includes(p.signo)) throw new Error(`Signo invalido: ${variable}`);
     if (p.maxSaltoPorMinuto != null) positivo(p.maxSaltoPorMinuto, `${variable}.maxSaltoPorMinuto`);
     p.umbralCritico = fila.umbral_critico == null ? null : Number(fila.umbral_critico);
     if (p.umbralCritico != null) positivo(p.umbralCritico, `${variable}.umbralCritico`);
@@ -50,7 +57,8 @@ export function resolverConfiguracion(motor, personalizada = {}) {
       config.confirmacion.permitirGasesSimulados !== true) {
     throw new Error('Confirmacion con CO2/GAS_LEL requiere configuracion explicita validada');
   }
-  for (const clave of ['ventana_base_min', 'umbral_z', 'cusum_h', 'umbral_confirmacion', 'umbral_descarte', 'tiempo_max_evaluacion_min', 'radio_vecindad_m']) {
+  for (const clave of ['ventana_base_min', 'umbral_z', 'cusum_h', 'umbral_confirmacion', 'umbral_descarte',
+    'tiempo_max_evaluacion_min', 'radio_vecindad_m', 'ventana_correccion_min']) {
     positivo(Number(motor[clave]), clave);
   }
   if (Number(motor.umbral_descarte) >= Number(motor.umbral_confirmacion) || Number(motor.umbral_confirmacion) > 1) {

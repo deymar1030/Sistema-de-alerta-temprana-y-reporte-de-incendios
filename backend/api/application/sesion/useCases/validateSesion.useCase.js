@@ -6,7 +6,10 @@ export default class ValidateSesionUseCase {
     this.sesionRepository = sesionRepository;
   }
 
-  async execute(token) {
+  // permitirMfaPendiente: solo lo pasan las rutas /auth/mfa/* (ver
+  // requireAuth.middleware.js), que son las unicas que deben aceptar una
+  // sesion todavia no confirmada por el segundo factor.
+  async execute(token, { permitirMfaPendiente = false } = {}) {
     if (!token) throw AuthErrors.unauthenticated();
 
     const sesion = await this.sesionRepository.findByTokenHash(SessionToken.hash(token));
@@ -16,6 +19,14 @@ export default class ValidateSesionUseCase {
 
     const { usuario, ...datosSesion } = sesion;
     if (!usuario.estado || usuario.fecha_eliminacion) throw AuthErrors.unauthenticated();
+    if (usuario.bloqueado_hasta && usuario.bloqueado_hasta > new Date()) {
+      throw AuthErrors.cuentaBloqueada();
+    }
+
+    if (Boolean(datosSesion.mfa_pendiente) !== permitirMfaPendiente) {
+      throw AuthErrors.unauthenticated();
+    }
+
     return { sesion: datosSesion, usuario };
   }
 }

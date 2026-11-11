@@ -22,4 +22,12 @@ export default class SesionRepository {
   async purgeAntiguas(id_usuario, limite) {
     throw new Error("Method not implemented");
   }
+
+  async revokeAllByUsuario(id_usuario) {
+    throw new Error("Method not implemented");
+  }
+
+  async confirmarMfa(id_sesion, expira_en) {
+    throw new Error("Method not implemented");
+  }
 }

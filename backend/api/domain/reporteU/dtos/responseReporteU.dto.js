@@ -11,6 +11,7 @@ export class ResponseReporteUDTO {
     longitud,
     indicador,
     foto_url,
+    ubicacion_tipo,
     alerta_vinculada = null,
   }) {
     this.id_reporte_u = id_reporte_u;
@@ -24,6 +25,7 @@ export class ResponseReporteUDTO {
     this.longitud = longitud;
     this.indicador = indicador;
     this.foto_url = foto_url;
+    this.ubicacion_tipo = ubicacion_tipo;
     this.alerta_vinculada = alerta_vinculada;
   }
 
@@ -40,7 +42,8 @@ export class ResponseReporteUDTO {
       longitud: reporteU.longitud === null || reporteU.longitud === undefined ? null : Number(reporteU.longitud),
       indicador: reporteU.indicador,
       foto_url: reporteU.foto_url,
-      alerta_vinculada,
+      ubicacion_tipo: reporteU.ubicacion_tipo,
+      alerta_vinculada: alerta_vinculada ?? reporteU.alerta_vinculada ?? null,
     });
   }
 }

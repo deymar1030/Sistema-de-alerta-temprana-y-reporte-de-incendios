@@ -1,4 +1,7 @@
 import { rooms } from "./rooms.js";
+import { RolNombres } from "../api/domain/rol/rolNombres.js";
+
+const ROLES_CHAT = [RolNombres.JEFE_INSTITUCION, RolNombres.OPERATIVO];
 
 export function registerConnectionManager(io, { validateSesion, existeRecurso }) {
   io.on("connection", (socket) => {
@@ -7,6 +10,13 @@ export function registerConnectionManager(io, { validateSesion, existeRecurso })
     socket.join(rooms.usuario(usuario.id_usuario));
     if (usuario.id_institucion) {
       socket.join(rooms.institucion(usuario.id_institucion));
+    }
+    // Chat de coordinacion: solo jefes/operativos de institucion, que son
+    // quienes lo usan (ver chatRoter/routes.js). El canal de categoria
+    // depende de la institucion del usuario, ya viaja en la sesion.
+    if (ROLES_CHAT.includes(usuario.rol?.nombre_rol) && usuario.institucion?.categoria) {
+      socket.join(rooms.chatGlobal());
+      socket.join(rooms.chatCategoria(usuario.institucion.categoria));
     }
     const suscripciones = new Set();
     let validando = false;

@@ -3,6 +3,7 @@ import { SesionMapper } from "../../../domain/sesion/mappers/sesion.mapper.js";
 import { AuthError } from "../../../domain/auth/errors/authError.js";
 import { Validators } from "../../../config/validators.js";
 import { SessionCookie } from "../../../config/sessionCookie.js";
+import { MFA_PENDIENTE_TTL_MS } from "../../../config/mfaPendiente.js";
 
 function handleError(res, error) {
   if (error instanceof AuthError) {
@@ -24,13 +25,37 @@ export class AuthController {
 
   login = async (req, res) => {
     try {
-      const { usuario, token } = await this.authService.login(
+      const { usuario, token, mfa } = await this.authService.login(
         { correo: req.body?.correo, contrasena: req.body?.contrasena },
         SessionCookie.read(req)
       );
 
-      SessionCookie.set(res, token);
+      if (mfa) {
+        SessionCookie.set(res, token, MFA_PENDIENTE_TTL_MS);
+        return res.json({ success: true, data: null, mfa: { estado: mfa } });
+      }
 
+      SessionCookie.set(res, token);
+      res.json({ success: true, data: UsuarioMapper.toResponseDTO(usuario) });
+    } catch (error) {
+      handleError(res, error);
+    }
+  };
+
+  configurarMfa = async (req, res) => {
+    try {
+      const { secreto, uri } = await this.authService.configurarMfa(req.auth.usuario);
+      res.json({ success: true, data: { secreto, uri } });
+    } catch (error) {
+      handleError(res, error);
+    }
+  };
+
+  verificarMfa = async (req, res) => {
+    try {
+      const usuario = await this.authService.verificarMfa(req.auth, req.body?.codigo);
+
+      SessionCookie.set(res, SessionCookie.read(req));
       res.json({ success: true, data: UsuarioMapper.toResponseDTO(usuario) });
     } catch (error) {
       handleError(res, error);

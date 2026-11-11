@@ -29,4 +29,11 @@ export const AuthErrors = {
       status: 403,
       code: "CUENTA_DESACTIVADA",
     }),
+  cuentaBloqueada: () =>
+    new AuthError(
+      "Esta cuenta está bloqueada temporalmente por demasiados intentos fallidos. Intenta más tarde",
+      { status: 403, code: "CUENTA_BLOQUEADA" }
+    ),
+  mfaInvalido: () =>
+    new AuthError("Código de verificación inválido", { status: 401, code: "MFA_INVALIDO" }),
 };

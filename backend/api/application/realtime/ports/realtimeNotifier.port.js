@@ -24,4 +24,8 @@ export class RealtimeNotifierPort {
   async emitNotificacion(notificacion) {
     throw new Error("Method not implemented");
   }
+
+  async emitMensajeChat(mensaje) {
+    throw new Error("Method not implemented");
+  }
 }

@@ -28,6 +28,7 @@ export class ResponseMotorDetDTO {
     umbral_descarte,
     tiempo_max_evaluacion_min,
     radio_vecindad_m,
+    ventana_correccion_min,
     parametro_variable = undefined,
   }) {
     this.id_motordet = id_motordet;
@@ -38,6 +39,7 @@ export class ResponseMotorDetDTO {
     this.umbral_descarte = umbral_descarte;
     this.tiempo_max_evaluacion_min = tiempo_max_evaluacion_min;
     this.radio_vecindad_m = radio_vecindad_m;
+    this.ventana_correccion_min = ventana_correccion_min;
     if (parametro_variable !== undefined) this.parametro_variable = parametro_variable;
   }
 
@@ -51,6 +53,7 @@ export class ResponseMotorDetDTO {
       umbral_descarte: toNumber(motorDet.umbral_descarte),
       tiempo_max_evaluacion_min: motorDet.tiempo_max_evaluacion_min,
       radio_vecindad_m: motorDet.radio_vecindad_m,
+      ventana_correccion_min: motorDet.ventana_correccion_min,
       parametro_variable: motorDet.parametro_variable
         ? motorDet.parametro_variable.map((p) => ResponseParametroVariableDTO.fromEntity(p))
         : undefined,

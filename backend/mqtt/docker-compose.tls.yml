@@ -1,7 +1,16 @@
 services:
   mosquitto:
+    image: iegomez/mosquitto-go-auth:3.0.0-mosquitto_2.0.18
     ports: !override
       - "${MQTT_BIND_ADDRESS:-127.0.0.1}:${MQTT_TLS_PORT:-8883}:8883"
-    volumes:
-      - ./mosquitto.tls.conf:/mosquitto/config/mosquitto.conf:ro
+    volumes: !override
+      - ./runtime/mosquitto.tls.generado.conf:/etc/mosquitto/mosquitto.conf:ro
       - ./runtime/certs:/mosquitto/certs:ro
+      - mosquitto_tls_data:/var/lib/mosquitto
+    # El broker corre en Docker pero el backend corre directo en el VPS
+    # (no containerizado); host-gateway permite alcanzarlo para /internal/mqtt/*.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  mosquitto_tls_data:

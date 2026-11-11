@@ -1,8 +1,12 @@
 import { CreateInformeAtencionDTO } from "../../../domain/informeAtencion/dtos/createInformeAtencion.dto.js";
+import { notificarCierreAlerta } from "../notificarCierreAlerta.js";
 
 export default class CreateInformeAtencionUseCase {
-  constructor(informeAtencionRepository) {
+  constructor({ informeAtencionRepository, reporteURepository, notificacionRepository, realtimeNotifier }) {
     this.informeAtencionRepository = informeAtencionRepository;
+    this.reporteURepository = reporteURepository;
+    this.notificacionRepository = notificacionRepository;
+    this.realtimeNotifier = realtimeNotifier;
   }
 
   async execute(informeData) {
@@ -10,6 +14,10 @@ export default class CreateInformeAtencionUseCase {
     if (errors.length > 0) throw new Error(`Validation errors: ${errors.join(", ")}`);
 
     const informeDTO = new CreateInformeAtencionDTO(informeData);
-    return await this.informeAtencionRepository.create(informeDTO);
+    // Crea en una sola transaccion y, si nace ya COMPLETADO, cierra la
+    // alerta (ver cerrarAlertaPorInforme en el repositorio).
+    const { informe, alerta_actualizada } = await this.informeAtencionRepository.crearYEvaluarCierre(informeDTO);
+    await notificarCierreAlerta(alerta_actualizada, this);
+    return informe;
   }
 }

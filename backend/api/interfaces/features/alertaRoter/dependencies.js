@@ -5,6 +5,7 @@ import PrismaAlertaRepository from "../../../infrastructure/features/alerta/repo
 import PrismaEnviaRepository from "../../../infrastructure/features/envia/repositories/envia.repository.impl.js";
 import GetAllAlertaUseCase from "../../../application/alerta/useCases/getAllAlerta.useCase.js";
 import GetActivasAlertaUseCase from "../../../application/alerta/useCases/getActivasAlerta.useCase.js";
+import GetMapaAlertaUseCase from "../../../application/alerta/useCases/getMapaAlerta.useCase.js";
 import GetAlertaUseCase from "../../../application/alerta/useCases/getAlerta.useCase.js";
 import RecibirEnvioUseCase from "../../../application/envia/useCases/recibirEnvio.useCase.js";
 import AtenderEnvioUseCase from "../../../application/envia/useCases/atenderEnvio.useCase.js";
@@ -20,6 +21,7 @@ export class AlertaDependencies {
       realtimeNotifier: new RegistryRealtimeNotifier(),
       getAllAlertaUseCase: new GetAllAlertaUseCase(alertaRepository),
       getActivasAlertaUseCase: new GetActivasAlertaUseCase(alertaRepository),
+      getMapaAlertaUseCase: new GetMapaAlertaUseCase(alertaRepository),
       getAlertaUseCase: new GetAlertaUseCase(alertaRepository),
       recibirEnvioUseCase: new RecibirEnvioUseCase(enviaRepository),
       atenderEnvioUseCase: new AtenderEnvioUseCase(enviaRepository),

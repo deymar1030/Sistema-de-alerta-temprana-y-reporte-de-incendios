@@ -9,6 +9,7 @@ export class AuthRouter {
 
     const authController = AuthDependencies.createController();
     const requireAuth = AuthDependencies.createRequireAuth();
+    const requireMfaPendiente = AuthDependencies.createRequireMfaPendiente();
 
     router.use((req, res, next) => {
       res.set("Cache-Control", "no-store");
@@ -17,6 +18,14 @@ export class AuthRouter {
 
     router.post("/register", originGuard, authController.register);
     router.post("/login", originGuard, loginRateLimit, authController.login);
+    router.post("/mfa/configurar", originGuard, requireMfaPendiente, authController.configurarMfa);
+    router.post(
+      "/mfa/verificar",
+      originGuard,
+      loginRateLimit,
+      requireMfaPendiente,
+      authController.verificarMfa
+    );
     router.post("/logout", requireAuth, authController.logout);
     router.get("/me", requireAuth, authController.me);
     router.get("/sesiones", requireAuth, authController.listSesiones);

@@ -1,4 +1,5 @@
 import { Validators } from "../../../config/validators.js";
+import { DISPONIBILIDAD_OPERATIVA } from "./updateDisponibilidadInstitucion.dto.js";
 
 const CATEGORIAS = ["BOMBEROS", "POLICIA", "DEFENSA_CIVIL", "RESCATE", "OTRA"];
 
@@ -7,7 +8,7 @@ export class UpdateInstitucionDTO {
     Object.assign(this, data);
   }
 
-  static validate(id, { categoria, latitud, longitud }) {
+  static validate(id, { categoria, latitud, longitud, disponibilidad_operativa }) {
     const errors = [];
 
     if (!Validators.isValidId(id)) errors.push("ID not valid");
@@ -16,6 +17,9 @@ export class UpdateInstitucionDTO {
     }
     if (latitud != null && (latitud < -90 || latitud > 90)) errors.push("latitud must be between -90 and 90");
     if (longitud != null && (longitud < -180 || longitud > 180)) errors.push("longitud must be between -180 and 180");
+    if (disponibilidad_operativa !== undefined && !DISPONIBILIDAD_OPERATIVA.includes(disponibilidad_operativa)) {
+      errors.push(`disponibilidad_operativa must be one of: ${DISPONIBILIDAD_OPERATIVA.join(", ")}`);
+    }
 
     return errors;
   }

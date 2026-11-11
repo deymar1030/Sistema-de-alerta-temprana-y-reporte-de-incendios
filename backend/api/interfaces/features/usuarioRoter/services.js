@@ -17,8 +17,8 @@ export class UsuarioService {
     this.getOperativosInstitucionUseCase = getOperativosInstitucionUseCase;
   }
 
-  async create(usuarioData) {
-    return await this.createUsuarioUseCase.execute(usuarioData);
+  async create(usuarioData, id_usuario_actor, ip_origen) {
+    return await this.createUsuarioUseCase.execute(usuarioData, id_usuario_actor, ip_origen);
   }
 
   async getAll(filters) {
@@ -29,16 +29,16 @@ export class UsuarioService {
     return await this.getUsuarioUseCase.execute(id);
   }
 
-  async update(id, usuarioData) {
-    return await this.updateUsuarioUseCase.execute(id, usuarioData);
+  async update(id, usuarioData, id_usuario_actor, ip_origen) {
+    return await this.updateUsuarioUseCase.execute(id, usuarioData, id_usuario_actor, ip_origen);
   }
 
-  async desactivar(id) {
-    return await this.desactivarUsuarioUseCase.execute(id);
+  async desactivar(id, id_usuario_actor, ip_origen) {
+    return await this.desactivarUsuarioUseCase.execute(id, id_usuario_actor, ip_origen);
   }
 
-  async reactivar(id) {
-    return await this.reactivarUsuarioUseCase.execute(id);
+  async reactivar(id, id_usuario_actor, ip_origen) {
+    return await this.reactivarUsuarioUseCase.execute(id, id_usuario_actor, ip_origen);
   }
 
   async getOperativosInstitucion(id_institucion) {

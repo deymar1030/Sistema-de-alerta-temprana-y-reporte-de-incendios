@@ -7,14 +7,14 @@ import { isOriginAllowed, forbiddenOrigin } from "./originGuard.middleware.js";
 //   req.auth.sesion  -> la sesion actual
 // Autorizacion (roles/permisos) se agregara despues como otro middleware que
 // lea req.auth.usuario; este no decide que puede hacer el usuario.
-export function createRequireAuth(validateSesionUseCase) {
+export function createRequireAuth(validateSesionUseCase, options = {}) {
   return async (req, res, next) => {
     if (!isOriginAllowed(req)) return forbiddenOrigin(res);
 
     const token = SessionCookie.read(req);
 
     try {
-      const { sesion, usuario } = await validateSesionUseCase.execute(token);
+      const { sesion, usuario } = await validateSesionUseCase.execute(token, options);
       req.auth = { sesion, usuario };
       next();
     } catch (error) {

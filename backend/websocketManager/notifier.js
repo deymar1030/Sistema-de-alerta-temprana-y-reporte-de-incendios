@@ -37,4 +37,9 @@ export class SocketIoRealtimeNotifier extends RealtimeNotifierPort {
   async emitNotificacion(notificacion) {
     this.io.to(rooms.usuario(notificacion.id_usuario)).emit("notificacion:nueva", notificacion);
   }
+
+  async emitMensajeChat(mensaje) {
+    const room = mensaje.tipo_canal === "CATEGORIA" ? rooms.chatCategoria(mensaje.categoria) : rooms.chatGlobal();
+    this.io.to(room).emit("chat:mensaje-nuevo", mensaje);
+  }
 }

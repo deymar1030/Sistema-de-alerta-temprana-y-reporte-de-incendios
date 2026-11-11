@@ -1,5 +1,4 @@
 import { InstitucionMapper } from "../../../domain/institucion/mappers/institucion.mapper.js";
-import { ZonaGeograficaMapper } from "../../../domain/zonaGeografica/mappers/zonaGeografica.mapper.js";
 
 function mapInstitucionCreateRequest(body) {
   return {
@@ -125,29 +124,17 @@ export class InstitucionController {
     }
   };
 
-  listJurisdicciones = async (req, res) => {
+  updateDisponibilidad = async (req, res) => {
     try {
-      const zonas = await this.institucionService.getJurisdicciones(req.params.id);
+      const result = await this.institucionService.updateDisponibilidad(
+        req.params.id,
+        { disponibilidad_operativa: req.body.disponibilidad_operativa },
+        req.auth.usuario
+      );
 
       res.json({
         success: true,
-        data: ZonaGeograficaMapper.toResponseDTOArray(zonas),
-      });
-    } catch (error) {
-      res.status(404).json({
-        success: false,
-        error: error.message,
-      });
-    }
-  };
-
-  addJurisdiccion = async (req, res) => {
-    try {
-      const vinculo = await this.institucionService.addJurisdiccion(req.params.id, req.body.id_zona);
-
-      res.status(201).json({
-        success: true,
-        data: { id_zona: vinculo.id_zona, id_institucion: vinculo.id_institucion },
+        data: InstitucionMapper.toResponseDTO(result),
       });
     } catch (error) {
       res.status(400).json({
@@ -157,19 +144,4 @@ export class InstitucionController {
     }
   };
 
-  removeJurisdiccion = async (req, res) => {
-    try {
-      await this.institucionService.removeJurisdiccion(req.params.id, req.params.id_zona);
-
-      res.json({
-        success: true,
-        data: null,
-      });
-    } catch (error) {
-      res.status(400).json({
-        success: false,
-        error: error.message,
-      });
-    }
-  };
 }

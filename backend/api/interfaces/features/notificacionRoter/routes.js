@@ -18,6 +18,11 @@ export class NotificacionRouter {
       requireRole(RolNombres.JEFE_INSTITUCION),
       notificacionController.asignarAlerta
     );
+    router.get(
+      "/asignaciones",
+      requireRole(RolNombres.OPERATIVO),
+      notificacionController.misAsignaciones
+    );
 
     return router;
   }

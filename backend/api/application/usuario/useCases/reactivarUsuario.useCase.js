@@ -5,7 +5,7 @@ export default class ReactivarUsuarioUseCase {
     this.usuarioRepository = usuarioRepository;
   }
 
-  async execute(id) {
+  async execute(id, id_usuario_actor = null, ip_origen = null) {
     if (!Validators.isValidId(id)) {
       throw new Error("Validation errors: ID not valid");
     }
@@ -15,6 +15,6 @@ export default class ReactivarUsuarioUseCase {
       throw new Error("Usuario not found");
     }
 
-    return await this.usuarioRepository.reactivar(id);
+    return await this.usuarioRepository.reactivar(id, id_usuario_actor, ip_origen);
   }
 }

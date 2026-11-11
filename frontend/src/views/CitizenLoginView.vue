@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
+import { homeForRole } from '../utils/auth-navigation'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -16,8 +17,10 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    await authStore.login(email.value, password.value)
-    await router.push('/ciudadano/inicio')
+    const user = await authStore.login(email.value, password.value)
+    password.value = ''
+    if (authStore.mfaPending) await router.replace('/mfa')
+    else if (user) await router.push(homeForRole(user.role ?? user.rol))
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Correo o contraseña incorrectos'
   } finally {

@@ -6,6 +6,8 @@ export class AuthService {
     validateSesionUseCase,
     revokeSesionUseCase,
     getSesionesActivasUseCase,
+    iniciarMfaUseCase,
+    verificarMfaUseCase,
   }) {
     this.authenticateUseCase = authenticateUseCase;
     this.registerUseCase = registerUseCase;
@@ -13,6 +15,8 @@ export class AuthService {
     this.validateSesionUseCase = validateSesionUseCase;
     this.revokeSesionUseCase = revokeSesionUseCase;
     this.getSesionesActivasUseCase = getSesionesActivasUseCase;
+    this.iniciarMfaUseCase = iniciarMfaUseCase;
+    this.verificarMfaUseCase = verificarMfaUseCase;
   }
 
   async register(data) {
@@ -24,11 +28,36 @@ export class AuthService {
 
     await this.#descartarSesionAnterior(tokenAnterior);
 
+    // rol.mfa_obligatorio: la cuenta no recibe una sesion completa todavia,
+    // solo una "pendiente de MFA" (ver createSesion.useCase.js) hasta que
+    // pase por /auth/mfa/configurar o /auth/mfa/verificar.
+    if (usuario.rol?.mfa_obligatorio) {
+      const { token } = await this.createSesionUseCase.execute({
+        id_usuario: usuario.id_usuario,
+        mfaPendiente: true,
+      });
+
+      return {
+        usuario: null,
+        token,
+        mfa: usuario.mfa_habilitado ? "VERIFICACION_REQUERIDA" : "CONFIGURACION_REQUERIDA",
+      };
+    }
+
     const { token } = await this.createSesionUseCase.execute({
       id_usuario: usuario.id_usuario,
     });
 
-    return { usuario, token };
+    return { usuario, token, mfa: null };
+  }
+
+  async configurarMfa(usuario) {
+    return await this.iniciarMfaUseCase.execute(usuario);
+  }
+
+  async verificarMfa({ usuario, sesion }, codigo) {
+    await this.verificarMfaUseCase.execute({ usuario, sesion, codigo });
+    return usuario;
   }
 
   async logout({ sesion, usuario }) {

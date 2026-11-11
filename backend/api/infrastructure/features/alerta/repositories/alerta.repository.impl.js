@@ -5,7 +5,12 @@ const ESTADOS_ACTIVOS = ["EN_EVALUACION", "CONFIRMADA", "ATENDIDA"];
 function buildWhere(filters = {}) {
   const where = {};
 
+  // Sin filtro de estado explicito, se oculta DESCARTADA por defecto: una
+  // alerta descartada ya no es accionable y solo genera ruido visual en las
+  // listas/dashboards. Quien necesite verlas (ej. auditoria) debe pedirlas
+  // con ?estado=DESCARTADA explicitamente.
   if (filters.estado) where.estado = filters.estado;
+  else where.estado = { not: "DESCARTADA" };
   if (filters.clasificacion) where.clasificacion = filters.clasificacion;
   if (filters.id_zona) where.lectura = { some: { sensor: { predio: { id_zona: Number(filters.id_zona) } } } };
   if (filters.id_institucion) where.envia = { some: { id_institucion: Number(filters.id_institucion) } };
@@ -19,6 +24,17 @@ function buildWhere(filters = {}) {
   return where;
 }
 
+// Cuando el llamador filtra por su propia institucion, trae tambien SU fila
+// de `envia` (ENVIADA/RECIBIDA/ATENDIDA/CERRADA): es el estado operativo real
+// para esa institucion, distinto del estado global de la alerta (compartido
+// por todas las instituciones notificadas). Sin esto, el movil no tiene forma
+// de saber si YA confirmo recepcion sin pedir el detalle alerta por alerta.
+function includeMiEnvio(filters) {
+  return filters.id_institucion
+    ? { envia: { where: { id_institucion: Number(filters.id_institucion) }, take: 1 } }
+    : undefined;
+}
+
 export default class PrismaAlertaRepository extends AlertaRepository {
   constructor(prisma) {
     super();
@@ -29,6 +45,7 @@ export default class PrismaAlertaRepository extends AlertaRepository {
     return await this.prisma.alerta.findMany({
       where: buildWhere(filters),
       orderBy: [{ fecha: "desc" }, { hora: "desc" }],
+      include: includeMiEnvio(filters),
     });
   }
 
@@ -39,11 +56,33 @@ export default class PrismaAlertaRepository extends AlertaRepository {
     return await this.prisma.alerta.findMany({
       where,
       orderBy: [{ fecha: "desc" }, { hora: "desc" }],
+      include: includeMiEnvio(filters),
     });
   }
 
   async findById(id) {
     return await this.prisma.alerta.findUnique({ where: { id_alerta: id } });
+  }
+
+  async findMapa(filters) {
+    const where = buildWhere(filters);
+    where.estado = { in: ESTADOS_ACTIVOS };
+
+    return await this.prisma.alerta.findMany({
+      where,
+      orderBy: [{ fecha: "desc" }, { hora: "desc" }],
+      include: {
+        lectura: {
+          take: 1,
+          include: { sensor: { include: { predio: true } } },
+        },
+        genera_ru: {
+          take: 1,
+          include: { reporte_u: true },
+        },
+        ...includeMiEnvio(filters),
+      },
+    });
   }
 
   async findLecturasByAlerta(id_alerta) {

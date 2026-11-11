@@ -44,6 +44,10 @@
  *         radio_vecindad_m:
  *           type: integer
  *           example: 500
+ *         ventana_correccion_min:
+ *           type: integer
+ *           example: 5
+ *           description: Minutos tras la primera lectura critica con respaldo durante los que la alerta puede corregirse sola antes de quedar CONFIRMADA en firme.
  *         parametro_variable:
  *           type: array
  *           items:

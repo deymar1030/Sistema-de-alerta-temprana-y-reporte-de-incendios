@@ -1,15 +1,32 @@
 import { UpdateInformeAtencionDTO } from "../../../domain/informeAtencion/dtos/updateInformeAtencion.dto.js";
+import { notificarCierreAlerta } from "../notificarCierreAlerta.js";
 
 export default class UpdateInformeAtencionUseCase {
-  constructor(informeAtencionRepository) {
+  constructor({ informeAtencionRepository, reporteURepository, notificacionRepository, realtimeNotifier }) {
     this.informeAtencionRepository = informeAtencionRepository;
+    this.reporteURepository = reporteURepository;
+    this.notificacionRepository = notificacionRepository;
+    this.realtimeNotifier = realtimeNotifier;
   }
 
-  async execute(id, informeData) {
+  async execute(id, informeData, usuario) {
     const errors = UpdateInformeAtencionDTO.validate(id, informeData);
     if (errors.length > 0) throw new Error(`Validation errors: ${errors.join(", ")}`);
 
+    const existing = await this.informeAtencionRepository.findById(Number(id));
+    if (!existing) throw new Error("Informe de atencion not found");
+    if (usuario && String(existing.id_institucion) !== String(usuario.id_institucion)) {
+      throw new Error("No puedes modificar un informe de otra institucion");
+    }
+
     const informeDTO = new UpdateInformeAtencionDTO(informeData);
-    return await this.informeAtencionRepository.update(Number(id), informeDTO);
+    // Solo la transicion a COMPLETADO cierra la alerta; pedirlo de nuevo
+    // sobre un informe ya COMPLETADO es idempotente (no la reabre).
+    const { informe, alerta_actualizada } = await this.informeAtencionRepository.actualizarYEvaluarCierre(Number(id), informeDTO, {
+      id_alerta: existing.id_alerta,
+      yaCompletado: existing.estado === "COMPLETADO",
+    });
+    await notificarCierreAlerta(alerta_actualizada, this);
+    return informe;
   }
 }

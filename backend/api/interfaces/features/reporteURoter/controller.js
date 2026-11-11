@@ -10,6 +10,7 @@ function mapReporteURequest(body) {
     longitud: body.longitud ?? null,
     indicador: body.indicador ?? null,
     foto_url: body.foto_url ?? null,
+    ubicacion_tipo: body.ubicacion_tipo ?? null,
   };
 }
 
@@ -20,7 +21,7 @@ export class ReporteUController {
 
   create = async (req, res) => {
     try {
-      const reporteUData = mapReporteURequest(req.body);
+      const reporteUData = mapReporteURequest({ ...req.body, id_usuario: req.auth.usuario.id_usuario });
       const result = await this.reporteUService.create(reporteUData);
       res.status(201).json({ success: true, data: ReporteUMapper.toResponseDTO(result) });
     } catch (error) {
@@ -30,7 +31,9 @@ export class ReporteUController {
 
   list = async (req, res) => {
     try {
-      const { id_usuario, nivel_prioridad, estado, desde, hasta } = req.query;
+      const { nivel_prioridad, estado, desde, hasta } = req.query;
+      const id_usuario = req.auth.usuario.rol?.nombre_rol === 'CIUDADANO'
+        ? req.auth.usuario.id_usuario : req.query.id_usuario;
       const reportes = await this.reporteUService.getAll({ id_usuario, nivel_prioridad, estado, desde, hasta });
       res.json({ success: true, data: ReporteUMapper.toResponseDTOArray(reportes) });
     } catch (error) {
@@ -41,6 +44,9 @@ export class ReporteUController {
   getById = async (req, res) => {
     try {
       const { reporteU, alerta_vinculada } = await this.reporteUService.getById(req.params.id);
+      if (req.auth.usuario.rol?.nombre_rol === 'CIUDADANO' && String(reporteU.id_usuario) !== String(req.auth.usuario.id_usuario)) {
+        return res.status(404).json({ success: false, error: 'Reporte no encontrado' });
+      }
       res.json({ success: true, data: ReporteUMapper.toResponseDTO(reporteU, alerta_vinculada) });
     } catch (error) {
       res.status(404).json({ success: false, error: error.message });

@@ -18,6 +18,7 @@ export default class PrismaReporteURepository extends ReporteURepository {
         longitud: reporteUData.longitud,
         indicador: reporteUData.indicador,
         foto_url: reporteUData.foto_url,
+        ubicacion_tipo: reporteUData.ubicacion_tipo,
       },
     });
   }
@@ -29,7 +30,7 @@ export default class PrismaReporteURepository extends ReporteURepository {
   }
 
   async findAlertaVinculada(id_reporte_u) {
-    const vinculo = await this.prisma.generaru.findFirst({
+    const vinculo = await this.prisma.genera_ru.findFirst({
       where: { id_reporte_u: Number(id_reporte_u) },
       include: { alerta: true },
     });
@@ -66,10 +67,22 @@ export default class PrismaReporteURepository extends ReporteURepository {
   }
 
   async vincularAlerta(id, id_alerta) {
-    await this.prisma.generaru.create({
+    await this.prisma.genera_ru.create({
       data: { id_reporte_u: Number(id), id_alerta: Number(id_alerta) },
     });
 
     return { id_alerta: Number(id_alerta), id_reporte_u: Number(id) };
+  }
+
+  // Quienes reportaron esta alerta (puede ser mas de uno si varios
+  // ciudadanos corroboraron el mismo incendio). Un mismo ciudadano no se
+  // repite aunque haya mandado mas de un reporte vinculado.
+  async findCiudadanosByAlerta(id_alerta) {
+    const vinculos = await this.prisma.genera_ru.findMany({
+      where: { id_alerta: Number(id_alerta) },
+      select: { reporte_u: { select: { id_usuario: true } } },
+    });
+
+    return [...new Set(vinculos.map((v) => v.reporte_u.id_usuario))];
   }
 }

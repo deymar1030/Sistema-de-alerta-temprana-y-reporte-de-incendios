@@ -1,4 +1,4 @@
-import { filtroHampel, cusum, theilSen, contrasteVecinos, puntajeAlerta, clasificarAlerta } from './index.js';
+import { filtroHampel, cusum, theilSen, contrasteVecinos, puntajeAlerta, clasificarAlerta, ventanaCorregida } from './index.js';
 import { normalizarVariable } from '../sensor/tiposSensor.js';
 
 export function inicioAlerta(alerta) {
@@ -19,7 +19,9 @@ function senalSensor(sensor, motor, config, ahora) {
     .sort((a, b) => +a.fecha_hora - +b.fecha_hora);
   const actual = registros.at(-1);
   const fresca = actual && +ahora - +actual.fecha_hora <= config.frescuraSegundos * 1000;
-  if (!p || !fresca) return { id_sensor: sensor.id_sensor, variable, fresca: false, anomala: false, z: null, b: null, zrob: null };
+  // Sin signo configurado para esta variable/motor, no hay direccion definida
+  // para interpretarla: se ignora en vez de asumir una por defecto.
+  if (!p || p.signo == null || !fresca) return { id_sensor: sensor.id_sensor, variable, fresca: false, anomala: false, z: null, b: null, zrob: null };
   const referencia = registros.filter((l) => l.estado_lectura === 'VALIDA' && l.id_alerta == null &&
     +l.fecha_hora < +actual.fecha_hora && +l.fecha_hora >= +ahora - Number(motor.ventana_base_min) * 60000);
   const valores = referencia.length >= config.minLecturasBase ? referencia.map((l) => Number(l.valor) * p.signo) : [];
@@ -34,8 +36,11 @@ function senalSensor(sensor, motor, config, ahora) {
   const previo = registros.at(-2);
   const salto = previo && +actual.fecha_hora > +previo.fecha_hora
     ? Math.abs(Number(actual.valor) - Number(previo.valor)) * 60000 / (+actual.fecha_hora - +previo.fecha_hora) : 0;
-  const critico = p.umbralCritico != null && Number(actual.valor) >= p.umbralCritico;
-  const respaldo = critico && previo && +ahora - +previo.fecha_hora <= config.frescuraSegundos * 1000 && Number(previo.valor) >= p.umbralCritico;
+  // signo invierte la comparacion para variables cuya direccion peligrosa es
+  // bajar (ej. HUMEDAD): con signo=-1, "critico" pasa a ser valor <= umbral.
+  const critico = p.umbralCritico != null && Number(actual.valor) * p.signo >= p.umbralCritico * p.signo;
+  const respaldo = critico && previo && +ahora - +previo.fecha_hora <= config.frescuraSegundos * 1000 &&
+    Number(previo.valor) * p.signo >= p.umbralCritico * p.signo;
   return {
     id_sensor: sensor.id_sensor, variable, fresca: true, valor: Number(actual.valor),
     z: hampel.z, b: tendencia.pendiente, zrob: null, cusum: suma.acumulado,
@@ -87,7 +92,33 @@ export function evaluarPredio({ sensores, vecinos = [], motor, config, ahora, al
     mayoriaVecinosAfectados: puedePuntuar && clima, todosZrobBajoUmbral: clima,
     tiempoEvaluacionVencido: edad >= Number(motor.tiempo_max_evaluacion_min) * 60000,
   });
-  return { ...decision, puntaje: puedePuntuar ? puntaje.R : null, sensores: propios,
+
+  // Ventana de correccion: una lectura critica con respaldo ya no confirma
+  // de inmediato. Avisa a las instituciones en el acto (avisoCritico) pero
+  // el estado queda EN_EVALUACION hasta que, minutos despues, se resuelva
+  // sola (silencio o lecturas mezcladas sostienen; ventana limpia corrige).
+  // Una vez fijado fecha_pico_critico, el desenlace depende solo de la
+  // ventana, sin importar si la lectura que disparo el aviso se enfrio.
+  let resultado = decision;
+  let avisoCritico = false;
+  let fechaPicoCritico = alerta?.fecha_pico_critico ? new Date(alerta.fecha_pico_critico) : null;
+  if (fechaPicoCritico) {
+    const vencida = +ahora - +fechaPicoCritico >= Number(motor.ventana_correccion_min) * 60000;
+    if (!vencida) {
+      resultado = { estado: 'EN_EVALUACION', clasificacion: null };
+    } else {
+      const sensoresEvidencia = sensores.filter((s) => config.confirmacion.variablesEvidencia.includes(normalizarVariable(s.tipo_sensor)));
+      const corregida = ventanaCorregida({ sensoresEvidencia, motor, config, fechaPicoCritico, ahora });
+      resultado = corregida ? { estado: 'DESCARTADA', clasificacion: 'ALARMA_CORREGIDA' } : { estado: 'CONFIRMADA', clasificacion: 'INCENDIO' };
+    }
+  } else if (decision.estado === 'CONFIRMADA') {
+    avisoCritico = true;
+    fechaPicoCritico = ahora;
+    resultado = { estado: 'EN_EVALUACION', clasificacion: null };
+  }
+
+  return { ...resultado, puntaje: puedePuntuar ? puntaje.R : null, sensores: propios,
     datosSuficientes: puedePuntuar && puntaje.R !== null,
-    confirmacionDisponible: propios.some((s) => config.confirmacion.variablesEvidencia.includes(s.variable)) };
+    confirmacionDisponible: propios.some((s) => config.confirmacion.variablesEvidencia.includes(s.variable)),
+    avisoCritico, fechaPicoCritico };
 }

@@ -16,7 +16,6 @@ model zona_geografica {
   densidad_poblacional Decimal? @db.Decimal(10, 2)
 
   predio             predio[]
-  cubre_jurisdiccion cubre_jurisdiccion[]
 }
 
 model rol {
@@ -40,6 +39,7 @@ model politica {
   ver_auditoria          Boolean   @default(false)
   gestionar_usuarios     Boolean   @default(false)
   crear_admin            Boolean   @default(false)
+  puede_moderar_reportes Boolean   @default(false)
 
   rol_politica rol_politica[]
 }
@@ -68,9 +68,9 @@ model institucion {
   disponibilidad_operativa String?  @db.VarChar(30)
 
   usuario            usuario[]
-  cubre_jurisdiccion cubre_jurisdiccion[]
   envia              envia[]
   informe_atencion   informe_atencion[]
+  mensaje_chat       mensaje_chat[]
 }
 
 model usuario {
@@ -85,6 +85,10 @@ model usuario {
   correo            String    @unique @db.VarChar(254)
   fecha_eliminacion DateTime? @db.Timestamp(6)
   estado            Boolean   @default(true)
+  intentos_fallidos Int       @default(0) @db.SmallInt
+  bloqueado_hasta   DateTime? @db.Timestamp(6)
+  mfa_secreto       String?   @db.VarChar(64)
+  mfa_habilitado    Boolean   @default(false)
 
   rol         rol          @relation(fields: [id_rol], references: [id_rol], onUpdate: Cascade, onDelete: Restrict)
   institucion institucion? @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: SetNull)
@@ -96,28 +100,21 @@ model usuario {
   informe_atencion     informe_atencion[]
   notificacion         notificacion[]     @relation("NotificacionDestinatario")
   notificacion_enviada notificacion[]     @relation("NotificacionEmisor")
+  mensaje_chat         mensaje_chat[]
 }
 
 model sesion {
-  id_sesion  BigInt   @id @default(autoincrement())
-  id_usuario BigInt
-  token_hash String   @unique @db.Char(64)
-  expira_en  DateTime @db.Timestamp(6)
+  id_sesion     BigInt   @id @default(autoincrement())
+  id_usuario    BigInt
+  token_hash    String   @unique @db.Char(64)
+  expira_en     DateTime @db.Timestamp(6)
+  mfa_pendiente Boolean  @default(false)
 
   usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
 
   @@index([id_usuario], map: "idx_sesion_usuario")
 }
 
-model cubre_jurisdiccion {
-  id_zona        BigInt
-  id_institucion BigInt
-
-  zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Cascade)
-  institucion     institucion     @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
-
-  @@id([id_zona, id_institucion], map: "pk_cubre_jurisdiccion")
-}
 
 model auditoria {
   id_auditoria BigInt   @id @default(autoincrement())
@@ -153,6 +150,7 @@ model reporte_u {
   longitud        Decimal? @db.Decimal(9, 6)
   indicador       String?
   foto_url        String?  @db.VarChar(500)
+  ubicacion_tipo  String?  @db.VarChar(20)
 
   usuario   usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
   genera_ru genera_ru[]
@@ -169,6 +167,7 @@ model alerta {
   clasificacion      String?   @db.VarChar(20)
   fecha_confirmacion DateTime? @db.Timestamp(6)
   fecha_cierre       DateTime? @db.Timestamp(6)
+  fecha_pico_critico DateTime? @db.Timestamp(6)
 
   recepciona       recepciona[]
   realiza_audi     realiza_audi[]
@@ -183,13 +182,17 @@ model alerta {
 }
 
 model recepciona {
-  id_usuario BigInt
-  id_alerta  BigInt
+  id_usuario        BigInt
+  id_alerta         BigInt
+  estado            String    @default("ASIGNADO") @db.VarChar(10)
+  fecha_asignacion  DateTime  @default(now()) @db.Timestamp(6)
+  fecha_liberacion  DateTime? @db.Timestamp(6)
 
   usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Cascade)
   alerta  alerta  @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
 
   @@id([id_usuario, id_alerta], map: "pk_recepciona")
+  @@index([id_usuario, estado], map: "idx_recepciona_usuario_estado")
 }
 
 model realiza_audi {
@@ -218,6 +221,9 @@ model envia {
   estado              String    @db.VarChar(10)
   fecha_envio         DateTime  @default(now()) @db.Timestamp(6)
   fecha_actualizacion DateTime? @db.Timestamp(6)
+  ruta_json           String?
+  ruta_calculada_en   DateTime? @db.Timestamp(6)
+  ruta_error          String?   @db.VarChar(200)
 
   alerta      alerta      @relation(fields: [id_alerta], references: [id_alerta], onUpdate: Cascade, onDelete: Cascade)
   institucion institucion @relation(fields: [id_institucion], references: [id_institucion], onUpdate: Cascade, onDelete: Cascade)
@@ -236,6 +242,7 @@ model motor_det {
   umbral_descarte           Decimal @db.Decimal(3, 2)
   tiempo_max_evaluacion_min Int     @db.SmallInt
   radio_vecindad_m          Int
+  ventana_correccion_min    Int     @default(5) @db.SmallInt
 
   parametro_variable parametro_variable[]
   predio             predio[]
@@ -246,6 +253,10 @@ model parametro_variable {
   id_motordet           BigInt
   tipo_variable         String   @db.VarChar(20)
   umbral_critico        Decimal? @db.Decimal(8, 2)
+  // Direccion peligrosa de la variable: 1 = critico cuando SUBE (temperatura,
+  // humo, CO, CO2, gas), -1 = critico cuando BAJA (humedad: aire seco = riesgo).
+  // Nullable igual que umbral_critico: sin configurar, esa variable no se evalua.
+  signo                 Int?     @db.SmallInt
 
   motor_det motor_det @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Cascade)
 
@@ -255,7 +266,7 @@ model parametro_variable {
 model predio {
   id_predio             BigInt    @id @default(autoincrement())
   id_zona               BigInt
-  id_motordet           BigInt
+  id_motordet           BigInt?
   tipo_predio           String    @db.VarChar(20)
   nombre                String    @db.VarChar(100)
   direccion             String    @db.VarChar(200)
@@ -274,7 +285,7 @@ model predio {
   activo                Boolean   @default(true)
 
   zona_geografica zona_geografica @relation(fields: [id_zona], references: [id_zona], onUpdate: Cascade, onDelete: Restrict)
-  motor_det       motor_det       @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Restrict)
+  motor_det       motor_det?      @relation(fields: [id_motordet], references: [id_motordet], onUpdate: Cascade, onDelete: Restrict)
   sensor          sensor[]
 
   @@index([id_zona], map: "idx_predio_zona")
@@ -372,4 +383,26 @@ model notificacion {
   @@index([id_usuario, leida], map: "idx_notificacion_usuario")
   @@index([id_alerta], map: "idx_notificacion_alerta")
   @@index([id_usuario_emisor], map: "idx_notificacion_emisor")
+}
+
+// Chat de coordinacion entre instituciones. Dos canales por ahora:
+// GLOBAL (todas las instituciones con alerta activa pueden coordinarse) y
+// CATEGORIA (solo entre instituciones del mismo tipo, ej. BOMBEROS con
+// BOMBEROS). categoria queda NULL en el canal GLOBAL. tipo_mensaje separa
+// mensajes escritos por un usuario de futuros mensajes automaticos del
+// sistema (ej. al designar personal a una alerta).
+model mensaje_chat {
+  id_mensaje            BigInt   @id @default(autoincrement())
+  tipo_canal            String   @db.VarChar(10)
+  categoria             String?  @db.VarChar(30)
+  id_usuario            BigInt
+  id_institucion_emisor BigInt
+  contenido             String
+  tipo_mensaje          String   @default("USUARIO") @db.VarChar(10)
+  fecha_hora            DateTime @default(now()) @db.Timestamp(6)
+
+  usuario     usuario     @relation(fields: [id_usuario], references: [id_usuario], onUpdate: Cascade, onDelete: Restrict)
+  institucion institucion @relation(fields: [id_institucion_emisor], references: [id_institucion], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([tipo_canal, categoria, fecha_hora], map: "idx_mensaje_chat_canal")
 }

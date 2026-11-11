@@ -1,5 +1,5 @@
 export default class UsuarioRepository {
-  async create(usuarioData) {
+  async create(usuarioData, id_usuario_actor, ip_origen) {
     throw new Error("Method not implemented");
   }
 
@@ -15,15 +15,35 @@ export default class UsuarioRepository {
     throw new Error("Method not implemented");
   }
 
-  async update(id, usuarioData) {
+  async update(id, usuarioData, id_usuario_actor, ip_origen) {
     throw new Error("Method not implemented");
   }
 
-  async desactivar(id) {
+  async desactivar(id, id_usuario_actor, ip_origen) {
     throw new Error("Method not implemented");
   }
 
-  async reactivar(id) {
+  async reactivar(id, id_usuario_actor, ip_origen) {
+    throw new Error("Method not implemented");
+  }
+
+  async incrementarIntentosFallidos(id) {
+    throw new Error("Method not implemented");
+  }
+
+  async resetearIntentos(id) {
+    throw new Error("Method not implemented");
+  }
+
+  async bloquear(id, bloqueado_hasta) {
+    throw new Error("Method not implemented");
+  }
+
+  async guardarSecretoMfa(id, mfa_secreto) {
+    throw new Error("Method not implemented");
+  }
+
+  async habilitarMfa(id) {
     throw new Error("Method not implemented");
   }
 }

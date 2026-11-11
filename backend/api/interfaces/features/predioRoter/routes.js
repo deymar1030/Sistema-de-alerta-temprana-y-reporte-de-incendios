@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { PredioDependencies } from "./dependencies.js";
+import { getDeteccion } from './deteccion.js';
 
 export class PredioRouter {
   static get routes() {
@@ -8,6 +9,7 @@ export class PredioRouter {
     const predioController = PredioDependencies.createController();
 
     router.get("/mapa", predioController.mapa);
+    router.get('/:id/deteccion', getDeteccion);
     router.get("/", predioController.list);
     router.get("/:id", predioController.getById);
     router.post("/", predioController.create);

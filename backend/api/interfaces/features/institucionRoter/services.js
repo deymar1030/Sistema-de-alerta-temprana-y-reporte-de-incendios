@@ -5,18 +5,14 @@ export class InstitucionService {
     getInstitucionUseCase,
     updateInstitucionUseCase,
     deleteInstitucionUseCase,
-    getJurisdiccionesInstitucionUseCase,
-    addJurisdiccionInstitucionUseCase,
-    removeJurisdiccionInstitucionUseCase,
+    updateDisponibilidadInstitucionUseCase,
   }) {
     this.createInstitucionUseCase = createInstitucionUseCase;
     this.getAllInstitucionUseCase = getAllInstitucionUseCase;
     this.getInstitucionUseCase = getInstitucionUseCase;
     this.updateInstitucionUseCase = updateInstitucionUseCase;
     this.deleteInstitucionUseCase = deleteInstitucionUseCase;
-    this.getJurisdiccionesInstitucionUseCase = getJurisdiccionesInstitucionUseCase;
-    this.addJurisdiccionInstitucionUseCase = addJurisdiccionInstitucionUseCase;
-    this.removeJurisdiccionInstitucionUseCase = removeJurisdiccionInstitucionUseCase;
+    this.updateDisponibilidadInstitucionUseCase = updateDisponibilidadInstitucionUseCase;
   }
 
   async create(institucionData) {
@@ -39,15 +35,7 @@ export class InstitucionService {
     return await this.deleteInstitucionUseCase.execute(id);
   }
 
-  async getJurisdicciones(id) {
-    return await this.getJurisdiccionesInstitucionUseCase.execute(id);
-  }
-
-  async addJurisdiccion(id, id_zona) {
-    return await this.addJurisdiccionInstitucionUseCase.execute(id, id_zona);
-  }
-
-  async removeJurisdiccion(id, id_zona) {
-    return await this.removeJurisdiccionInstitucionUseCase.execute(id, id_zona);
+  async updateDisponibilidad(id, data, jefe) {
+    return await this.updateDisponibilidadInstitucionUseCase.execute(id, data, jefe);
   }
 }

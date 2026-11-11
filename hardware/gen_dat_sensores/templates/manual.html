@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulador de sensores</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #182536;
+      background: #f3f6fa;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { padding: 2rem max(1rem, calc((100% - 1180px) / 2)); color: #fff; background: linear-gradient(120deg, #14263d, #234b69); }
+    header h1 { margin: 0; font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -.025em; }
+    header p { margin: .5rem 0 0; color: #d3e2ef; }
+    main { max-width: 1180px; margin: 1.5rem auto; padding: 0 1rem 2.5rem; }
+    .panel { margin-bottom: 1rem; padding: clamp(1rem, 2vw, 1.5rem); border: 1px solid #e0e7ef; border-radius: 16px; background: #fff; box-shadow: 0 5px 18px #172b3b0a; }
+    .panel h2 { margin: 0; font-size: 1.12rem; letter-spacing: -.01em; }
+    .panel-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+    .panel-subtitle { margin: .35rem 0 0; color: #68788a; line-height: 1.5; }
+    .toolbar { display: grid; grid-template-columns: minmax(0, 2fr) minmax(170px, 1fr) minmax(190px, 1fr); gap: 1rem; align-items: end; }
+    .scenario-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto auto; gap: .75rem; align-items: end; }
+    .manual-controls { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(130px, 1fr) auto; gap: .75rem; align-items: end; }
+    label { display: block; margin-bottom: .4rem; color: #435367; font-size: .84rem; font-weight: 700; }
+    select, input, button { min-height: 42px; width: 100%; padding: .65rem .75rem; border: 1px solid #cbd6e2; border-radius: 9px; color: inherit; background: #fff; font: inherit; }
+    select:focus, input:focus, button:focus-visible { outline: 3px solid #7db8f055; border-color: #3c88c8; }
+    button { border: 0; color: #fff; background: #bd3d32; font-weight: 700; cursor: pointer; transition: filter .15s, transform .15s; }
+    button:hover:not(:disabled) { filter: brightness(.95); transform: translateY(-1px); }
+    button.secondary { color: #25384c; background: #e8eef5; }
+    button.success-button { color: #14532d; background: #d9f4e3; }
+    button.sensor-toggle { min-height: 36px; width: auto; padding: .45rem .7rem; font-size: .82rem; }
+    button.sensor-toggle.pause { color: #854d0e; background: #fff0c2; }
+    button.sensor-toggle.resume { color: #14532d; background: #d9f4e3; }
+    button:disabled { cursor: not-allowed; opacity: .48; }
+    .status-row { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+    .badge { display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .7rem; border-radius: 999px; background: #edf1f5; color: #44566b; font-size: .82rem; font-weight: 700; }
+    .badge::before { width: .55rem; height: .55rem; border-radius: 50%; background: #8793a1; content: ""; }
+    .badge.ok { color: #166534; background: #dcfce7; }
+    .badge.ok::before { background: #16a34a; }
+    .badge.bad, .badge.paused { color: #991b1b; background: #fee2e2; }
+    .badge.bad::before { background: #dc2626; }
+    .badge.paused::before { background: #dc2626; }
+    .scenario-info, .warning { margin: 1rem 0 0; color: #5b6b7e; line-height: 1.55; }
+    .warning { padding: .85rem 1rem; border: 1px solid #f3d48b; border-radius: 10px; color: #713f12; background: #fff8e6; }
+    .sensor-bulk-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .sensor-bulk-actions button { width: auto; }
+    .sensor-notice { margin: 0 0 1rem; }
+    .sensor-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: .8rem .65rem; border-bottom: 1px solid #e8edf2; white-space: nowrap; vertical-align: middle; }
+    th { color: #68788a; font-size: .73rem; text-transform: uppercase; letter-spacing: .055em; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody tr.sensor-paused { background: #fffafa; }
+    td.value { font-variant-numeric: tabular-nums; font-weight: 700; }
+    td.sensor-name { font-weight: 700; }
+    .empty { color: #64748b; text-align: center; }
+    .console { min-height: 180px; max-height: 370px; overflow: auto; padding: .9rem; border-radius: 10px; color: #d7e5d7; background: #14202c; font: .82rem/1.55 Consolas, "Courier New", monospace; }
+    .console-line { display: grid; grid-template-columns: 90px 70px minmax(220px, 1fr) 130px; gap: .5rem; border-bottom: 1px solid #263746; padding: .25rem 0; }
+    .console-time { color: #93a4b5; }
+    .console-ok { color: #7ee787; }
+    .console-pending { color: #f2cc60; }
+    .console-error { color: #ff7b72; }
+    .console-topic { overflow: hidden; text-overflow: ellipsis; }
+    .console-value { text-align: right; }
+    .notice { margin-bottom: 1rem; padding: .8rem 1rem; border-radius: 10px; line-height: 1.45; }
+    .success { color: #14532d; background: #dcfce7; }
+    .error { color: #991b1b; background: #fee2e2; }
+    small { display: block; margin-top: .55rem; color: #64748b; }
+    summary { cursor: pointer; font-weight: 700; }
+    @media (max-width: 720px) {
+      .toolbar, .scenario-controls, .manual-controls { grid-template-columns: 1fr; }
+      .panel-heading { flex-direction: column; }
+      .sensor-bulk-actions { width: 100%; }
+      .sensor-bulk-actions button { flex: 1; }
+      .console-line { grid-template-columns: 72px 68px minmax(130px, 1fr); }
+      .console-value { grid-column: 3; text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Simulador de sensores e incendios</h1>
+    <p>Selecciona un predio para inspeccionar lecturas y ejecutar un escenario controlado.</p>
+  </header>
+  <main>
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, mensaje in mensajes %}
+        <div class="notice {{ categoria }}" role="status">{{ mensaje }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% if predios %}
+      <section class="panel">
+        <h2>Predio de prueba</h2>
+        <div class="toolbar">
+          <div>
+            <label for="predio-selector">Seleccionar predio</label>
+            <select id="predio-selector">
+              {% for predio in predios %}
+                <option value="{{ predio.id_predio }}">{{ predio.nombre_predio }} · ID {{ predio.id_predio }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label>Conexión MQTT</label>
+            <span id="connection-status" class="badge">Consultando...</span>
+          </div>
+          <div>
+            <label>Escenario activo</label>
+            <span id="scenario-status" class="badge">Ninguno</span>
+          </div>
+        </div>
+        <p class="warning">Esta interfaz controla únicamente el envío MQTT del simulador en este equipo; no cambia sensores ni configuraciones del backend. Coordina las pruebas antes de publicar en un broker compartido.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Escenario para este predio</h2>
+        <form id="scenario-form" class="scenario-controls" method="post" action="{{ url_for('iniciar_escenario') }}">
+          <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+          <input id="scenario-predio" type="hidden" name="id_predio" value="{{ predios[0].id_predio }}">
+          <div>
+            <label for="scenario-selector">Tipo de escenario</label>
+            <select id="scenario-selector" name="escenario">
+              {% for clave, escenario in escenarios.items() %}
+                <option value="{{ clave }}">{{ escenario.etiqueta }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <p id="scenario-description" class="scenario-info">{{ escenarios['gas'].descripcion }}</p>
+          <button id="start-scenario" type="submit" data-api-action="{{ url_for('api_iniciar_escenario') }}">Iniciar escenario</button>
+          <button id="stop-scenario" class="secondary" type="submit" data-api-action="{{ url_for('api_detener_escenario') }}" formaction="{{ url_for('detener_escenario') }}" formnovalidate>Detener escenario</button>
+        </form>
+        <div id="scenario-notice" class="notice" role="status" aria-live="polite" hidden></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Sensores del predio</h2>
+            <p class="panel-subtitle">Pausa el envío de un sensor o controla todos los sensores de este predio. El cambio dura mientras el simulador esté ejecutándose.</p>
+          </div>
+          <div class="sensor-bulk-actions">
+            <button id="pause-all-sensors" class="secondary" type="button">Pausar todos</button>
+            <button id="resume-all-sensors" class="success-button" type="button">Reanudar todos</button>
+          </div>
+        </div>
+        <div id="sensor-notice" class="notice sensor-notice" role="status" aria-live="polite" hidden></div>
+        <div class="status-row" aria-live="polite">
+          <span id="sensor-count" class="badge">0 sensores</span>
+          <span id="publishing-count" class="badge ok">0 enviando</span>
+          <span id="paused-count" class="badge paused">0 pausados</span>
+        </div>
+        <div class="sensor-wrap">
+          <table>
+            <thead>
+              <tr><th>Sensor</th><th>Variable</th><th>Último valor</th><th>Rango configurado</th><th>Último envío</th><th>Estado de envío</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="sensor-rows">
+              <tr><td class="empty" colspan="7">Esperando lecturas del generador...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Consola de publicaciones recientes</h2>
+        <div id="console" class="console" aria-live="polite">
+          <div class="empty">Esperando confirmaciones MQTT...</div>
+        </div>
+        <small>[PUBACK] indica confirmación QoS 1 del broker; no significa que el motor haya generado una alerta.</small>
+      </section>
+
+      <details class="panel">
+        <summary>Lectura manual individual (opcional)</summary>
+        <p>Encola un único valor para el siguiente ciclo de publicación.</p>
+        <form class="manual-controls" method="post" action="{{ url_for('crear_lectura') }}">
+          <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+          <div>
+            <label for="sensor-selector">Sensor</label>
+            <select id="sensor-selector" name="id_sensor" required>
+              {% for sensor in sensores %}
+                <option data-predio="{{ sensor.id_predio }}" value="{{ sensor.id_sensor }}">
+                  Sensor {{ sensor.id_sensor }} · {{ sensor.tipo_variable }} ({{ sensor.unidad }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label for="valor">Valor</label>
+            <input id="valor" name="valor" type="number" step="any" required>
+          </div>
+          <button type="submit">Encolar valor</button>
+        </form>
+      </details>
+    {% else %}
+      <section class="panel"><p class="empty">No se encontraron predios con sensores activos.</p></section>
+    {% endif %}
+  </main>
+  {% if predios %}
+  <script>
+    const selector = document.getElementById("predio-selector");
+    const scenarioPredio = document.getElementById("scenario-predio");
+    const sensorSelector = document.getElementById("sensor-selector");
+    const scenarioForm = document.getElementById("scenario-form");
+    const scenarioNotice = document.getElementById("scenario-notice");
+    const sensorRowsElement = document.getElementById("sensor-rows");
+    const sensorNotice = document.getElementById("sensor-notice");
+    const csrfToken = scenarioForm.querySelector('input[name="csrf_token"]').value;
+    const sensorRequestsInProgress = new Set();
+    let bulkSensorRequestInProgress = false;
+    let scenarioRequestInProgress = false;
+    const scenarioOptions = {{ escenarios | tojson }};
+
+    function updateSensorOptions() {
+      const predioId = selector.value;
+      scenarioPredio.value = predioId;
+      let firstAvailable = null;
+      for (const option of sensorSelector.options) {
+        option.hidden = option.dataset.predio !== predioId;
+        if (!option.hidden && firstAvailable === null) firstAvailable = option;
+      }
+      if (firstAvailable) sensorSelector.value = firstAvailable.value;
+    }
+
+    async function refreshPredio() {
+      const predioId = selector.value;
+      scenarioPredio.value = predioId;
+      const connection = document.getElementById("connection-status");
+      try {
+        const response = await fetch(`/api/predios/${encodeURIComponent(predioId)}/estado`, {
+          headers: { "Accept": "application/json" }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const predio = data.predio;
+        connection.textContent = predio.conectado ? "Conectado" : "Desconectado";
+        connection.className = `badge ${predio.conectado ? "ok" : "bad"}`;
+
+        const activeScenario = predio.escenario;
+        const scenarioStatus = document.getElementById("scenario-status");
+        scenarioStatus.textContent = activeScenario
+          ? scenarioOptions[activeScenario]?.etiqueta || activeScenario
+          : "Ninguno";
+        scenarioStatus.className = `badge ${activeScenario ? "bad" : ""}`;
+        if (!scenarioRequestInProgress) {
+          document.getElementById("start-scenario").disabled = Boolean(activeScenario);
+          document.getElementById("stop-scenario").disabled = !activeScenario;
+        }
+
+        const latestBySensor = new Map();
+        for (const reading of data.publicaciones) latestBySensor.set(reading.id_sensor, reading);
+        const sensorCount = predio.sensores.length;
+        const publishingCount = predio.sensores.filter(sensor => sensor.publicacion_habilitada).length;
+        document.getElementById("sensor-count").textContent = `${sensorCount} sensor${sensorCount === 1 ? "" : "es"}`;
+        document.getElementById("publishing-count").textContent = `${publishingCount} enviando`;
+        document.getElementById("paused-count").textContent = `${sensorCount - publishingCount} pausados`;
+        document.getElementById("pause-all-sensors").disabled =
+          bulkSensorRequestInProgress || publishingCount === 0;
+        document.getElementById("resume-all-sensors").disabled =
+          bulkSensorRequestInProgress || publishingCount === sensorCount;
+
+        const sensorRows = predio.sensores.map(sensor => {
+          const reading = latestBySensor.get(sensor.id_sensor);
+          const timestamp = reading ? new Date(reading.fecha_hora).toLocaleTimeString() : "—";
+          const value = reading ? `${reading.valor} ${sensor.unidad}` :
+            sensor.publicacion_habilitada ? "Esperando..." : "Pausado";
+          const row = document.createElement("tr");
+          row.className = sensor.publicacion_habilitada ? "" : "sensor-paused";
+          for (const [text, className] of [
+            [`Sensor ${sensor.id_sensor}`, "sensor-name"],
+            [sensor.tipo_variable, ""],
+            [value, "value"],
+            [`${sensor.rango_min}–${sensor.rango_max} ${sensor.unidad}`, ""],
+            [timestamp, ""]
+          ]) {
+            const cell = document.createElement("td");
+            cell.textContent = text;
+            cell.className = className;
+            row.appendChild(cell);
+          }
+          const statusCell = document.createElement("td");
+          const status = document.createElement("span");
+          status.className = `badge ${sensor.publicacion_habilitada ? "ok" : "paused"}`;
+          status.textContent = sensor.publicacion_habilitada ? "Enviando" : "Pausado";
+          statusCell.appendChild(status);
+          row.appendChild(statusCell);
+
+          const actionCell = document.createElement("td");
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = `sensor-toggle ${sensor.publicacion_habilitada ? "pause" : "resume"}`;
+          toggle.dataset.sensorId = sensor.id_sensor;
+          toggle.dataset.enabled = String(!sensor.publicacion_habilitada);
+          toggle.textContent = sensor.publicacion_habilitada ? "Pausar envío" : "Reanudar envío";
+          toggle.setAttribute("aria-label", `${toggle.textContent} del sensor ${sensor.id_sensor}`);
+          toggle.disabled = sensorRequestsInProgress.has(sensor.id_sensor) || bulkSensorRequestInProgress;
+          actionCell.appendChild(toggle);
+          row.appendChild(actionCell);
+          return row;
+        });
+        sensorRowsElement.replaceChildren(...sensorRows);
+        if (!sensorRows.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.className = "empty";
+          cell.colSpan = 7;
+          cell.textContent = "No hay sensores activos.";
+          row.appendChild(cell);
+          sensorRowsElement.appendChild(row);
+        }
+
+        const consoleElement = document.getElementById("console");
+        const lines = [...data.publicaciones].reverse().map(reading => {
+          const statusClass = reading.estado === "PUBACK" ? "console-ok" :
+            reading.estado === "ERROR" ? "console-error" : "console-pending";
+          const suffix = reading.detalle ? ` · ${reading.detalle}` : "";
+          const line = document.createElement("div");
+          line.className = "console-line";
+          const time = document.createElement("span");
+          time.className = "console-time";
+          time.textContent = new Date(reading.fecha_hora).toLocaleTimeString();
+          const status = document.createElement("strong");
+          status.className = statusClass;
+          status.textContent = `[${reading.estado}]`;
+          const topic = document.createElement("span");
+          topic.className = "console-topic";
+          topic.textContent = `${reading.topico} · ${reading.tipo_variable}`;
+          const value = document.createElement("span");
+          value.className = "console-value";
+          value.textContent = `${reading.valor} ${reading.unidad}${suffix}`;
+          line.append(time, status, topic, value);
+          return line;
+        });
+        consoleElement.replaceChildren(...lines);
+        if (!lines.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "Aún no hay publicaciones registradas para este predio.";
+          consoleElement.appendChild(empty);
+        }
+      } catch (error) {
+        connection.textContent = `Error de estado (${error.message})`;
+        connection.className = "badge bad";
+      }
+    }
+
+    async function enviarCambioPublicacion(url, habilitado) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+        },
+        body: new URLSearchParams({
+          csrf_token: csrfToken,
+          habilitado: String(habilitado)
+        })
+      });
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(`Respuesta inesperada del servidor (HTTP ${response.status}).`);
+      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || `Error HTTP ${response.status}`);
+      sensorNotice.textContent = result.message;
+      sensorNotice.className = `notice sensor-notice ${result.category}`;
+      sensorNotice.hidden = false;
+    }
+
+    async function cambiarPublicacionSensor(sensorId, habilitado) {
+      if (sensorRequestsInProgress.has(sensorId) || bulkSensorRequestInProgress) return;
+      sensorRequestsInProgress.add(sensorId);
+      sensorNotice.hidden = true;
+      try {
+        await enviarCambioPublicacion(
+          `/api/predios/${encodeURIComponent(selector.value)}/sensores/${encodeURIComponent(sensorId)}/publicacion`,
+          habilitado
+        );
+      } catch (error) {
+        sensorNotice.textContent = `No se pudo cambiar el envío del sensor: ${error.message}`;
+        sensorNotice.className = "notice sensor-notice error";
+        sensorNotice.hidden = false;
+      } finally {
+        sensorRequestsInProgress.delete(sensorId);
+        await refreshPredio();
+      }
+    }
+
+    async function cambiarPublicacionPredio(habilitado) {
+      if (bulkSensorRequestInProgress) return;
+      bulkSensorRequestInProgress = true;
+      sensorNotice.hidden = true;
+      try {
+        await enviarCambioPublicacion(
+          `/api/predios/${encodeURIComponent(selector.value)}/sensores/publicacion`,
+          habilitado
+        );
+      } catch (error) {
+        sensorNotice.textContent = `No se pudo cambiar el envío de los sensores: ${error.message}`;
+        sensorNotice.className = "notice sensor-notice error";
+        sensorNotice.hidden = false;
+      } finally {
+        bulkSensorRequestInProgress = false;
+        await refreshPredio();
+      }
+    }
+
+    sensorRowsElement.addEventListener("click", event => {
+      const button = event.target.closest("button[data-sensor-id]");
+      if (!button) return;
+      cambiarPublicacionSensor(
+        Number(button.dataset.sensorId),
+        button.dataset.enabled === "true"
+      );
+    });
+    document.getElementById("pause-all-sensors").addEventListener("click", () => {
+      cambiarPublicacionPredio(false);
+    });
+    document.getElementById("resume-all-sensors").addEventListener("click", () => {
+      cambiarPublicacionPredio(true);
+    });
+
+    document.getElementById("scenario-selector").addEventListener("change", event => {
+      document.getElementById("scenario-description").textContent =
+        scenarioOptions[event.target.value].descripcion;
+    });
+    scenarioForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (scenarioRequestInProgress) return;
+
+      scenarioRequestInProgress = true;
+      const buttons = scenarioForm.querySelectorAll("button");
+      buttons.forEach(button => { button.disabled = true; });
+      scenarioNotice.hidden = true;
+      const submitter = event.submitter;
+      const action = submitter && submitter.dataset.apiAction
+        ? submitter.dataset.apiAction
+        : scenarioForm.action;
+      try {
+        const response = await fetch(action, {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+          },
+          body: new URLSearchParams(new FormData(scenarioForm))
+        });
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          throw new Error(`El servidor devolvió una respuesta inesperada (HTTP ${response.status}). Reinicia el simulador y vuelve a cargar la interfaz.`);
+        }
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || `Error HTTP ${response.status}`);
+        scenarioNotice.textContent = result.message;
+        scenarioNotice.className = `notice ${result.category}`;
+        scenarioNotice.hidden = false;
+      } catch (error) {
+        scenarioNotice.textContent = `No se pudo actualizar el escenario: ${error.message}`;
+        scenarioNotice.className = "notice error";
+        scenarioNotice.hidden = false;
+      } finally {
+        scenarioRequestInProgress = false;
+        await refreshPredio();
+      }
+    });
+    selector.addEventListener("change", () => {
+      updateSensorOptions();
+      refreshPredio();
+    });
+    updateSensorOptions();
+    refreshPredio();
+    window.setInterval(refreshPredio, 2500);
+  </script>
+  {% endif %}
+</body>
+</html>

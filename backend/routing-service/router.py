@@ -1,9 +1,25 @@
-from math import cos, radians
+import gzip
 from pathlib import Path
 
 import folium
 import networkx as nx
 import osmnx as ox
+
+# Grafo vial de La Paz/El Alto, descargado una sola vez (offline) y cacheado
+# en disco: evita depender de la Overpass API en vivo, que en la practica
+# rechaza o limita conexiones desde IPs de VPS (406/429/403 segun el espejo,
+# a veces "connection refused" directo). bbox = (west, south, east, north).
+_GRAPH_PATH = Path(__file__).resolve().parent / "la_paz_drive.graphml.gz"
+_GRAPH_BBOX = (-68.23, -16.58, -68.03, -16.43)
+_graph_cache = None
+
+
+def _load_cached_graph():
+    global _graph_cache
+    if _graph_cache is None:
+        with gzip.open(_GRAPH_PATH, "rt", encoding="utf-8") as archivo:
+            _graph_cache = ox.load_graphml(graphml_str=archivo.read())
+    return _graph_cache
 
 
 def _validate_coordinate(latitude, longitude, label):
@@ -13,21 +29,12 @@ def _validate_coordinate(latitude, longitude, label):
         raise ValueError(f"{label}: latitud fuera del rango [-90, 90]")
     if not -180 <= longitude <= 180:
         raise ValueError(f"{label}: longitud fuera del rango [-180, 180]")
+    west, south, east, north = _GRAPH_BBOX
+    if not (south <= latitude <= north and west <= longitude <= east):
+        raise ValueError(
+            f"{label}: fuera del area cubierta por el grafo vial cacheado (La Paz/El Alto)"
+        )
     return latitude, longitude
-
-
-def _route_bbox(origin, destination, margin_m=1000):
-    midpoint_latitude = (origin[0] + destination[0]) / 2
-    latitude_margin = margin_m / 111_320
-    longitude_scale = max(cos(radians(midpoint_latitude)), 0.01)
-    longitude_margin = margin_m / (111_320 * longitude_scale)
-
-    return (
-        min(origin[1], destination[1]) - longitude_margin,
-        min(origin[0], destination[0]) - latitude_margin,
-        max(origin[1], destination[1]) + longitude_margin,
-        max(origin[0], destination[0]) + latitude_margin,
-    )
 
 
 def calculate_shortest_route(
@@ -35,26 +42,19 @@ def calculate_shortest_route(
     origin_longitude,
     destination_latitude,
     destination_longitude,
-    network_type="drive",
-    margin_m=1000,
 ):
     """Calcula con Dijkstra la ruta de menor longitud entre dos coordenadas.
 
     Las coordenadas se reciben como (latitud, longitud). La geometría devuelta
-    usa pares [latitud, longitud], listos para Folium.
+    usa pares [latitud, longitud], listos para Folium. Corre sobre el grafo
+    vial cacheado localmente (ver _load_cached_graph), sin llamadas en vivo.
     """
     origin = _validate_coordinate(origin_latitude, origin_longitude, "Origen")
     destination = _validate_coordinate(
         destination_latitude, destination_longitude, "Destino"
     )
 
-    graph = ox.graph_from_bbox(
-        _route_bbox(origin, destination, margin_m),
-        network_type=network_type,
-        simplify=True,
-    )
-    if graph.number_of_nodes() == 0:
-        raise ValueError("OpenStreetMap no devolvió calles para esta zona")
+    graph = _load_cached_graph()
 
     origin_node = ox.distance.nearest_nodes(
         graph, X=origin[1], Y=origin[0]

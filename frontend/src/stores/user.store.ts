@@ -6,7 +6,7 @@ import { usersMock } from '../mocks/users'
 import { userService, type CreateUserInput, type UpdateUserInput } from '../services/user.service'
 
 const normalizeUser = (user: Partial<User> & Record<string, any>): User => ({
-  id: String(user.id ?? `USR-${Math.random().toString(36).slice(2, 10)}`),
+  id: String(user.id ?? ''),
   nombre: user.nombre ?? (([user.firstName, user.lastName].filter(Boolean) as string[]).join(' ').trim() || user.email || 'Usuario'),
   email: user.email ?? user.correo ?? 'sin-email@alerta.bo',
   role: normalizeRole(user.role ?? user.rol),
@@ -14,6 +14,9 @@ const normalizeUser = (user: Partial<User> & Record<string, any>): User => ({
   institutionId: user.institutionId ?? user.institucionId ?? null,
   institucionId: user.institutionId ?? user.institucionId ?? null,
   phone: user.phone ?? user.telefono,
+  telefono: user.telefono ?? user.phone,
+  primerApellido: user.primerApellido,
+  segundoApellido: user.segundoApellido,
   city: user.city ?? user.ciudad,
   activo: user.activo ?? normalizeStatus(user.status) === 'ACTIVE',
   status: normalizeStatus(user.status ?? (user.activo === false ? 'INACTIVE' : 'ACTIVE')),

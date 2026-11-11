@@ -50,6 +50,19 @@ export class AlertaController {
     }
   };
 
+  mapa = async (req, res) => {
+    try {
+      const alertas = await this.alertaService.getMapa({
+        clasificacion: req.query.clasificacion,
+        id_zona: req.query.id_zona,
+        id_institucion: req.query.id_institucion,
+      });
+      res.json({ success: true, data: AlertaMapper.toMapaDTOArray(alertas) });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
   getById = async (req, res) => {
     try {
       const { alerta, predio, lecturas, instituciones_notificadas, reporte_origen } =

@@ -35,8 +35,13 @@ const useCurrentLocation = () => {
 }
 
 const submitReport = async () => {
-  if (!form.value.description || !form.value.address || !form.value.latitude || !form.value.longitude) {
-    error.value = 'Descripción, ubicación y coordenadas son obligatorias.'
+  const lat = Number(form.value.latitude)
+  const lng = Number(form.value.longitude)
+  if (!form.value.description.trim() || !form.value.address.trim() ||
+      form.value.latitude.trim() === '' || form.value.longitude.trim() === '' ||
+      !Number.isFinite(lat) || !Number.isFinite(lng) ||
+      lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    error.value = 'Descripción, dirección y coordenadas válidas son obligatorias.'
     return
   }
 
@@ -45,16 +50,12 @@ const submitReport = async () => {
 
   try {
     await reportStore.createReport({
-      id: `REP-${Date.now()}`,
       description: form.value.description,
-      latitude: Number(form.value.latitude),
-      longitude: Number(form.value.longitude),
+      latitude: lat,
+      longitude: lng,
       address: form.value.address,
       reference: form.value.reference,
       photo: form.value.photo,
-      status: 'PENDIENTE_DE_VALIDACION',
-      createdAt: new Date().toISOString(),
-      citizenId: 'CIT-001',
     })
 
     window.alert('Reporte enviado correctamente. Será revisado por el centro de monitoreo.')
@@ -86,7 +87,7 @@ const submitReport = async () => {
           <input v-model="form.address" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none focus:border-orange-300" placeholder="Calle / avenida / barrio" />
         </label>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="block text-sm font-medium text-slate-700">
             Latitud
             <input v-model="form.latitude" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none focus:border-orange-300" placeholder="-16.5" />

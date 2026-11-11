@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from '@ionic/vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
 
-import DemoSelectionView from '../views/DemoSelectionView.vue'
+import LoginView from '../views/LoginView.vue'
 import InstitutionLayout from '../layouts/InstitutionLayout.vue'
 import InstitutionHomeView from '../views/institution/InstitutionHomeView.vue'
 import InstitutionAlertsView from '../views/institution/InstitutionAlertsView.vue'
@@ -14,10 +14,12 @@ import CitizenReportView from '../views/citizen/CitizenReportView.vue'
 import CitizenReportsView from '../views/citizen/CitizenReportsView.vue'
 import CitizenNotificationsView from '../views/citizen/CitizenNotificationsView.vue'
 import CitizenInstructionsView from '../views/citizen/CitizenInstructionsView.vue'
+import RegisterView from '../views/RegisterView.vue'
 
 const routes: Array<RouteRecordRaw> = [
-  { path: '/', redirect: '/demo' },
-  { path: '/demo', component: DemoSelectionView },
+  { path: '/', redirect: '/login' },
+  { path: '/login', name: 'Login', component: LoginView },
+  { path: '/registro', name: 'Registro', component: RegisterView },
   {
     path: '/institucion',
     component: InstitutionLayout,
@@ -41,7 +43,7 @@ const routes: Array<RouteRecordRaw> = [
       { path: 'instrucciones', component: CitizenInstructionsView },
     ],
   },
-  { path: '/:pathMatch(.*)*', redirect: '/demo' },
+  { path: '/:pathMatch(.*)*', redirect: '/login' },
 ]
 
 const router = createRouter({
@@ -51,18 +53,29 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const authStore = useAuthStore()
-  const role = authStore.role
+  const role = authStore.currentRole
 
-  if (!role && to.path !== '/demo') {
-    return '/demo'
+  // Definir rutas públicas que no requieren autenticación
+  const publicPages = ['/login', '/registro']
+  const authRequired = !publicPages.includes(to.path)
+
+  // Redirigir al login si intenta acceder a una ruta protegida sin sesión
+  if (authRequired && !role) {
+    return '/login'
   }
 
+  // Prevenir que un rol acceda a las rutas del otro
   if (to.path.startsWith('/institucion') && role !== 'INSTITUTION_USER') {
-    return role === 'CITIZEN' ? '/ciudadano/inicio' : '/demo'
+    return role === 'CITIZEN' ? '/ciudadano/inicio' : '/login'
   }
 
   if (to.path.startsWith('/ciudadano') && role !== 'CITIZEN') {
-    return role === 'INSTITUTION_USER' ? '/institucion/inicio' : '/demo'
+    return role === 'INSTITUTION_USER' ? '/institucion/inicio' : '/login'
+  }
+
+  // Si ya tiene sesión, no dejarlo entrar a Login o Registro
+  if (!authRequired && role) {
+    return role === 'INSTITUTION_USER' ? '/institucion/inicio' : '/ciudadano/inicio'
   }
 
   return true

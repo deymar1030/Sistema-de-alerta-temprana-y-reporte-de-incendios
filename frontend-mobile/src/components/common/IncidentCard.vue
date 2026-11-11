@@ -3,21 +3,23 @@ import { IonCard, IonCardContent, IonCardHeader, IonCardTitle } from '@ionic/vue
 import { IonIcon } from '@ionic/vue'
 import { locationOutline, timeOutline } from 'ionicons/icons'
 import StatusBadge from './StatusBadge.vue'
+import AssignedBadge from './AssignedBadge.vue'
 import type { Incident } from '../../types'
 
-defineProps<{ incident: Incident }>()
+defineProps<{ incident: Incident; assigned?: boolean }>()
 </script>
 
 <template>
-  <ion-card class="alert-card">
+  <ion-card :class="['alert-card', { assigned }]">
     <ion-card-header>
       <div class="card-header-row">
         <div>
           <p class="muted">{{ incident.id }}</p>
           <ion-card-title>{{ incident.title }}</ion-card-title>
         </div>
-        <StatusBadge :state="incident.status" :tone="incident.status === 'FINALIZADA' ? 'success' : incident.status === 'NUEVA' || incident.status === 'RECIBIDA' ? 'warning' : 'info'" />
+        <StatusBadge :state="incident.envioEstado ?? incident.status" :tone="incident.status === 'FINALIZADA' ? 'success' : incident.status === 'NUEVA' || incident.status === 'RECIBIDA' ? 'warning' : 'info'" />
       </div>
+      <AssignedBadge v-if="assigned" class="assigned-tag" />
     </ion-card-header>
     <ion-card-content>
       <div class="meta-row">
@@ -36,6 +38,12 @@ defineProps<{ incident: Incident }>()
 <style scoped>
 .alert-card {
   margin: 0 0 12px;
+}
+.alert-card.assigned {
+  border: 2px solid #d9382e;
+}
+.assigned-tag {
+  margin-top: 8px;
 }
 .card-header-row {
   display: flex;

@@ -1,61 +1,107 @@
-import { institutionAlerts } from '../mocks/institutionAlerts'
-import { storageService } from './storage.service'
-import type { AlertItem, AlertStatus, IncidentStatus, RiskLevel } from '../types'
+import type { AlertItem, RiskLevel } from '../types'
+import { API_URL, readBackendError } from './api'
+import { parseEnvioEstado, resolveStatus } from './alert-status'
+import { sessionService } from './session.service'
+import { assignmentService } from './assignment.service'
 
-const STORAGE_KEY = 'alerta-mobile-institution-alerts'
-const alertStatuses: AlertStatus[] = ['NUEVA', 'RECIBIDA', 'EN_CAMINO', 'EN_SITIO', 'CONTROLADA', 'FINALIZADA']
-const riskLevels: RiskLevel[] = ['BAJO', 'MEDIO', 'ALTO', 'CRITICO']
-const alertSources: AlertItem['source'][] = ['sensor', 'citizen', 'manual']
+const normalizeRiskLevel = (value: unknown): RiskLevel => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value >= 0.8) return 'CRITICO'
+    if (value >= 0.5) return 'ALTO'
+    if (value >= 0.2) return 'MEDIO'
+    return 'BAJO'
+  }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
+  const raw = String(value ?? '').trim().toUpperCase()
 
-const isAlertItem = (value: unknown): value is AlertItem =>
-  isRecord(value) &&
-  typeof value.id === 'string' &&
-  (value.incidentId === undefined || typeof value.incidentId === 'string') &&
-  typeof value.type === 'string' &&
-  typeof value.location === 'string' &&
-  riskLevels.includes(value.risk as RiskLevel) &&
-  alertStatuses.includes(value.status as AlertStatus) &&
-  typeof value.createdAt === 'string' &&
-  !Number.isNaN(Date.parse(value.createdAt)) &&
-  typeof value.description === 'string' &&
-  typeof value.institutionId === 'string' &&
-  typeof value.distanceKm === 'number' &&
-  Number.isFinite(value.distanceKm) &&
-  alertSources.includes(value.source as AlertItem['source'])
+  if (raw === 'BAJO' || raw === 'LOW' || raw === 'BAJA') return 'BAJO'
+  if (raw === 'MEDIO' || raw === 'MEDIA' || raw === 'MODERADO') return 'MEDIO'
+  if (raw === 'ALTO' || raw === 'HIGH' || raw === 'ALTA') return 'ALTO'
+  if (raw === 'CRITICO' || raw === 'CRITICA' || raw === 'CRITICAL') return 'CRITICO'
 
-const isAlertList = (value: unknown): value is AlertItem[] => Array.isArray(value) && value.every(isAlertItem)
-const mockSnapshot = (): AlertItem[] => institutionAlerts.map((alert) => ({ ...alert }))
-const readAlerts = (): AlertItem[] => storageService.read(STORAGE_KEY, mockSnapshot(), isAlertList)
+  return 'MEDIO'
+}
+
+const normalizeSource = (value: unknown): AlertItem['source'] => {
+  const raw = String(value ?? '').trim().toLowerCase()
+  if (raw === 'sensor' || raw === 'sensors') return 'sensor'
+  if (raw === 'citizen' || raw === 'ciudadano' || raw === 'usuario') return 'citizen'
+  return 'manual'
+}
+
+const normalizeDate = (value: unknown, fallback: string): string => {
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  return fallback
+}
 
 export const institutionAlertService = {
   getInitialAlerts(): AlertItem[] {
-    return readAlerts()
+    return []
   },
 
+  // GET /alertas?id_institucion=<id> : Filtra por la institución y trae el estado mi_envio
   async getAlerts(): Promise<AlertItem[]> {
-    return readAlerts()
-  },
+    const institutionId = await sessionService.getInstitutionId()
+    if (!institutionId) return []
 
-  async updateStatus(id: string, status: AlertStatus): Promise<AlertItem | undefined> {
-    const alerts = readAlerts()
-    const item = alerts.find((alert) => alert.id === id)
-    if (!item) return undefined
-    const updated = { ...item, status }
-    const nextAlerts = alerts.map((alert) => alert.id === id ? updated : alert)
-    if (!storageService.write(STORAGE_KEY, nextAlerts)) throw new Error('STORAGE_UNAVAILABLE')
-    return updated
-  },
+    // Igual que en incident.service.ts: esta app es exclusiva de OPERATIVO,
+    // asi que solo debe listar lo que le asigno su jefe de institucion.
+    const [response, idsAsignados] = await Promise.all([
+      fetch(`${API_URL}/alertas?id_institucion=${encodeURIComponent(institutionId)}`, {
+        method: 'GET',
+        credentials: 'include',
+      }),
+      assignmentService.getIdsAsignados(),
+    ])
 
-  async updateByIncidentId(incidentId: string, status: IncidentStatus): Promise<AlertItem | undefined> {
-    const alerts = readAlerts()
-    const item = alerts.find((alert) => alert.incidentId === incidentId)
-    if (!item) return undefined
-    const updated = { ...item, status }
-    const nextAlerts = alerts.map((alert) => alert.incidentId === incidentId ? updated : alert)
-    if (!storageService.write(STORAGE_KEY, nextAlerts)) throw new Error('STORAGE_UNAVAILABLE')
-    return updated
+    if (!response.ok) {
+      throw new Error(await readBackendError(response, 'No se pudieron cargar las alertas.'))
+    }
+
+    const json = await response.json()
+    if (!json.success || !Array.isArray(json.data)) throw new Error('Respuesta inválida del servidor.')
+
+    return json.data
+      .filter((item: any) => idsAsignados.has(String(item.id_alerta ?? item.id)))
+      .map((item: any): AlertItem => {
+      const envioEstado = parseEnvioEstado(item.mi_envio)
+      const locations = Array.isArray(item.ubicaciones) ? item.ubicaciones : []
+      const loc = locations[0] ?? null
+      const fallbackDate = new Date().toISOString()
+
+      const location =
+        loc?.direccion ||
+        loc?.nombre ||
+        loc?.ubicacion_tipo ||
+        item.direccion ||
+        item.ubicacion ||
+        'Ubicación de alerta'
+
+      const distanceKm = Number(item.distancia_km ?? item.distancia ?? item.distanceKm ?? 0)
+      const createdAt =
+        item.fecha && item.hora
+          ? `${item.fecha}T${item.hora}Z`
+          : normalizeDate(item.fecha_hora ?? item.created_at ?? item.fecha_confirmacion, fallbackDate)
+
+      return {
+        id: String(item.id_alerta ?? item.id ?? 'alerta-sin-id'),
+        incidentId: String(item.id_alerta ?? item.id_incidente ?? item.id ?? 'alerta-sin-id'),
+        type: item.clasificacion || item.tipo || 'Emergencia',
+        location,
+        risk: normalizeRiskLevel(item.riesgo ?? item.nivel_riesgo ?? item.risk ?? item.puntaje ?? 'MEDIO'),
+        status: resolveStatus(envioEstado, item.estado),
+        createdAt,
+        description:
+          typeof item.descripcion === 'string' && item.descripcion.trim()
+            ? item.descripcion.trim()
+            : typeof item.mensaje === 'string' && item.mensaje.trim()
+              ? item.mensaje.trim()
+              : 'Alerta reportada por la institución.',
+        institutionId: String(item.id_institucion ?? institutionId),
+        distanceKm: Number.isFinite(distanceKm) ? distanceKm : 0,
+        source: normalizeSource(item.origen ?? item.source ?? item.tipo_origen),
+        envioEstado,
+      }
+    })
   },
 }

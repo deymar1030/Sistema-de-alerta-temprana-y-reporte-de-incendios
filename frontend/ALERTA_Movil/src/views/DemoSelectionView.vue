@@ -3,7 +3,7 @@
     <ion-content class="ion-padding">
       <div class="login-shell">
         <div class="brand-wrap">
-          <img class="brand-logo" src="/logo-alerta-ave.svg" alt="ALERTA logo" />
+          <img class="brand-logo" src="/logo-alerta-ave.png" alt="ALERTA logo" />
           <h1>ALERTA</h1>
           <p>Acceso seguro para personal operativo y ciudadanía.</p>
         </div>

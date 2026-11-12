@@ -198,7 +198,7 @@ async function logout() {
         <header class="top-header">
           <div class="brand">
             <img
-              src="/logo-alerta-ave.png"
+              src="/logo-alerta-ave.svg"
               alt="ALERTA"
               class="brand-logo"
             />

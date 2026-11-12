@@ -28,7 +28,7 @@ Se conserva la línea visual clara de ALERTA:
 - rojo únicamente para situaciones críticas;
 - tipografía y bordes discretos.
 
-Los logos están en `public/logo-alerta.svg` y `public/logo-alerta-ave.png` (versión anterior conservada en `public/logo-alerta-ave.svg`).
+Los logos están en `public/logo-alerta.svg` y `public/logo-alerta-ave.svg`.
 
 ## Instalación
 

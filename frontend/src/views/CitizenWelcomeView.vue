@@ -8,7 +8,7 @@ const router = useRouter()
   <div class="min-h-screen bg-[#f5efe8] px-4 py-8 text-slate-800">
     <div class="mx-auto max-w-md rounded-[32px] bg-white p-6 shadow-lg shadow-orange-100">
       <div class="flex items-center justify-center">
-        <img src="/logo-alerta-ave.png" alt="ALERTA" class="h-20 w-20" />
+        <img src="/logo-alerta-ave.svg" alt="ALERTA" class="h-20 w-20" />
       </div>
       <p class="mt-6 text-center text-xs font-bold uppercase tracking-[0.3em] text-orange-500">ALERTA</p>
       <h1 class="mt-4 text-center text-3xl font-bold text-slate-900">Tu seguridad, reportada a tiempo</h1>

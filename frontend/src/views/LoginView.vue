@@ -159,7 +159,7 @@ const ingresar = async () => {
               class="flex h-[120px] w-[108px] shrink-0 items-center justify-center rounded-[24px] border border-orange-100 bg-[#fffaf5] shadow-[0_16px_36px_rgba(0,0,0,0.20)]"
             >
               <img
-                src="/logo-alerta-ave.png"
+                src="/logo-alerta-ave.svg"
                 alt="Isotipo de ALERTA"
                 class="h-[102px] w-[84px] object-contain"
               />
@@ -279,7 +279,7 @@ const ingresar = async () => {
               class="flex h-[76px] w-[70px] shrink-0 items-center justify-center rounded-2xl border border-orange-100 bg-[#fffaf5] shadow-sm"
             >
               <img
-                src="/logo-alerta-ave.png"
+                src="/logo-alerta-ave.svg"
                 alt="Isotipo de ALERTA"
                 class="h-[66px] w-[54px] object-contain"
               />

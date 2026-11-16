@@ -12,6 +12,8 @@ export interface PredioRiesgoItem {
   latitud: number | null
   longitud: number | null
   irp: number | null
+  direccion?: string | null
+  zona?: string | null
 }
 
 const props = withDefaults(defineProps<{
@@ -19,11 +21,15 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   // Institución de referencia (vista del jefe); null en la vista del admin.
   institution?: { nombre: string; direccion?: string | null; latitud: unknown; longitud: unknown } | null
-  // Muestra "Ver ficha" en la lista y emite `select` (vista del admin).
-  detailAction?: boolean
-}>(), { loading: false, institution: null, detailAction: false })
+  emptyText?: string
+}>(), { loading: false, institution: null, emptyText: 'No hay predios para mostrar.' })
 
-const emit = defineEmits<{ select: [id: string] }>()
+// #tools: controles en la cabecera de la lista (búsqueda, actualizar).
+// #actions="{ predio }": botones por fila (ver, editar, eliminar).
+defineSlots<{
+  tools?: () => unknown
+  actions?: (props: { predio: PredioRiesgoItem }) => unknown
+}>()
 
 const PAGE_SIZE = 10
 const LEVELS = [...IRP_LEVELS, IRP_SIN_EVALUAR]
@@ -44,16 +50,19 @@ const located = computed(() => props.items.flatMap(predio => {
 
 const levels = computed(() => LEVELS.map(item => ({
   ...item,
-  count: located.value.filter(({ predio }) => irpLevel(predio.irp).level === item.level).length,
+  count: props.items.filter(predio => irpLevel(predio.irp).level === item.level).length,
 })))
 
-// Sin niveles marcados = se muestran todos.
-const visible = computed(() => selectedLevels.value.length
-  ? located.value.filter(({ predio }) => selectedLevels.value.includes(irpLevel(predio.irp).level))
-  : located.value)
+const matchesFilter = (predio: PredioRiesgoItem) =>
+  !selectedLevels.value.length || selectedLevels.value.includes(irpLevel(predio.irp).level)
 
+// Sin niveles marcados = se muestran todos. El mapa solo puede dibujar los que tienen coordenadas.
+const visible = computed(() => located.value.filter(({ predio }) => matchesFilter(predio)))
+
+// La lista incluye también los predios sin ubicación, para poder editarlos.
 // Más riesgosos primero; los no evaluados al final.
-const ranking = computed(() => [...visible.value].sort((a, b) => (b.predio.irp ?? -1) - (a.predio.irp ?? -1)))
+const ranking = computed(() => props.items.filter(matchesFilter).sort((a, b) => (b.irp ?? -1) - (a.irp ?? -1)))
+const locatedIds = computed(() => new Set(located.value.map(({ predio }) => predio.id_predio)))
 const pageCount = computed(() => Math.max(1, Math.ceil(ranking.value.length / PAGE_SIZE)))
 const pageItems = computed(() => ranking.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 const institutionPoint = computed(() => props.institution ? dashboardPoint(props.institution.latitud, props.institution.longitud) : null)
@@ -171,25 +180,40 @@ onBeforeUnmount(() => { observer?.disconnect(); map?.remove(); map = null; layer
     </section>
 
     <section class="rounded-2xl border border-slate-200 bg-white" aria-label="Predios ordenados por riesgo">
-      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
-        <h2 class="text-lg font-bold text-slate-900">Predios ordenados por riesgo</h2>
-        <span class="text-sm text-slate-500">{{ ranking.length }} {{ ranking.length === 1 ? 'predio' : 'predios' }}</span>
+      <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900">Predios ordenados por riesgo</h2>
+          <p class="text-sm text-slate-500">{{ ranking.length }} {{ ranking.length === 1 ? 'predio' : 'predios' }}</p>
+        </div>
+        <slot name="tools" />
       </div>
-      <p v-if="!loading && !ranking.length" class="px-4 py-6 text-sm text-slate-600">No hay predios para mostrar.</p>
+      <p v-if="loading" role="status" class="px-4 py-6 text-sm text-slate-600">Cargando predios...</p>
+      <p v-else-if="!ranking.length" class="px-4 py-6 text-sm text-slate-600">{{ items.length ? 'Ningún predio coincide con el filtro de criticidad.' : emptyText }}</p>
       <ul class="divide-y divide-slate-100">
-        <li v-for="{ predio } in pageItems" :key="predio.id_predio" class="flex items-center gap-2 pr-3">
-          <button type="button" class="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-4 py-2 text-left hover:bg-slate-50" :title="`Ubicar ${predio.nombre} en el mapa`" @click="focus(predio.id_predio)">
+        <li v-for="predio in pageItems" :key="predio.id_predio" class="flex flex-wrap items-center gap-2 pr-3 sm:flex-nowrap">
+          <button
+            type="button"
+            class="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-4 py-2 text-left hover:bg-slate-50 disabled:cursor-default disabled:hover:bg-transparent"
+            :disabled="!locatedIds.has(predio.id_predio)"
+            :title="locatedIds.has(predio.id_predio) ? `Ubicar ${predio.nombre} en el mapa` : 'Este predio no tiene ubicación registrada'"
+            @click="focus(predio.id_predio)"
+          >
             <i class="map-legend-key" :style="{ background: irpLevel(predio.irp).color }" aria-hidden="true"><House :size="12" /></i>
             <span class="min-w-0 flex-1">
-              <span class="block truncate font-semibold text-slate-900">{{ predio.nombre }}</span>
-              <span class="block text-xs text-slate-500">{{ predio.tipo_predio.replaceAll('_', ' ') }}</span>
+              <span class="block truncate font-semibold text-slate-900">{{ predio.nombre || `Predio #${predio.id_predio}` }}</span>
+              <span class="block truncate text-xs text-slate-500">
+                {{ [predio.tipo_predio.replaceAll('_', ' '), predio.direccion, predio.zona].filter(Boolean).join(' · ') }}
+              </span>
+              <span v-if="!locatedIds.has(predio.id_predio)" class="block text-xs font-semibold text-amber-700">Sin ubicación en el mapa</span>
             </span>
             <span class="text-right text-sm">
               <span class="block font-semibold" :style="{ color: irpLevel(predio.irp).color }">{{ irpLevel(predio.irp).label }}</span>
               <span class="block text-xs text-slate-500">{{ predio.irp == null ? 'IRP sin calcular' : `IRP ${predio.irp.toFixed(2)}` }}</span>
             </span>
           </button>
-          <button v-if="detailAction" type="button" class="min-h-11 shrink-0 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-orange-700 hover:bg-orange-50" @click="emit('select', predio.id_predio)">Ver ficha</button>
+          <div v-if="$slots.actions" class="flex shrink-0 gap-2 pb-2 pl-4 sm:pb-0 sm:pl-0">
+            <slot name="actions" :predio="predio" />
+          </div>
         </li>
       </ul>
       <nav v-if="pageCount > 1" class="flex items-center justify-between gap-2 border-t border-slate-200 px-4 py-3" aria-label="Paginación de predios">

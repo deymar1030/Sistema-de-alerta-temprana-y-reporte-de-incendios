@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
-  AlertCircle, Building2, CheckCircle2, ChevronDown,
+  AlertCircle, CheckCircle2, ChevronDown,
   Eye, MapPin, Pencil, Plus, RefreshCw, Search, Trash2, X,
 } from 'lucide-vue-next'
 import LocationPicker from '../components/common/LocationPicker.vue'
@@ -61,7 +61,6 @@ const zones = ref<GeographicZone[]>([])
 const zonesError = ref('')
 const loadingZones = ref(false)
 const search = ref('')
-const directoryMapOpen = ref(false)
 const formOpen = ref(false)
 const saving = ref(false)
 const editingId = ref<string | null>(null)
@@ -92,6 +91,8 @@ const filtered = computed(() => {
     item.id_predio, zoneName(item.id_zona),
   ].some(part => String(part ?? '').toLowerCase().includes(query)))
 })
+
+const panelItems = computed(() => filtered.value.map(item => ({ ...item, zona: zoneName(item.id_zona) })))
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : 'Ocurrió un error inesperado.'
@@ -410,14 +411,12 @@ onBeforeUnmount(() => {
         <p class="text-xs font-bold uppercase tracking-widest text-orange-600">Administración</p>
         <h1 class="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">Predios</h1>
         <p class="mt-2 max-w-2xl text-sm text-slate-600">
-          Registra y administra los predios. El motor de detección es gestionado por el backend.
+          Registra y administra los predios. Cada predio se pinta según su Índice de Riesgo de Predio (IRP);
+          pulsa un nivel de la leyenda del mapa para filtrar por criticidad.
         </p>
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <button type="button" :aria-pressed="directoryMapOpen" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-white px-5 py-3 text-sm font-bold text-orange-700 hover:bg-orange-50" @click="directoryMapOpen = !directoryMapOpen">
-          <MapPin class="h-5 w-5" aria-hidden="true" /> {{ directoryMapOpen ? 'Ocultar mapa de riesgo' : 'Ver mapa de riesgo' }}
-        </button>
         <button
           type="button"
           class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white hover:bg-orange-700"
@@ -448,38 +447,34 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <PrediosRiesgoPanel v-if="directoryMapOpen && !store.loading && !store.error" :items="filtered" detail-action @select="openDetail" />
-
-    <section
-      aria-label="Directorio de predios"
-      class="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+    <div
+      v-if="store.error"
+      role="alert"
+      class="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800"
     >
-      <div class="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div>
-          <h2 class="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <Building2 class="h-5 w-5 text-orange-600" aria-hidden="true" />
-            Directorio
-          </h2>
-          <p class="mt-1 text-sm text-slate-600">
-            {{ store.prediosDetail.length }} predios
-          </p>
-        </div>
+      <p class="break-words">{{ store.error }}</p>
+      <button
+        type="button"
+        class="mt-3 min-h-11 rounded-xl border border-red-300 bg-white px-4 font-semibold"
+        @click="store.fetchPredios()"
+      >
+        Reintentar
+      </button>
+    </div>
 
+    <PrediosRiesgoPanel
+      v-else
+      :items="panelItems"
+      :loading="store.loading"
+      :empty-text="search ? 'No se encontraron coincidencias.' : 'Aún no hay predios registrados.'"
+    >
+      <template #tools>
         <div class="flex min-w-0 flex-wrap gap-2">
           <label class="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
             <span class="sr-only">Buscar predios</span>
-            <Search
-              class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
-              aria-hidden="true"
-            />
-            <input
-              v-model="search"
-              type="search"
-              placeholder="Buscar predio, zona o tipo"
-              class="form-input pl-10"
-            />
+            <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <input v-model="search" type="search" placeholder="Buscar predio, zona o tipo" class="form-input pl-10" />
           </label>
-
           <button
             type="button"
             class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-slate-700"
@@ -487,166 +482,41 @@ onBeforeUnmount(() => {
             :disabled="store.loading"
             @click="store.fetchPredios()"
           >
-            <RefreshCw
-              class="mx-auto h-4 w-4"
-              :class="{ 'animate-spin': store.loading }"
-              aria-hidden="true"
-            />
+            <RefreshCw class="mx-auto h-4 w-4" :class="{ 'animate-spin': store.loading }" aria-hidden="true" />
           </button>
         </div>
-      </div>
+      </template>
 
-      <div
-        v-if="store.loading"
-        role="status"
-        class="p-10 text-center text-sm text-slate-600"
-      >
-        Cargando predios...
-      </div>
-
-      <div
-        v-else-if="store.error"
-        role="alert"
-        class="m-4 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800"
-      >
-        <p class="break-words">{{ store.error }}</p>
+      <template #actions="{ predio }">
         <button
           type="button"
-          class="mt-3 min-h-11 rounded-xl border border-red-300 bg-white px-4 font-semibold"
-          @click="store.fetchPredios()"
+          class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-slate-700"
+          aria-label="Ver detalle"
+          title="Ver detalle"
+          @click="openDetail(predio.id_predio)"
         >
-          Reintentar
+          <Eye class="mx-auto h-4 w-4" />
         </button>
-      </div>
-
-      <div
-        v-else-if="filtered.length === 0"
-        class="p-10 text-center text-sm text-slate-600"
-      >
-        {{ search ? 'No se encontraron coincidencias.' : 'Aún no hay predios registrados.' }}
-      </div>
-
-      <template v-else>
-        <div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:hidden">
-          <article
-            v-for="item in filtered"
-            :key="item.id_predio"
-            class="min-w-0 space-y-3 rounded-xl border border-slate-200 p-4"
-          >
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0">
-                <h3 class="break-words font-bold text-slate-900">
-                  {{ item.nombre || `Predio #${item.id_predio}` }}
-                </h3>
-                <p class="break-words text-sm text-slate-600">
-                  {{ item.tipo_predio || 'Sin tipo' }}
-                </p>
-              </div>
-              <span class="shrink-0 rounded-full bg-orange-50 px-2 py-1 text-xs text-orange-700">
-                #{{ item.id_predio }}
-              </span>
-            </div>
-
-            <p class="break-words text-sm text-slate-700">
-              {{ item.direccion || 'Sin dirección' }}
-            </p>
-            <p class="break-words text-sm text-slate-600">
-              {{ zoneName(item.id_zona) }}
-            </p>
-
-            <div class="flex flex-wrap gap-2">
-              <button
-                type="button"
-                class="min-h-11 rounded-lg border border-slate-200 px-3 text-sm text-slate-700"
-                @click="openDetail(item.id_predio)"
-              >
-                Ver
-              </button>
-              <button
-                type="button"
-                class="min-h-11 rounded-lg border border-slate-200 px-3 text-sm text-orange-700"
-                @click="openEditForm(item.id_predio)"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                class="min-h-11 rounded-lg border border-red-200 px-3 text-sm text-red-700"
-                @click="remove(item.id_predio)"
-              >
-                Eliminar
-              </button>
-            </div>
-          </article>
-        </div>
-
-        <div class="hidden overflow-x-auto lg:block">
-          <table class="w-full min-w-[760px] text-left text-sm text-slate-700">
-            <thead class="bg-slate-50 text-xs uppercase text-slate-600">
-              <tr>
-                <th scope="col" class="px-4 py-3">Nombre</th>
-                <th scope="col" class="px-4 py-3">Tipo</th>
-                <th scope="col" class="px-4 py-3">Dirección</th>
-                <th scope="col" class="px-4 py-3">Zona</th>
-                <th scope="col" class="px-4 py-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <tr
-                v-for="item in filtered"
-                :key="item.id_predio"
-                class="border-t border-slate-100 hover:bg-slate-50"
-              >
-                <td class="max-w-56 break-words px-4 py-4 font-semibold text-slate-900">
-                  {{ item.nombre || `Predio #${item.id_predio}` }}
-                </td>
-                <td class="max-w-40 break-words px-4 py-4">
-                  {{ item.tipo_predio || 'Sin tipo' }}
-                </td>
-                <td class="max-w-56 break-words px-4 py-4">
-                  {{ item.direccion || 'Sin dirección' }}
-                </td>
-                <td class="max-w-40 break-words px-4 py-4">
-                  {{ zoneName(item.id_zona) }}
-                </td>
-                <td class="px-4 py-4">
-                  <div class="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-slate-700"
-                      aria-label="Ver detalle"
-                      title="Ver detalle"
-                      @click="openDetail(item.id_predio)"
-                    >
-                      <Eye class="mx-auto h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-orange-700"
-                      aria-label="Editar predio"
-                      title="Editar predio"
-                      @click="openEditForm(item.id_predio)"
-                    >
-                      <Pencil class="mx-auto h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      class="min-h-11 min-w-11 rounded-xl border border-red-200 text-red-700"
-                      aria-label="Eliminar predio"
-                      title="Eliminar predio"
-                      @click="remove(item.id_predio)"
-                    >
-                      <Trash2 class="mx-auto h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <button
+          type="button"
+          class="min-h-11 min-w-11 rounded-xl border border-slate-200 text-orange-700"
+          aria-label="Editar predio"
+          title="Editar predio"
+          @click="openEditForm(predio.id_predio)"
+        >
+          <Pencil class="mx-auto h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          class="min-h-11 min-w-11 rounded-xl border border-red-200 text-red-700"
+          aria-label="Eliminar predio"
+          title="Eliminar predio"
+          @click="remove(predio.id_predio)"
+        >
+          <Trash2 class="mx-auto h-4 w-4" />
+        </button>
       </template>
-    </section>
+    </PrediosRiesgoPanel>
 
     <p
       v-if="loadingDetail"

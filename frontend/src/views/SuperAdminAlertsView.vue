@@ -21,6 +21,7 @@ import {
   RadioTower,
   TrendingUp,
   ArrowUpRight,
+  Check,
   X,
 } from 'lucide-vue-next'
 
@@ -29,6 +30,8 @@ import {
   type BackendAlert,
   type MapAlert,
 } from '../services/backend-alerts.service'
+import { baseTileLayer, irpElevado, irpLevel, mapIcon } from '../utils/map-icons'
+import { describirAtencion, enAtencion } from '../utils/alert-attention'
 
 const alerts = ref<BackendAlert[]>([])
 const updatedScoreIds = ref<string[]>([])
@@ -192,6 +195,8 @@ function drawAlertMarkers(recenter = true) {
         alert.hora,
       ].filter(Boolean).join(' ')
 
+      const irp = location.irp == null ? null : Number(location.irp)
+
       const popup = `
         <div style="min-width:180px;line-height:1.5">
           <strong>
@@ -222,15 +227,22 @@ function drawAlertMarkers(recenter = true) {
             <b>Fecha:</b>
             ${escapeHtml(date || 'Sin fecha')}
           </div>
+          <div>
+            <b>Atención:</b>
+            ${escapeHtml(enAtencion(alert) ? describirAtencion(alert.atendida_por) : 'Sin personal asignado')}
+          </div>
+          ${irp != null && Number.isFinite(irp) ? `<div>
+            <b>Riesgo del predio:</b>
+            ${escapeHtml(irpLevel(irp).label)} (IRP ${irp.toFixed(2)})
+          </div>` : ''}
         </div>
       `
 
-      L.circleMarker(point, {
-        radius: 11,
-        color: '#ffffff',
-        weight: 3,
-        fillColor: alertColor(alert.estado),
-        fillOpacity: 0.95,
+      const active = !terminalStates.includes(alert.estado.toUpperCase())
+      const atendida = active && enAtencion(alert)
+      L.marker(point, {
+        icon: mapIcon('alert', { color: alertColor(alert.estado), pulse: active && !atendida, badge: irpElevado(irp), attending: atendida }),
+        zIndexOffset: active ? 1000 : 0,
       })
         .bindPopup(popup)
         .addTo(markers)
@@ -386,13 +398,7 @@ onMounted(async () => {
     scrollWheelZoom: false,
   }).setView([-16.505, -68.12], 12)
 
-  L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
-    }
-  ).addTo(map)
+  baseTileLayer().addTo(map)
 
   markers = L.layerGroup().addTo(map)
 
@@ -523,6 +529,7 @@ onBeforeUnmount(() => {
                 <span class="alerts-state" :class="statusTone(alert.estado)"><span class="alerts-state-dot" aria-hidden="true"></span>{{ readableStatus(alert.estado) }}</span>
               </div>
               <p class="alerts-record-classification">{{ alert.clasificacion ?? 'Sin clasificación' }}</p>
+              <p v-if="enAtencion(alert) && !terminalStates.includes(alert.estado.toUpperCase())" class="mt-1"><span class="alert-attention-pill"><Check :size="12" :stroke-width="3" aria-hidden="true" /> En atención · {{ describirAtencion(alert.atendida_por) }}</span></p>
               <p class="alerts-record-date"><Clock3 :size="13" aria-hidden="true" /> {{ alert.fecha || 'Sin fecha' }} <span aria-hidden="true">·</span> {{ alert.hora || 'Sin hora' }}</p>
               <p v-if="updatedScoreIds.includes(String(alert.id_alerta))" class="alerts-updated-note"><TrendingUp :size="14" aria-hidden="true" /> Puntaje de confianza actualizado</p>
               <div class="alerts-record-bottom">
@@ -559,6 +566,8 @@ onBeforeUnmount(() => {
           <span><i class="legend-dot legend-amber" aria-hidden="true"></i>En evaluación</span>
           <span><i class="legend-dot legend-blue" aria-hidden="true"></i>Atendida</span>
           <span><i class="legend-dot legend-gray" aria-hidden="true"></i>Cerrada / descartada</span>
+          <span><i class="map-legend-attending" aria-hidden="true"><Check :size="11" :stroke-width="4" /></i>En atención (no parpadea)</span>
+          <span><i class="map-legend-badge" aria-hidden="true">!</i>Predio de riesgo alto o crítico</span>
         </div>
         <p class="alerts-map-footnote">Puedes ampliar, desplazarte y consultar cada marcador para ver su ubicación.</p>
       </section>
@@ -587,6 +596,7 @@ onBeforeUnmount(() => {
                   <span>Estado global</span>
                   <strong><span class="alerts-state" :class="statusTone(selected.estado)"><span class="alerts-state-dot" aria-hidden="true"></span>{{ readableStatus(selected.estado) }}</span></strong>
                 </div>
+                <div class="alerts-detail-field"><span>Atención</span><strong>{{ enAtencion(selected) ? describirAtencion(selected.atendida_por) : 'Sin personal asignado' }}</strong></div>
                 <div class="alerts-detail-field"><span>Clasificación</span><strong>{{ selected.clasificacion ?? 'Sin clasificar' }}</strong></div>
                 <div class="alerts-detail-field"><span>Origen</span><strong>{{ selected.reporte_origen ? 'Reporte ciudadano' : selected.predio ? 'Predio / sensor' : 'No especificado' }}</strong></div>
                 <div class="alerts-detail-field"><span>Ubicación</span><strong>{{ selected.predio?.nombre ?? selected.reporte_origen?.ubicacion_tipo ?? 'No disponible' }}</strong></div>

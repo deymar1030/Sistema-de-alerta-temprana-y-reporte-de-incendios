@@ -6,7 +6,7 @@ import {
   Eye, MapPin, Pencil, Plus, RefreshCw, Search, Trash2, X,
 } from 'lucide-vue-next'
 import LocationPicker from '../components/common/LocationPicker.vue'
-import PrediosDirectoryMap from '../components/predios/PrediosDirectoryMap.vue'
+import PrediosRiesgoPanel from '../components/predios/PrediosRiesgoPanel.vue'
 import { usePredioStore } from '../stores/predio.store'
 import { locationService, type GeographicZone } from '../services/location.service'
 import { predioService, type CreatePredioInput, type PredioDetail } from '../services/predio.service'
@@ -416,7 +416,7 @@ onBeforeUnmount(() => {
 
       <div class="flex flex-wrap gap-2">
         <button type="button" :aria-pressed="directoryMapOpen" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-white px-5 py-3 text-sm font-bold text-orange-700 hover:bg-orange-50" @click="directoryMapOpen = !directoryMapOpen">
-          <MapPin class="h-5 w-5" aria-hidden="true" /> {{ directoryMapOpen ? 'Ocultar mapa' : 'Ver mapa' }}
+          <MapPin class="h-5 w-5" aria-hidden="true" /> {{ directoryMapOpen ? 'Ocultar mapa de riesgo' : 'Ver mapa de riesgo' }}
         </button>
         <button
           type="button"
@@ -448,7 +448,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <PrediosDirectoryMap v-if="directoryMapOpen && !store.loading && !store.error" :items="filtered" @select="openDetail" />
+    <PrediosRiesgoPanel v-if="directoryMapOpen && !store.loading && !store.error" :items="filtered" detail-action @select="openDetail" />
 
     <section
       aria-label="Directorio de predios"
@@ -851,6 +851,7 @@ onBeforeUnmount(() => {
 
                 <LocationPicker
                   v-if="showMap"
+                  kind="predio"
                   v-model:latitud="form.latitud"
                   v-model:longitud="form.longitud"
                 />

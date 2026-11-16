@@ -20,6 +20,7 @@ import {
   Flame,
   Gauge,
   History,
+  House,
   LogOut,
   MapPinned,
   MessageCircle,
@@ -58,6 +59,7 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
   JEFE_INSTITUCION: [
     { label: 'Dashboard', to: '/institucion/dashboard', icon: Gauge },
     { label: 'Alertas recibidas', to: '/institucion/alertas', icon: AlertTriangle },
+    { label: 'Predios y riesgo', to: '/institucion/predios', icon: House },
     { label: 'Usuarios', to: '/institucion/usuarios', icon: Users },
     { label: 'Informes de Atención', to: '/institucion/informes', icon: ClipboardList },
     { label: 'Chat de coordinación', to: '/institucion/chat', icon: MessageCircle },

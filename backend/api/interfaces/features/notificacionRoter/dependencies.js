@@ -6,6 +6,7 @@ import PrismaUsuarioRepository from "../../../infrastructure/features/usuario/re
 import PrismaEnviaRepository from "../../../infrastructure/features/envia/repositories/envia.repository.impl.js";
 import PrismaRecepcionaRepository from "../../../infrastructure/features/recepciona/repositories/recepciona.repository.impl.js";
 import PrismaReporteURepository from "../../../infrastructure/features/reporteU/repositories/reporteU.repository.impl.js";
+import PrismaAlertaRepository from "../../../infrastructure/features/alerta/repositories/alerta.repository.impl.js";
 import { RegistryRealtimeNotifier } from "../../../../websocketManager/notifierRegistry.js";
 import GetAllNotificacionUseCase from "../../../application/notificacion/useCases/getAllNotificacion.useCase.js";
 import CountNoLeidasNotificacionUseCase from "../../../application/notificacion/useCases/countNoLeidasNotificacion.useCase.js";
@@ -35,6 +36,7 @@ export class NotificacionDependencies {
         enviaRepository,
         recepcionaRepository,
         reporteURepository,
+        alertaRepository: new PrismaAlertaRepository(prisma),
         realtimeNotifier: new RegistryRealtimeNotifier(),
       }),
       getMisAsignacionesUseCase: new GetMisAsignacionesUseCase(recepcionaRepository),

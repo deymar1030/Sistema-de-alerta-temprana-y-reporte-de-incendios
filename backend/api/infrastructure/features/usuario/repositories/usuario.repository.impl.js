@@ -1,5 +1,6 @@
 import UsuarioRepository from "../../../../application/usuario/repositories/usuario.repository.js";
 import { conUsuarioActual } from "../../../prismaConfig/conUsuarioActual.js";
+import { RolNombres } from "../../../../domain/rol/rolNombres.js";
 
 function limpiar(data) {
   return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
@@ -62,6 +63,23 @@ export default class PrismaUsuarioRepository extends UsuarioRepository {
       },
       orderBy: { id_usuario: "asc" },
       include: { rol: { select: { nombre_rol: true } } },
+    });
+  }
+
+  async findSupervisoresDeAlerta(id_alerta) {
+    return await this.prisma.usuario.findMany({
+      where: {
+        fecha_eliminacion: null,
+        estado: true,
+        OR: [
+          { rol: { nombre_rol: RolNombres.ADMIN } },
+          {
+            rol: { nombre_rol: RolNombres.JEFE_INSTITUCION },
+            institucion: { envia: { some: { id_alerta: BigInt(id_alerta) } } },
+          },
+        ],
+      },
+      select: { id_usuario: true },
     });
   }
 

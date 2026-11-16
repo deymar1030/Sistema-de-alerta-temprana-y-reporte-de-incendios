@@ -1,4 +1,5 @@
 import { RolNombres } from "../../../domain/rol/rolNombres.js";
+import { ResponseAlertaDTO } from "../../../domain/alerta/dtos/responseAlerta.dto.js";
 
 // El JEFE_INSTITUCION reparte una alerta ya recibida por su institucion
 // (debe existir fila en `envia`) entre OPERATIVO puntuales de esa misma
@@ -6,13 +7,17 @@ import { RolNombres } from "../../../domain/rol/rolNombres.js";
 // `recepciona` (para que el operativo quede no disponible para otra
 // alerta), una notificacion por destinatario, y emite en vivo por
 // WebSocket (rooms.usuario).
+//
+// "Alerta en atencion" no es un campo: se deduce de que exista alguna fila
+// ASIGNADO en `recepciona` para la alerta (ver findInstitucionesAtendiendo).
 export default class AsignarAlertaOperativosUseCase {
-  constructor({ notificacionRepository, usuarioRepository, enviaRepository, recepcionaRepository, reporteURepository, realtimeNotifier }) {
+  constructor({ notificacionRepository, usuarioRepository, enviaRepository, recepcionaRepository, reporteURepository, alertaRepository, realtimeNotifier }) {
     this.notificacionRepository = notificacionRepository;
     this.usuarioRepository = usuarioRepository;
     this.enviaRepository = enviaRepository;
     this.recepcionaRepository = recepcionaRepository;
     this.reporteURepository = reporteURepository;
+    this.alertaRepository = alertaRepository;
     this.realtimeNotifier = realtimeNotifier;
   }
 
@@ -77,9 +82,47 @@ export default class AsignarAlertaOperativosUseCase {
     // necesita seguir mandando mas reportes del mismo incendio. Si la
     // alerta nacio de un sensor (sin reporte ciudadano), no hay a quien
     // avisar y la lista sale vacia.
-    if (esPrimeraAsignacion) await this.notificarCiudadanosAtencion(id_alerta);
+    if (esPrimeraAsignacion) {
+      await this.notificarCiudadanosAtencion(id_alerta);
+      await this.notificarSupervisoresAtencion(id_alerta, jefe);
+    }
+
+    // En cada asignacion (no solo la primera): cambia quien atiende y con
+    // cuantos operativos, y los mapas web se refrescan con este evento.
+    await this.emitirAlertaActualizada(id_alerta);
 
     return notificaciones;
+  }
+
+  async notificarSupervisoresAtencion(id_alerta, jefe) {
+    const supervisores = await this.usuarioRepository.findSupervisoresDeAlerta(id_alerta);
+    const destinatarios = supervisores
+      .map((u) => Number(u.id_usuario))
+      .filter((id) => id !== Number(jefe.id_usuario));
+    if (!destinatarios.length) return;
+
+    const atendiendo = await this.recepcionaRepository.findInstitucionesAtendiendo(id_alerta);
+    const nombreInstitucion = atendiendo.find((i) => i.id_institucion === Number(jefe.id_institucion))?.nombre ?? "Una institución";
+
+    const notificaciones = await this.notificacionRepository.createMany(destinatarios.map((id_usuario) => ({
+      id_usuario,
+      id_usuario_emisor: jefe.id_usuario,
+      id_alerta,
+      tipo: "ALERTA",
+      titulo: "Alerta en atención",
+      mensaje: `${nombreInstitucion} asignó personal a la alerta #${id_alerta}: ya está siendo atendida.`,
+    })));
+    await Promise.all(notificaciones.map((notificacion) => this.realtimeNotifier.emitNotificacion(notificacion)));
+  }
+
+  async emitirAlertaActualizada(id_alerta) {
+    try {
+      const alerta = await this.alertaRepository.findById(BigInt(id_alerta));
+      if (alerta) await this.realtimeNotifier.emitAlertaActualizada(ResponseAlertaDTO.fromEntity(alerta));
+    } catch (error) {
+      // La asignacion ya quedo guardada; si el aviso en vivo falla, los mapas se ponen al dia en su siguiente consulta.
+      console.error("[asignarAlerta] emitAlertaActualizada no entregado", error.message);
+    }
   }
 
   async notificarCiudadanosAtencion(id_alerta) {

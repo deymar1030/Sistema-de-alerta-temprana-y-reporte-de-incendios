@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Expand, LocateFixed, Minimize } from 'lucide-vue-next'
+import { Expand, Flame, Landmark, LocateFixed, Minimize } from 'lucide-vue-next'
+import { DEFAULT_COLORS, baseTileLayer, mapIcon } from '../../utils/map-icons'
 import L from 'leaflet'
 import type { RouteInfo } from '../../services/backend-alerts.service'
 import { gapInMeters, type MapPoint } from '../../utils/alert-route'
@@ -29,10 +30,11 @@ function fit() {
 function marker(point: MapPoint, label: 'A' | 'B') {
   if (!layer) return
   L.marker(point, {
-    icon: L.divIcon({ className: `route-pin route-pin-${label}`, html: `<span>${label}</span>`, iconSize: [32, 32], iconAnchor: [16, 16] }),
-    title: label === 'A' ? 'A: institución de origen' : 'B: lugar de la alerta',
+    icon: label === 'A' ? mapIcon('institution') : mapIcon('alert', { pulse: true }),
+    title: label === 'A' ? 'Institución de origen' : 'Lugar de la alerta',
     alt: label === 'A' ? 'Institución de origen' : 'Lugar de la alerta',
     keyboard: true,
+    zIndexOffset: label === 'B' ? 1000 : 0,
   }).addTo(layer)
 }
 
@@ -71,9 +73,7 @@ onMounted(() => {
   if (!container.value) return
   map = L.map(container.value, { scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false })
     .setView(props.destination ?? [-16.505, -68.12], 13)
-  const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
-  }).addTo(map)
+  const tiles = baseTileLayer().addTo(map)
   tiles.on('tileerror', () => { tilesFailed.value = true })
   layer = L.layerGroup().addTo(map)
   observer = new ResizeObserver(() => { map?.invalidateSize(); fit() })
@@ -87,14 +87,18 @@ onBeforeUnmount(() => { observer?.disconnect(); map?.remove(); map = null; layer
 <template>
   <div class="route-map" :class="{ 'route-map-expanded': expanded }">
     <div class="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 bg-slate-50 px-4 py-2">
-      <span class="flex items-center gap-2 text-xs font-semibold text-slate-700"><span class="h-1 w-6 rounded bg-[#245c6f]" aria-hidden="true"></span>{{ route ? 'Recorrido vial calculado' : 'Ubicación de la alerta' }}</span>
+      <span class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-700">
+        <span v-if="route" class="flex items-center gap-2"><i class="map-legend-key" :style="{ background: DEFAULT_COLORS.institution }" aria-hidden="true"><Landmark :size="11" /></i>Institución</span>
+        <span class="flex items-center gap-2"><i class="map-legend-key map-legend-round" :style="{ background: DEFAULT_COLORS.alert }" aria-hidden="true"><Flame :size="11" /></i>Alerta</span>
+        <span v-if="route" class="flex items-center gap-2"><span class="h-1 w-6 rounded bg-[#245c6f]" aria-hidden="true"></span>Recorrido vial calculado</span>
+      </span>
       <div class="flex flex-wrap gap-1">
         <button type="button" class="map-action" @click="fit"><LocateFixed class="h-4 w-4" aria-hidden="true" /> Ver recorrido completo</button>
         <button type="button" class="map-action" :aria-expanded="expanded" @click="toggleExpanded"><component :is="expanded ? Minimize : Expand" class="h-4 w-4" aria-hidden="true" /> {{ expanded ? 'Reducir mapa' : 'Ampliar mapa' }}</button>
       </div>
     </div>
     <p v-if="tilesFailed" role="status" class="bg-amber-50 px-4 py-3 text-sm text-amber-900">No se pudo cargar parte del mapa base. Las coordenadas y el recorrido siguen disponibles.</p>
-    <div ref="container" class="route-canvas" aria-label="Mapa del recorrido. A: institución. B: alerta."></div>
+    <div ref="container" class="route-canvas" aria-label="Mapa del recorrido desde la institución hasta la alerta."></div>
     <p v-if="approximate" class="border-t border-slate-200 px-4 py-3 text-sm text-slate-600">La vía calculada no coincide exactamente con uno de los puntos. El acceso entre la vía y ese punto no está incluido en el recorrido.</p>
   </div>
 </template>
@@ -106,7 +110,4 @@ onBeforeUnmount(() => { observer?.disconnect(); map?.remove(); map = null; layer
 .map-action { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; }
 .map-action:hover { background: #e2e8f0; }
 .map-action:focus-visible { outline: 2px solid #9a3412; outline-offset: 2px; }
-:deep(.route-pin) { display: grid; place-items: center; border: 3px solid #fafafa; border-radius: 50%; color: #fafafa; font-weight: 800; box-shadow: 0 1px 5px #17212b55; }
-:deep(.route-pin-A) { background: #245c6f; }
-:deep(.route-pin-B) { background: #b91c1c; }
 </style>

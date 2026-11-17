@@ -35,6 +35,14 @@ function includeMiEnvio(filters) {
     : undefined;
 }
 
+// Operativos asignados hoy: de aqui sale `atendida_por` / `en_atencion`.
+const INCLUDE_ATENCION = {
+  recepciona: {
+    where: { estado: "ASIGNADO" },
+    select: { usuario: { select: { id_institucion: true, institucion: { select: { nombre: true } } } } },
+  },
+};
+
 export default class PrismaAlertaRepository extends AlertaRepository {
   constructor(prisma) {
     super();
@@ -45,7 +53,7 @@ export default class PrismaAlertaRepository extends AlertaRepository {
     return await this.prisma.alerta.findMany({
       where: buildWhere(filters),
       orderBy: [{ fecha: "desc" }, { hora: "desc" }],
-      include: includeMiEnvio(filters),
+      include: { ...INCLUDE_ATENCION, ...includeMiEnvio(filters) },
     });
   }
 
@@ -56,12 +64,12 @@ export default class PrismaAlertaRepository extends AlertaRepository {
     return await this.prisma.alerta.findMany({
       where,
       orderBy: [{ fecha: "desc" }, { hora: "desc" }],
-      include: includeMiEnvio(filters),
+      include: { ...INCLUDE_ATENCION, ...includeMiEnvio(filters) },
     });
   }
 
   async findById(id) {
-    return await this.prisma.alerta.findUnique({ where: { id_alerta: id } });
+    return await this.prisma.alerta.findUnique({ where: { id_alerta: id }, include: INCLUDE_ATENCION });
   }
 
   async findMapa(filters) {
@@ -80,6 +88,7 @@ export default class PrismaAlertaRepository extends AlertaRepository {
           take: 1,
           include: { reporte_u: true },
         },
+        ...INCLUDE_ATENCION,
         ...includeMiEnvio(filters),
       },
     });

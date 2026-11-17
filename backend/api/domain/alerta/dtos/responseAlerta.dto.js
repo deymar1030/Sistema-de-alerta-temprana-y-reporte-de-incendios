@@ -1,4 +1,5 @@
 import { ResponseEnvioDTO } from "../../envia/dtos/responseEnvia.dto.js";
+import { agruparPorInstitucion } from "../../recepciona/agruparPorInstitucion.js";
 
 function toFechaString(value) {
   if (!value) return null;
@@ -21,7 +22,7 @@ function miEnvio(alerta) {
 }
 
 export class ResponseAlertaDTO {
-  constructor({ id_alerta, fecha, hora, estado, puntaje, clasificacion, fecha_confirmacion, fecha_cierre, fecha_pico_critico, mi_envio }) {
+  constructor({ id_alerta, fecha, hora, estado, puntaje, clasificacion, fecha_confirmacion, fecha_cierre, fecha_pico_critico, mi_envio, atendida_por }) {
     this.id_alerta = id_alerta;
     this.fecha = fecha;
     this.hora = hora;
@@ -32,10 +33,16 @@ export class ResponseAlertaDTO {
     this.fecha_cierre = fecha_cierre;
     this.fecha_pico_critico = fecha_pico_critico;
     this.mi_envio = mi_envio;
+    // Solo cuando la consulta incluyo `recepciona` (ver INCLUDE_ATENCION).
+    if (atendida_por) {
+      this.atendida_por = atendida_por;
+      this.en_atencion = atendida_por.length > 0;
+    }
   }
 
   static fromEntity(alerta) {
     return new ResponseAlertaDTO({
+      atendida_por: Array.isArray(alerta.recepciona) ? agruparPorInstitucion(alerta.recepciona) : undefined,
       id_alerta: alerta.id_alerta,
       fecha: toFechaString(alerta.fecha),
       hora: toHoraString(alerta.hora),
@@ -73,7 +80,7 @@ function toNumber(v) {
 // genero (via lectura) y/o la del reporte ciudadano que la origino (via
 // genera_ru), segun cual de los dos exista.
 export class ResponseAlertaMapaDTO {
-  constructor({ id_alerta, estado, clasificacion, fecha, hora, ubicaciones, mi_envio }) {
+  constructor({ id_alerta, estado, clasificacion, fecha, hora, ubicaciones, mi_envio, atendida_por }) {
     this.id_alerta = id_alerta;
     this.estado = estado;
     this.clasificacion = clasificacion;
@@ -81,6 +88,9 @@ export class ResponseAlertaMapaDTO {
     this.hora = hora;
     this.ubicaciones = ubicaciones;
     this.mi_envio = mi_envio;
+    // Instituciones con operativos ASIGNADO; vacio = nadie la esta atendiendo aun.
+    this.atendida_por = atendida_por;
+    this.en_atencion = atendida_por.length > 0;
   }
 
   static fromEntity(alerta) {
@@ -94,6 +104,7 @@ export class ResponseAlertaMapaDTO {
         nombre: predio.nombre,
         latitud: toNumber(predio.latitud),
         longitud: toNumber(predio.longitud),
+        irp: toNumber(predio.irp),
       });
     }
 
@@ -116,6 +127,7 @@ export class ResponseAlertaMapaDTO {
       hora: toHoraString(alerta.hora),
       ubicaciones,
       mi_envio: miEnvio(alerta),
+      atendida_por: agruparPorInstitucion(alerta.recepciona),
     });
   }
 }

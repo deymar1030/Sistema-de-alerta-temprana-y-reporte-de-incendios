@@ -114,6 +114,11 @@
  *         longitud:
  *           type: number
  *           example: -68.15
+ *         irp:
+ *           type: number
+ *           nullable: true
+ *           description: Indice de Riesgo del Predio (0-1). Solo en origen PREDIO; nulo si el predio no fue evaluado.
+ *           example: 0.72
  *
  *     AlertaMapa:
  *       type: object
@@ -139,6 +144,23 @@
  *           description: La del predio del sensor que la detecto y/o la del reporte ciudadano que la origino, segun cual exista.
  *           items:
  *             $ref: '#/components/schemas/AlertaMapaUbicacion'
+ *         en_atencion:
+ *           type: boolean
+ *           description: true si alguna institucion ya asigno operativos (filas ASIGNADO en recepciona).
+ *         atendida_por:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               id_institucion:
+ *                 type: integer
+ *                 example: 3
+ *               nombre:
+ *                 type: string
+ *                 example: "Bomberos La Paz"
+ *               operativos:
+ *                 type: integer
+ *                 example: 2
  *
  *     AlertaMapaListResponse:
  *       type: array

@@ -5,24 +5,33 @@ import AsignarAlertaOperativosUseCase from '../api/application/notificacion/useC
 const jefe = { id_usuario: 1n, id_institucion: 10n, nombre: 'Ana', primer_apellido: 'Perez' };
 const operativos = [{ id_usuario: 2n }, { id_usuario: 3n }];
 
-function buildUseCase({ asignacionesActivas = [], yaAsignadaAntes = false, idsCiudadanos = [] } = {}) {
+function buildUseCase({ asignacionesActivas = [], yaAsignadaAntes = false, idsCiudadanos = [], supervisores = [] } = {}) {
   const asignados = [];
   const notificaciones = [];
+  const alertasEmitidas = [];
   const useCase = new AsignarAlertaOperativosUseCase({
     notificacionRepository: {
       createMany: async (data) => { notificaciones.push(...data); return data.map((d, i) => ({ id_notificacion: notificaciones.length - data.length + i + 1, ...d })); },
     },
-    usuarioRepository: { findByInstitucionAndRol: async () => operativos },
+    usuarioRepository: {
+      findByInstitucionAndRol: async () => operativos,
+      findSupervisoresDeAlerta: async () => supervisores,
+    },
     enviaRepository: { findByIds: async () => ({ id_alerta: 5, id_institucion: 10 }) },
     recepcionaRepository: {
       findAsignacionesActivas: async () => asignacionesActivas,
       existeAsignacionParaAlerta: async () => yaAsignadaAntes,
       asignar: async (id_alerta, ids) => { asignados.push({ id_alerta, ids }); },
+      findInstitucionesAtendiendo: async () => [{ id_institucion: 10, nombre: 'Bomberos La Paz', operativos: 2 }],
     },
     reporteURepository: { findCiudadanosByAlerta: async () => idsCiudadanos },
-    realtimeNotifier: { emitNotificacion: async () => {} },
+    alertaRepository: { findById: async (id) => ({ id_alerta: id, estado: 'CONFIRMADA' }) },
+    realtimeNotifier: {
+      emitNotificacion: async () => {},
+      emitAlertaActualizada: async (alerta) => { alertasEmitidas.push(alerta); },
+    },
   });
-  return { useCase, asignados, notificaciones };
+  return { useCase, asignados, notificaciones, alertasEmitidas };
 }
 
 test('Asignacion: operativo sin compromisos activos se asigna y notifica', async () => {
@@ -75,4 +84,25 @@ test('Asignacion: alerta sin reporte ciudadano (nacida de sensor) no genera avis
   const { useCase, notificaciones } = buildUseCase({ yaAsignadaAntes: false, idsCiudadanos: [] });
   await useCase.execute({ id_alerta: 5, id_usuarios: [2, 3], jefe });
   assert.equal(notificaciones.length, 2);
+});
+
+test('Asignacion: primera vez avisa "en atencion" a ADMIN y jefes notificados, sin avisarse al propio jefe', async () => {
+  const { useCase, notificaciones } = buildUseCase({ yaAsignadaAntes: false, supervisores: [{ id_usuario: 1n }, { id_usuario: 40n }, { id_usuario: 41n }] });
+  await useCase.execute({ id_alerta: 5, id_usuarios: [2, 3], jefe });
+  const avisos = notificaciones.filter((n) => n.titulo === 'Alerta en atención');
+  assert.deepEqual(avisos.map((n) => n.id_usuario), [40, 41]);
+  assert.match(avisos[0].mensaje, /Bomberos La Paz asignó personal a la alerta #5/);
+});
+
+test('Asignacion: si la alerta ya estaba en atencion no se repite el aviso a supervisores', async () => {
+  const { useCase, notificaciones } = buildUseCase({ yaAsignadaAntes: true, supervisores: [{ id_usuario: 40n }] });
+  await useCase.execute({ id_alerta: 5, id_usuarios: [2, 3], jefe });
+  assert.equal(notificaciones.some((n) => n.titulo === 'Alerta en atención'), false);
+});
+
+test('Asignacion: cada asignacion emite alerta:actualizada para refrescar los mapas', async () => {
+  const { useCase, alertasEmitidas } = buildUseCase({ yaAsignadaAntes: true });
+  await useCase.execute({ id_alerta: 5, id_usuarios: [2, 3], jefe });
+  assert.equal(alertasEmitidas.length, 1);
+  assert.equal(String(alertasEmitidas[0].id_alerta), '5');
 });

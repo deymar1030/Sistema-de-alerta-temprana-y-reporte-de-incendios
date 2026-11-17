@@ -22,4 +22,10 @@ export default class RecepcionaRepository {
   async existeAsignacionParaAlerta(id_alerta) {
     throw new Error("Method not implemented");
   }
+
+  // Instituciones con operativos ASIGNADO hoy a esta alerta:
+  // [{ id_institucion, nombre, operativos }].
+  async findInstitucionesAtendiendo(id_alerta) {
+    throw new Error("Method not implemented");
+  }
 }

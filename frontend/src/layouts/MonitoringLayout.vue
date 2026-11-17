@@ -20,6 +20,7 @@ import {
   Flame,
   Gauge,
   History,
+  House,
   LogOut,
   MapPinned,
   MessageCircle,
@@ -58,6 +59,7 @@ const navByRole: Record<WebUserRole, NavItem[]> = {
   JEFE_INSTITUCION: [
     { label: 'Dashboard', to: '/institucion/dashboard', icon: Gauge },
     { label: 'Alertas recibidas', to: '/institucion/alertas', icon: AlertTriangle },
+    { label: 'Predios y riesgo', to: '/institucion/predios', icon: House },
     { label: 'Usuarios', to: '/institucion/usuarios', icon: Users },
     { label: 'Informes de Atención', to: '/institucion/informes', icon: ClipboardList },
     { label: 'Chat de coordinación', to: '/institucion/chat', icon: MessageCircle },
@@ -389,7 +391,7 @@ onBeforeUnmount(() => {
           ]"
         >
           <div class="flex min-w-0 items-center gap-2.5">
-            <img src="/logo-alerta-ave.svg" alt="Logo ALERTA" class="h-10 w-10 shrink-0 object-contain" />
+            <img src="/logo-alerta-ave.jpg" alt="Logo ALERTA" class="h-10 w-10 shrink-0 object-contain" />
             <div :class="['min-w-0', collapsed ? 'lg:hidden' : '']">
               <p class="text-[11px] font-semibold uppercase tracking-[0.19em] text-orange-600">ALERTA</p>
               <p class="break-words text-xs font-semibold leading-tight text-slate-900">

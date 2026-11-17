@@ -28,6 +28,7 @@ import InstitutionAlertsView from '../views/InstitutionAlertsView.vue'
 import InstitutionAlertDetailView from '../views/InstitutionAlertDetailView.vue'
 import InstitutionHistoryView from '../views/InstitutionHistoryView.vue'
 import InstitutionReportsView from '../views/InstitutionReportsView.vue'
+import InstitutionPrediosView from '../views/InstitutionPrediosView.vue'
 import ChatView from '../views/ChatView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
 
@@ -114,6 +115,7 @@ export const routes: RouteRecordRaw[] = [
       { path: 'inicio', redirect: '/institucion/dashboard' },
       { path: 'alertas', name: 'institution-admin-alerts', component: InstitutionAlertsView, meta: { roles: institutionRoles, title: 'Alertas recibidas' } },
       { path: 'alertas/:id', name: 'institution-admin-alert-detail', component: InstitutionAlertDetailView, meta: { roles: institutionRoles, title: 'Detalle de alerta' } },
+      { path: 'predios', name: 'institution-predios', component: InstitutionPrediosView, meta: { roles: headRoles, title: 'Predios y riesgo' } },
       { path: 'usuarios', name: 'institution-users', component: AdminUsersView, meta: { roles: headRoles, title: 'Personal y usuarios' } },
       { path: 'informes', name: 'institution-reports', component: InstitutionReportsView, meta: { roles: institutionRoles, title: 'Informes de Atención' } },
       { path: 'chat', name: 'institution-chat', component: ChatView, meta: { roles: institutionRoles, title: 'Chat de coordinación' } },

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAuthStore } from '../stores/auth.store'
+import { Check } from 'lucide-vue-next'
 import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
+import { describirAtencion, enAtencion } from '../utils/alert-attention'
 
 const authStore = useAuthStore()
 const institutionId = computed(() => authStore.user?.institucionId ?? null)
@@ -60,6 +62,10 @@ onBeforeUnmount(() => {
           <strong class="text-lg text-slate-900">Alerta #{{ alert.id_alerta }}</strong>
           <span class="rounded-full bg-orange-100 px-3 py-1 text-sm text-orange-900">{{ alert.estado }}</span>
         </div>
+        <p v-if="!['CERRADA', 'DESCARTADA'].includes(alert.estado)" class="mt-3">
+          <span v-if="enAtencion(alert)" class="alert-attention-pill"><Check :size="12" :stroke-width="3" aria-hidden="true" /> En atención · {{ describirAtencion(alert.atendida_por) }}</span>
+          <span v-else class="text-sm font-semibold text-red-700">Sin personal asignado todavía</span>
+        </p>
         <p class="mt-3 text-sm text-slate-700">Clasificación: {{ alert.clasificacion ?? 'Sin clasificar' }}</p>
         <p class="mt-1 text-sm text-slate-600">{{ alert.fecha }} {{ alert.hora }}</p>
         <RouterLink :to="`/institucion/alertas/${encodeURIComponent(String(alert.id_alerta))}`" class="mt-4 inline-flex font-semibold text-orange-700 underline underline-offset-4">{{ authStore.role === 'JEFE_INSTITUCION' ? 'Ver alerta y ruta' : 'Ver estado del envío' }}</RouterLink>

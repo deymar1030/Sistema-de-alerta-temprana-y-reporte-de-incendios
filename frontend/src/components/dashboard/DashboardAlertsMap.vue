@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { LocateFixed, RefreshCw } from 'lucide-vue-next'
+import { Check, Flame, Landmark, LocateFixed, RefreshCw } from 'lucide-vue-next'
+import { DEFAULT_COLORS, baseTileLayer, irpElevado, irpLevel, mapIcon } from '../../utils/map-icons'
 import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import { backendAlertsService, type MapAlert } from '../../services/backend-alerts.service'
 import { institutionService } from '../../services/institution.service'
 import type { Institution } from '../../types'
+import { describirAtencion, enAtencion } from '../../utils/alert-attention'
 import { dashboardAlerts, dashboardInstitutions, dashboardPoint, type DashboardScope, type DashboardPoint } from '../../utils/dashboard-map'
 
 const props = withDefaults(defineProps<{ scope: DashboardScope; institutionId?: string | number | null }>(), { institutionId: null })
@@ -63,7 +65,7 @@ function fit() {
   if (bounds?.isValid()) map?.fitBounds(bounds, { padding: [36, 36], maxZoom: 15, animate: false })
 }
 
-function addMarker(point: DashboardPoint, kind: 'alert' | 'institution', title: string, lines: string[], alertId?: string) {
+function addMarker(point: DashboardPoint, icon: L.DivIcon, zIndexOffset: number, title: string, lines: string[], alertId?: string) {
   if (!markers) return
   const popup = document.createElement('div')
   const heading = document.createElement('strong')
@@ -87,10 +89,8 @@ function addMarker(point: DashboardPoint, kind: 'alert' | 'institution', title: 
     })
     popup.append(link)
   }
-  L.marker(point, {
-    icon: L.divIcon({ className: `dashboard-pin dashboard-pin-${kind}`, html: `<span aria-hidden="true">${kind === 'alert' ? '!' : 'I'}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }),
-    title, alt: title, keyboard: true, zIndexOffset: kind === 'alert' ? 100 : 0,
-  }).bindPopup(popup, { maxWidth: 260, autoPanPadding: [20, 20] }).addTo(markers)
+  L.marker(point, { icon, title, alt: title, keyboard: true, zIndexOffset })
+    .bindPopup(popup, { maxWidth: 260, autoPanPadding: [20, 20] }).addTo(markers)
 }
 
 function draw() {
@@ -99,12 +99,18 @@ function draw() {
   const points: DashboardPoint[] = []
   for (const { institution, point } of mappedInstitutions.value) {
     points.push(point)
-    addMarker(point, 'institution', institution.nombre, [institution.tipo.replaceAll('_', ' '), `${institution.estado} · ${institution.disponibilidad.replaceAll('_', ' ')}`, institution.direccion])
+    addMarker(point, mapIcon('institution'), 0, institution.nombre, [institution.tipo.replaceAll('_', ' '), `${institution.estado} · ${institution.disponibilidad.replaceAll('_', ' ')}`, institution.direccion])
   }
   for (const { alert, locations } of mappedAlerts.value) {
-    for (const { point, name } of locations) {
+    const atendida = enAtencion(alert)
+    for (const { point, name, irp } of locations) {
       points.push(point)
-      addMarker(point, 'alert', `Alerta #${alert.id_alerta}`, [name, `${alert.estado.replaceAll('_', ' ')} · ${alert.clasificacion ?? 'Sin clasificación'}`, `${alert.fecha} · ${alert.hora}`], String(alert.id_alerta))
+      const elevado = irpElevado(irp)
+      const lines = [name, `${alert.estado.replaceAll('_', ' ')} · ${alert.clasificacion ?? 'Sin clasificación'}`, `${alert.fecha} · ${alert.hora}`]
+      lines.push(atendida ? `✔ En atención: ${describirAtencion(alert.atendida_por)}` : 'Sin personal asignado todavía')
+      if (elevado) lines.push(`⚠ Predio de riesgo ${irpLevel(irp!).label.toLowerCase()} (IRP ${irp!.toFixed(2)})`)
+      // Parpadea solo mientras nadie la atiende: es la que requiere acción.
+      addMarker(point, mapIcon('alert', { pulse: !atendida, badge: elevado, attending: atendida }), atendida ? 900 : 1000, `Alerta #${alert.id_alerta}`, lines, String(alert.id_alerta))
     }
   }
   bounds = points.length ? L.latLngBounds(points) : null
@@ -130,7 +136,7 @@ watch([mappedAlerts, mappedInstitutions], draw)
 onMounted(() => {
   if (!canvas.value) return
   map = L.map(canvas.value, { scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false }).setView([-16.505, -68.12], 12)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' })
+  baseTileLayer()
     .on('tileerror', () => { tilesFailed.value = true }).addTo(map)
   markers = L.layerGroup().addTo(map)
   observer = new ResizeObserver(() => { map?.invalidateSize(); fit() })
@@ -160,8 +166,10 @@ defineExpose({ refresh })
       </div>
     </header>
     <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 sm:px-5" aria-label="Leyenda del mapa">
-      <span class="flex items-center gap-2"><span class="dashboard-key dashboard-key-alert" aria-hidden="true">!</span> {{ alertError || !hasContext ? 'Alertas no disponibles' : `${locatedAlerts} ${locatedAlerts === 1 ? 'alerta ubicada' : 'alertas ubicadas'}` }}</span>
-      <span class="flex items-center gap-2"><span class="dashboard-key dashboard-key-institution" aria-hidden="true">I</span> {{ institutionError || !hasContext ? 'Instituciones no disponibles' : `${mappedInstitutions.length} ${mappedInstitutions.length === 1 ? 'institución ubicada' : 'instituciones ubicadas'}` }}</span>
+      <span class="flex items-center gap-2"><i class="map-legend-key map-legend-round" :style="{ background: DEFAULT_COLORS.alert }" aria-hidden="true"><Flame :size="12" /></i> {{ alertError || !hasContext ? 'Alertas no disponibles' : `${locatedAlerts} ${locatedAlerts === 1 ? 'alerta ubicada' : 'alertas ubicadas'}` }}</span>
+      <span class="flex items-center gap-2"><i class="map-legend-key" :style="{ background: DEFAULT_COLORS.institution }" aria-hidden="true"><Landmark :size="12" /></i> {{ institutionError || !hasContext ? 'Instituciones no disponibles' : `${mappedInstitutions.length} ${mappedInstitutions.length === 1 ? 'institución ubicada' : 'instituciones ubicadas'}` }}</span>
+      <span class="flex items-center gap-2 text-xs"><span class="map-legend-attending" aria-hidden="true"><Check :size="11" :stroke-width="4" /></span>En atención (personal asignado; deja de parpadear)</span>
+      <span class="flex items-center gap-2 text-xs"><span class="map-legend-badge" aria-hidden="true">!</span>Alerta en predio de riesgo alto o crítico</span>
       <span class="text-xs text-slate-600" role="status">{{ loading ? 'Consultando ubicaciones…' : updatedAt ? `Actualizado a las ${updatedAt}` : 'Sin actualización completa' }} · Consulta cada 30 s</span>
     </div>
     <div v-if="!hasContext || alertError || institutionError" role="alert" class="space-y-1 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -185,11 +193,5 @@ defineExpose({ refresh })
 .dashboard-map-action:hover:not(:disabled) { background: #f1f5f9; }
 .dashboard-map-action:disabled { opacity: .5; cursor: not-allowed; }
 .dashboard-map-action:focus-visible { outline: 2px solid #9a3412; outline-offset: 2px; }
-.dashboard-key { display: inline-grid; place-items: center; width: 20px; height: 20px; color: #fafafa; font-weight: 800; font-size: 12px; }
-.dashboard-key-alert { border-radius: 50%; background: #b91c1c; }
-.dashboard-key-institution { border-radius: 4px; background: #334155; }
-:deep(.dashboard-pin) { display: grid; place-items: center; border: 3px solid #fafafa; color: #fafafa; font-size: 16px; font-weight: 800; box-shadow: 0 1px 4px #17212b55; }
-:deep(.dashboard-pin-alert) { border-radius: 50%; background: #b91c1c; }
-:deep(.dashboard-pin-institution) { border-radius: 6px; background: #334155; }
 :deep(.dashboard-popup-link) { display: inline-flex; align-items: center; min-height: 44px; color: #9a3412; font-weight: 700; }
 </style>

@@ -29,7 +29,8 @@ export function dashboardAlerts(items: MapAlert[]) {
         const point = dashboardPoint(location.latitud, location.longitud)
         if (!point || seen.has(point.join(','))) return []
         seen.add(point.join(','))
-        return [{ point, name: location.nombre || location.origen || 'Ubicación de la alerta' }]
+        const irp = location.irp == null ? null : Number(location.irp)
+        return [{ point, name: location.nombre || location.origen || 'Ubicación de la alerta', irp: Number.isFinite(irp) ? irp : null }]
       })
       return { alert, locations }
     })

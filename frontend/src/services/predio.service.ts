@@ -13,7 +13,8 @@ export interface PredioMapEntry {
   tipo_predio: string
   latitud: number
   longitud: number
-  irp: number
+  // null = predio sin los 7 parámetros de evaluación (IRP no calculado).
+  irp: number | null
 }
 
 export interface PredioDetail {
@@ -196,8 +197,7 @@ export const predioService = {
       .filter(
         (predio) =>
           predio.latitud !== null &&
-          predio.longitud !== null &&
-          predio.irp !== null
+          predio.longitud !== null
       )
       .map((predio) => ({
         id_predio: predio.id_predio,
@@ -205,7 +205,7 @@ export const predioService = {
         tipo_predio: predio.tipo_predio,
         latitud: predio.latitud!,
         longitud: predio.longitud!,
-        irp: predio.irp!,
+        irp: predio.irp,
       }))
   },
 

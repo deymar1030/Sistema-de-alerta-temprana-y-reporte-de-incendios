@@ -37,6 +37,14 @@ export interface MapAlertLocation {
   nombre?: string | null
   latitud: number | string | null
   longitud: number | string | null
+  irp?: number | string | null
+}
+
+// Institución con operativos asignados a la alerta (derivado de `recepciona`).
+export interface AttendingInstitution {
+  id_institucion: number
+  nombre: string | null
+  operativos: number
 }
 
 // Contrato del nuevo endpoint GET /api/alertas/mapa.
@@ -47,6 +55,8 @@ export interface MapAlert {
   fecha: string
   hora: string
   ubicaciones: MapAlertLocation[]
+  en_atencion?: boolean
+  atendida_por?: AttendingInstitution[]
 }
 
 // Contrato general de alertas.
@@ -94,6 +104,9 @@ export interface BackendAlert {
   } | null
 
   instituciones_notificadas?: InstitutionDelivery[]
+
+  en_atencion?: boolean
+  atendida_por?: AttendingInstitution[]
 }
 
 // Validar que el servidor devuelva una lista.

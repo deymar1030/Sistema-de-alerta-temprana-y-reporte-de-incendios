@@ -15,6 +15,12 @@ export default class UsuarioRepository {
     throw new Error("Method not implemented");
   }
 
+  // Usuarios activos que supervisan esta alerta: todos los ADMIN y los
+  // JEFE_INSTITUCION de las instituciones a las que se envio (`envia`).
+  async findSupervisoresDeAlerta(id_alerta) {
+    throw new Error("Method not implemented");
+  }
+
   async update(id, usuarioData, id_usuario_actor, ip_origen) {
     throw new Error("Method not implemented");
   }

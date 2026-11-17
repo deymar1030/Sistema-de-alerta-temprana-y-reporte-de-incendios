@@ -9,7 +9,9 @@ import {
 } from 'vue'
 
 import L from 'leaflet'
+import { Flame, House, Landmark, Megaphone, Radio } from 'lucide-vue-next'
 
+import { DEFAULT_COLORS, baseTileLayer, irpLevel, mapIcon } from '../../utils/map-icons'
 import { useSensorStore } from '../../stores/sensor.store'
 import { useIncidentStore } from '../../stores/incident.store'
 import { useInstitutionStore } from '../../stores/institution.store'
@@ -92,15 +94,6 @@ const incidentColors: Record<string, string> = {
   warning: '#f2c94c',
   high: '#f4a259',
   critical: '#e4473d',
-}
-
-const riskFromIrp = (
-  irp: number,
-): 'normal' | 'warning' | 'high' | 'critical' => {
-  if (irp >= 0.8) return 'critical'
-  if (irp >= 0.6) return 'high'
-  if (irp >= 0.4) return 'warning'
-  return 'normal'
 }
 
 const escapeHtml = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -201,15 +194,9 @@ const rebuildLayers = () => {
           sensorColors[sensor.riesgo] ??
           sensorColors.normal
 
-        L.circleMarker(
+        L.marker(
           [sensor.lat, sensor.lng],
-          {
-            radius: 9,
-            color: '#ffffff',
-            weight: 3,
-            fillColor: color,
-            fillOpacity: 0.96,
-          },
+          { icon: mapIcon('sensor', { color }) },
         )
           .bindPopup(
             popup(sensor.nombre, [
@@ -286,17 +273,14 @@ const rebuildLayers = () => {
           ] ??
           incidentColors.warning
 
-        L.circleMarker(
+        L.marker(
           [
             incident.latitud,
             incident.longitud,
           ],
           {
-            radius: 14,
-            color: '#ffffff',
-            weight: 4,
-            fillColor: color,
-            fillOpacity: 0.95,
+            icon: mapIcon('alert', { color, pulse: true }),
+            zIndexOffset: 1000,
           },
         )
           .bindPopup(
@@ -366,18 +350,12 @@ const rebuildLayers = () => {
               ? '#f4a259'
               : '#94a3b8'
 
-        L.circleMarker(
+        L.marker(
           [
             institution.latitud,
             institution.longitud,
           ],
-          {
-            radius: 8,
-            color: '#ffffff',
-            weight: 3,
-            fillColor: color,
-            fillOpacity: 0.94,
-          },
+          { icon: mapIcon('institution', { color }) },
         )
           .bindPopup(
             popup(
@@ -437,18 +415,12 @@ const rebuildLayers = () => {
           return
         }
 
-        L.circleMarker(
+        L.marker(
           [
             report.latitud,
             report.longitud,
           ],
-          {
-            radius: 10,
-            color: '#ffffff',
-            weight: 3,
-            fillColor: '#b7791f',
-            fillOpacity: 0.92,
-          },
+          { icon: mapIcon('report') },
         )
           .bindPopup(
             popup(
@@ -494,24 +466,15 @@ const rebuildLayers = () => {
           return
         }
 
-        const risk =
-          riskFromIrp(predio.irp)
+        const level = irpLevel(predio.irp)
+        const color = level.color
 
-        const color =
-          incidentColors[risk]
-
-        L.circleMarker(
+        L.marker(
           [
             predio.latitud,
             predio.longitud,
           ],
-          {
-            radius: 7,
-            color: '#ffffff',
-            weight: 2,
-            fillColor: color,
-            fillOpacity: 0.8,
-          },
+          { icon: mapIcon('predio', { color }) },
         )
           .bindPopup(
             popup(predio.nombre, [
@@ -524,11 +487,11 @@ const rebuildLayers = () => {
               ],
               [
                 'IRP',
-                predio.irp.toFixed(2),
+                predio.irp == null ? 'Sin evaluar' : predio.irp.toFixed(2),
               ],
               [
                 'Nivel de riesgo',
-                risk,
+                level.label,
               ],
             ]),
           )
@@ -701,14 +664,7 @@ onMounted(async () => {
     13,
   )
 
-  L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    {
-      attribution:
-        '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
-    },
-  ).addTo(map)
+  baseTileLayer().addTo(map)
 
   sensorLayer =
     L.layerGroup().addTo(map)
@@ -860,58 +816,24 @@ onBeforeUnmount(() => {
       <div
         class="grid gap-1.5 text-[11px] text-slate-700 sm:grid-cols-2"
       >
-        <span
-          v-if="showSensors"
-          class="flex items-center gap-2"
-        >
-          <i
-            class="h-2.5 w-2.5 rounded-full bg-emerald-600"
-          ></i>
-
+        <span v-if="showSensors" class="flex items-center gap-2">
+          <i class="map-legend-key map-legend-round" :style="{ background: DEFAULT_COLORS.sensor }"><Radio :size="11" /></i>
           Sensores
         </span>
-
-        <span
-          v-if="showIncidents"
-          class="flex items-center gap-2"
-        >
-          <i
-            class="h-2.5 w-2.5 rounded-full bg-red-500"
-          ></i>
-
+        <span v-if="showIncidents" class="flex items-center gap-2">
+          <i class="map-legend-key map-legend-round" :style="{ background: DEFAULT_COLORS.alert }"><Flame :size="11" /></i>
           Alertas / incidentes
         </span>
-
-        <span
-          v-if="showInstitutions"
-          class="flex items-center gap-2"
-        >
-          <i
-            class="h-2.5 w-2.5 rounded-full bg-sky-800"
-          ></i>
-
+        <span v-if="showInstitutions" class="flex items-center gap-2">
+          <i class="map-legend-key" :style="{ background: DEFAULT_COLORS.institution }"><Landmark :size="11" /></i>
           Instituciones
         </span>
-
-        <span
-          v-if="showReports"
-          class="flex items-center gap-2"
-        >
-          <i
-            class="h-2.5 w-2.5 rounded-full bg-amber-600"
-          ></i>
-
+        <span v-if="showReports" class="flex items-center gap-2">
+          <i class="map-legend-key map-legend-round" :style="{ background: DEFAULT_COLORS.report }"><Megaphone :size="11" /></i>
           Reporte ciudadano
         </span>
-
-        <span
-          v-if="showPredios"
-          class="flex items-center gap-2"
-        >
-          <i
-            class="h-2.5 w-2.5 rounded-full bg-orange-500"
-          ></i>
-
+        <span v-if="showPredios" class="flex items-center gap-2">
+          <i class="map-legend-key" :style="{ background: DEFAULT_COLORS.predio }"><House :size="11" /></i>
           Predios
         </span>
       </div>

@@ -921,6 +921,7 @@ async function save() {
               class="mt-3 min-w-0"
             >
               <LocationPicker
+                kind="institution"
                 v-model:latitud="coordinates.latitud"
                 v-model:longitud="coordinates.longitud"
               />

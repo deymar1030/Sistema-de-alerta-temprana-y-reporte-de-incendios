@@ -1,4 +1,5 @@
 import RecepcionaRepository from "../../../../application/recepciona/repositories/recepciona.repository.js";
+import { agruparPorInstitucion } from "../../../../domain/recepciona/agruparPorInstitucion.js";
 
 const ALERTA_CERRADA = ["CERRADA", "DESCARTADA"];
 
@@ -43,6 +44,14 @@ export default class PrismaRecepcionaRepository extends RecepcionaRepository {
       select: { id_usuario: true },
     });
     return Boolean(existente);
+  }
+
+  async findInstitucionesAtendiendo(id_alerta) {
+    const filas = await this.prisma.recepciona.findMany({
+      where: { id_alerta: BigInt(id_alerta), estado: "ASIGNADO" },
+      select: { usuario: { select: { id_institucion: true, institucion: { select: { nombre: true } } } } },
+    });
+    return agruparPorInstitucion(filas);
   }
 
   async asignar(id_alerta, idsUsuarios) {

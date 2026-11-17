@@ -3,8 +3,9 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L, { type LeafletMouseEvent } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { LocateFixed, MapPin } from 'lucide-vue-next'
+import { baseTileLayer, mapIcon } from '../../utils/map-icons'
 
-const props = defineProps<{ latitud: number | null; longitud: number | null }>()
+const props = defineProps<{ latitud: number | null; longitud: number | null; kind: 'predio' | 'institution' }>()
 const emit = defineEmits<{
   'update:latitud': [value: number | null]
   'update:longitud': [value: number | null]
@@ -14,7 +15,7 @@ const element = ref<HTMLElement | null>(null)
 const geolocationError = ref('')
 const obtainingLocation = ref(false)
 let map: L.Map | null = null
-let marker: L.CircleMarker | null = null
+let marker: L.Marker | null = null
 
 function valid(lat: number | null, lng: number | null): boolean {
   return lat !== null && lng !== null && Number.isFinite(lat) && Number.isFinite(lng) &&
@@ -31,10 +32,7 @@ function updateMarker() {
   if (valid(props.latitud, props.longitud)) {
     const point: L.LatLngExpression = [props.latitud!, props.longitud!]
     if (!marker) {
-      marker = L.circleMarker(point, {
-        radius: 9, weight: 3, color: '#ea580c',
-        fillColor: '#fff7ed', fillOpacity: 1,
-      }).addTo(map)
+      marker = L.marker(point, { icon: mapIcon(props.kind), interactive: false }).addTo(map)
     } else marker.setLatLng(point)
   } else if (marker) {
     marker.remove()
@@ -79,10 +77,7 @@ onMounted(async () => {
   // El centro del mapa es visual. Nunca se envía como ubicación seleccionada.
   map = L.map(element.value, { scrollWheelZoom: false })
     .setView(center, hasPoint ? 15 : 12)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors',
-  }).addTo(map)
+  baseTileLayer().addTo(map)
   map.on('click', (event: LeafletMouseEvent) => {
     selectLocation(event.latlng.lat, event.latlng.lng)
   })

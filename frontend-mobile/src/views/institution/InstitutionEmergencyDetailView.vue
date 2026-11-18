@@ -47,7 +47,7 @@ const direccionResuelta = ref('')
 const direccion = computed(() => incident.value?.address || direccionResuelta.value || 'Ubicación en mapa')
 
 const fechaHora = (iso: string) =>
-  new Date(iso).toLocaleString('es-BO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  new Date(iso).toLocaleString('es-BO', { timeZone: 'America/La_Paz', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 const mapaEl = ref<HTMLElement | null>(null)
 let map: L.Map | null = null

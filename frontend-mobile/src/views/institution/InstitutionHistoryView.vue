@@ -39,7 +39,7 @@ onMounted(async () => {
               <StatusBadge :state="incident.status" tone="success" />
             </div>
             <div class="meta">
-              <span><ion-icon :icon="calendarOutline" />{{ new Date(incident.createdAt).toLocaleDateString('es-BO') }}</span>
+              <span><ion-icon :icon="calendarOutline" />{{ new Date(incident.createdAt).toLocaleDateString('es-BO', { timeZone: 'America/La_Paz' }) }}</span>
               <span>{{ incident.distanceKm }} km</span>
             </div>
           </ion-card>

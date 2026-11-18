@@ -167,7 +167,7 @@ const formatearFecha = (fechaISO: string) => {
   const fecha = new Date(fechaISO)
   if (isNaN(fecha.getTime())) return ''
   return fecha.toLocaleString('es-BO', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+    timeZone: 'America/La_Paz', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
   })
 }
 
@@ -200,7 +200,8 @@ const cargarAlertas = async () => {
       return {
         id: String(a.id_alerta),
         clasificacion: a.clasificacion || 'INCENDIO',
-        fechaHora: a.fecha && a.hora ? `${a.fecha}T${a.hora}` : '',
+        // fecha/hora vienen en hora de Bolivia (UTC-4 fijo).
+        fechaHora: a.fecha && a.hora ? `${a.fecha}T${a.hora}-04:00` : '',
         coords,
         distanciaKm: coords && usuario ? distanciaKm(usuario, coords) : null,
         lugar: '',

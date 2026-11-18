@@ -28,7 +28,7 @@ defineProps<{ incident: Incident; assigned?: boolean }>()
       </div>
       <div class="meta-row small">
         <ion-icon :icon="timeOutline" class="meta-icon" aria-hidden="true" />
-        <span>{{ new Date(incident.createdAt).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) }}</span>
+        <span>{{ new Date(incident.createdAt).toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit' }) }}</span>
       </div>
       <p class="description">{{ incident.description }}</p>
     </ion-card-content>

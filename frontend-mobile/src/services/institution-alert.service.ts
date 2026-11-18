@@ -80,7 +80,7 @@ export const institutionAlertService = {
       const distanceKm = Number(item.distancia_km ?? item.distancia ?? item.distanceKm ?? 0)
       const createdAt =
         item.fecha && item.hora
-          ? `${item.fecha}T${item.hora}Z`
+          ? `${item.fecha}T${item.hora}-04:00`
           : normalizeDate(item.fecha_hora ?? item.created_at ?? item.fecha_confirmacion, fallbackDate)
 
       return {

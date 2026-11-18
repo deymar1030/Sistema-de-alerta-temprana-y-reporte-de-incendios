@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton,
@@ -11,6 +11,7 @@ import { Geolocation } from '@capacitor/geolocation'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings'
 import L from 'leaflet'
+import { crearEncuadre } from '../../utils/encuadreMapa'
 
 import markerIconPng from 'leaflet/dist/images/marker-icon.png'
 import markerShadowPng from 'leaflet/dist/images/marker-shadow.png'
@@ -172,7 +173,11 @@ const getAddressFromCoords = async (lat: number, lng: number) => {
   }
 }
 
+let observadorMapa: ResizeObserver | null = null
+
 const initSelectMap = async () => {
+  observadorMapa?.disconnect()
+  observadorMapa = null
   if (map) {
     map.remove()
     map = null
@@ -214,14 +219,26 @@ const initSelectMap = async () => {
         getAddressFromCoords(cLat, cLng)
       })
 
-      // Forzamos el ajuste de tamaño
-      setTimeout(() => map?.invalidateSize(), 300)
+      // Centra en tu ubicacion y lo vuelve a centrar cuando el contenedor toma
+      // su tamaño real (antes invalidateSize dejaba el punto corrido).
+      const encuadre = crearEncuadre(map, { centroPorDefecto: [lat, lng], zoomPorDefecto: 15, zoomUnPunto: 15 })
+      encuadre.encuadrar([[lat, lng]])
+      const contenedor = document.getElementById('select-map')
+      if (contenedor && 'ResizeObserver' in window) {
+        observadorMapa = new ResizeObserver(() => encuadre.reajustar())
+        observadorMapa.observe(contenedor)
+      }
     }, 150)
 
   } catch (error) {
     console.error('Error iniciando el mapa', error)
   }
 }
+
+onBeforeUnmount(() => {
+  observadorMapa?.disconnect()
+  observadorMapa = null
+})
 
 const handleModeChange = (e: any) => {
   mode.value = e.detail.value

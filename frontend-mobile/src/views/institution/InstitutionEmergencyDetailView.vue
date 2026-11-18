@@ -12,6 +12,7 @@ import { Geolocation } from '@capacitor/geolocation'
 import { Capacitor } from '@capacitor/core'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { crearEncuadre } from '../../utils/encuadreMapa'
 import { useIncidentStore } from '../../stores/incident.store'
 import IncidentTimeline from '../../components/common/IncidentTimeline.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
@@ -51,6 +52,7 @@ const fechaHora = (iso: string) =>
 
 const mapaEl = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
+let encuadre: ReturnType<typeof crearEncuadre> | null = null
 let punto: L.CircleMarker | null = null
 let userMarker: L.CircleMarker | null = null
 let polyline: L.Polyline | null = null
@@ -105,9 +107,10 @@ const dibujarMapa = async () => {
       attribution: '&copy; OpenStreetMap', maxZoom: 19
     }).addTo(map)
     L.control.zoom({ position: 'topleft' }).addTo(map);
-    
+    encuadre = crearEncuadre(map, { centroPorDefecto: pos, zoomPorDefecto: 16, zoomUnPunto: 16, maxZoom: 17 })
+
     if ('ResizeObserver' in window) {
-      observador = new ResizeObserver(() => map?.invalidateSize())
+      observador = new ResizeObserver(() => encuadre?.reajustar())
       observador.observe(mapaEl.value)
     }
   }
@@ -143,14 +146,11 @@ const dibujarMapa = async () => {
       calculatedDistance.value = Math.round(distMeters) + ' m';
     }
 
-    // Centrar mapa para ver ambos puntos
-    const bounds = L.latLngBounds([userPos, pos]);
-    map.fitBounds(bounds, { padding: [40, 40] });
-  } else {
-    map.setView(pos, 16);
   }
 
-  setTimeout(() => map?.invalidateSize(), 400)
+  // Encuadra emergencia (+ usuario si hay GPS) y lo reaplica cuando el
+  // contenedor toma su tamaño real (ver encuadreMapa.ts).
+  encuadre?.encuadrar(userLocation.value ? [[userLocation.value.lat, userLocation.value.lng], pos] : [pos])
 }
 
 watch(() => [incident.value?.latitude, incident.value?.longitude], dibujarMapa, { immediate: true })
@@ -221,10 +221,7 @@ const onRefresh = async (event: any) => {
 onIonViewWillEnter(() => { void refrescar() })
 
 onIonViewDidEnter(() => {
-  const fixMap = () => { if (map) map.invalidateSize(); };
-  setTimeout(fixMap, 50);
-  setTimeout(fixMap, 250);
-  setTimeout(fixMap, 500);
+  encuadre?.reajustar()
 })
 
 onMounted(() => {

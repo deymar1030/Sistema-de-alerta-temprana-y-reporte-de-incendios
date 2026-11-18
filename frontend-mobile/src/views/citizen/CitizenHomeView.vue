@@ -13,6 +13,7 @@ import { useAuthStore } from '../../stores/auth.store'
 import { socket } from '../../services/realtime'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { crearEncuadre } from '../../utils/encuadreMapa'
 import { Geolocation } from '@capacitor/geolocation'
 import { Camera } from '@capacitor/camera'
 
@@ -28,6 +29,7 @@ let userMarker: L.CircleMarker | null = null
 let watchId: string | null = null
 let markersLayer = L.layerGroup()
 let resizeObserver: ResizeObserver | null = null
+let encuadre: ReturnType<typeof crearEncuadre> | null = null
 let userLatLng: L.LatLngTuple | null = null
 let alertPoints: L.LatLngTuple[] = []
 
@@ -105,17 +107,11 @@ const ubicacionesDesdeReportes = (idAlerta: any, reportes: any[]): Ubicacion[] =
 }
 
 // Encuadra el mapa para que se vean a la vez las alertas y tu ubicación
+// (se reaplica solo cuando el contenedor toma su tamaño real, ver encuadreMapa.ts).
 const ajustarVista = () => {
-  if (!map) return
   const puntos: L.LatLngTuple[] = [...alertPoints]
   if (userLatLng) puntos.push(userLatLng)
-  if (puntos.length === 0) return
-
-  if (puntos.length === 1) {
-    map.setView(puntos[0], 14)
-  } else {
-    map.fitBounds(L.latLngBounds(puntos), { padding: [40, 40], maxZoom: 16 })
-  }
+  encuadre?.encuadrar(puntos)
 }
 
 // ---------- Mapa ----------
@@ -128,10 +124,11 @@ const initMap = async () => {
   }).addTo(map)
 
   markersLayer.addTo(map)
+  encuadre = crearEncuadre(map, { centroPorDefecto: [-16.2902, -63.5887], zoomPorDefecto: 5, zoomUnPunto: 14, maxZoom: 16 })
 
   const el = document.getElementById('map-container')
   if (el && 'ResizeObserver' in window) {
-    resizeObserver = new ResizeObserver(() => map?.invalidateSize())
+    resizeObserver = new ResizeObserver(() => encuadre?.reajustar())
     resizeObserver.observe(el)
   }
 
@@ -343,7 +340,10 @@ onMounted(async () => {
 
 // Ionic conserva la pagina en memoria al cambiar de pestaña: sin esto, al
 // volver al inicio se seguian viendo las alertas de la ultima carga.
-onIonViewDidEnter(() => { void refrescarDashboard() })
+onIonViewDidEnter(() => {
+  encuadre?.reajustar()
+  void refrescarDashboard()
+})
 
 onUnmounted(() => {
   if (watchId) {

@@ -4,6 +4,11 @@ import { ResponseAlertaDTO } from '../../../domain/alerta/dtos/responseAlerta.dt
 import { ResponseLecturaDTO } from '../../../domain/lectura/dtos/responseLectura.dto.js';
 import { calcularRutasEnvios } from '../../alerta/calcularRutasEnvios.js';
 
+// Durante la evaluacion llega una lectura cada pocos segundos; solo se avisa
+// cuando cambia algo que se muestra (estado, clasificacion o puntaje).
+const cambioVisible = (antes, despues) => antes.estado !== despues.estado ||
+  antes.clasificacion !== despues.clasificacion || String(antes.puntaje ?? '') !== String(despues.puntaje ?? '');
+
 const predioPublico = (p) => ({ id_predio: p.id_predio, nombre: p.nombre, tipo_predio: p.tipo_predio,
   latitud: Number(p.latitud), longitud: Number(p.longitud), irp: p.irp == null ? null : Number(p.irp) });
 
@@ -43,13 +48,16 @@ export class EvaluarLecturaUseCase {
     if (actualizada.estado === 'CONFIRMADA') {
       await avisar('emitAlertaConfirmada');
     } else if (actualizada.estado === 'DESCARTADA') {
+      // Si ya hubo pico critico, las instituciones la recibieron: el evento
+      // debe llevar a quienes avisar (el notifier enruta por esa lista).
+      if (alerta.fecha_pico_critico) Object.assign(payload, await tx.detalle(actualizada));
       eventos.push(['emitAlertaDescartada', payload]);
     } else if (resultado.avisoCritico) {
       // Lectura critica con respaldo: se avisa a las instituciones de
       // inmediato aunque el estado quede EN_EVALUACION hasta que cierre la
       // ventana de correccion (ver evaluarPredio.js).
       await avisar(nueva ? 'emitAlertaAbierta' : 'emitAlertaActualizada');
-    } else {
+    } else if (nueva || cambioVisible(alerta, actualizada)) {
       eventos.push([nueva ? 'emitAlertaAbierta' : 'emitAlertaActualizada', payload]);
     }
     return actualizada;

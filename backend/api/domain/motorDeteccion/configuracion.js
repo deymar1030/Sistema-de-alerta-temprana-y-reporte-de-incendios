@@ -6,7 +6,9 @@ import { normalizarVariable } from '../sensor/tiposSensor.js';
 export const CONFIGURACION_BASE = {
   minLecturasBase: 6,
   frescuraSegundos: 120,
-  evaluacionMinutos: 2,
+  // Edad minima de la alerta antes de puntuarla y poder descartarla por R bajo.
+  // Con lecturas cada ~15 s, 1 minuto ya da 4 muestras por sensor.
+  evaluacionMinutos: 1,
   contextoMinutos: 5,
   esperaMinutos: 15,
   // signo (direccion peligrosa de la variable) NO va aca: viene de

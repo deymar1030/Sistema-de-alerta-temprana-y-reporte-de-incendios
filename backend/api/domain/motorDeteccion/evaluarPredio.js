@@ -41,11 +41,20 @@ function senalSensor(sensor, motor, config, ahora) {
   const critico = p.umbralCritico != null && Number(actual.valor) * p.signo >= p.umbralCritico * p.signo;
   const respaldo = critico && previo && +ahora - +previo.fecha_hora <= config.frescuraSegundos * 1000 &&
     Number(previo.valor) * p.signo >= p.umbralCritico * p.signo;
+  // Anomala = valor critico, o un desvio en la direccion PELIGROSA (los valores
+  // ya vienen multiplicados por signo, asi que peligroso es z > 0) SOSTENIDO:
+  // la lectura actual y la anterior (dentro de la frescura) superan umbral_z.
+  // Antes bastaba |z| o CUSUM por separado: con ruido normal de sensor, un pico
+  // aislado o incluso una bajada de temperatura se abrian alertas.
+  const umbralZ = Number(motor.umbral_z);
+  const peligroso = (z) => Number.isFinite(z) && z >= umbralZ;
+  const zPrevio = recientes.length >= 2 ? zs.at(-2) : null;
+  const desvioSostenido = peligroso(hampel.z) && peligroso(zPrevio);
   return {
     id_sensor: sensor.id_sensor, variable, fresca: true, valor: Number(actual.valor),
     z: hampel.z, b: tendencia.pendiente, zrob: null, cusum: suma.acumulado,
     cusumDisparado: suma.disparado, critico, respaldoCritico: Boolean(respaldo),
-    anomala: critico || hampel.esAnomala || suma.disparado,
+    anomala: critico || desvioSostenido,
     saltoFisicoImposible: p.maxSaltoPorMinuto != null && salto > p.maxSaltoPorMinuto,
   };
 }

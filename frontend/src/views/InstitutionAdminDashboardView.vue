@@ -7,8 +7,10 @@ import { backendAlertsService, type BackendAlert } from '../services/backend-ale
 import { operativeAssignmentService, type InstitutionOperative } from '../services/operative-assignment.service'
 import DashboardAlertsMap from '../components/dashboard/DashboardAlertsMap.vue'
 import { aplicarEventoAlerta, payloadDeEvento } from '../utils/realtime-alerts'
+import { useConfirm } from '../composables/useConfirm'
 
 const auth = useAuthStore()
+const { confirm: confirmar } = useConfirm()
 const institutions = useInstitutionStore()
 const id = computed(() => auth.user?.institutionId ?? auth.user?.institucionId ?? null)
 const isHead = computed(() => auth.role === 'JEFE_INSTITUCION')
@@ -76,10 +78,19 @@ async function load() {
 async function toggleAvailability() {
   if (!isHead.value || !id.value || availabilityBusy.value || !institution.value) return
   const next = isUnavailable.value ? 'DISPONIBLE' : 'NO_DISPONIBLE'
-  const question = next === 'NO_DISPONIBLE'
-    ? '¿Marcar tu institución como NO DISPONIBLE? Dejará de recibir alertas nuevas hasta que vuelvas a habilitarla.'
-    : '¿Marcar tu institución como DISPONIBLE para volver a recibir alertas nuevas?'
-  if (!window.confirm(question)) return
+  const aceptado = await confirmar(next === 'NO_DISPONIBLE'
+    ? {
+        title: 'Marcar como no disponible',
+        message: 'Tu institución dejará de recibir alertas nuevas hasta que vuelvas a habilitarla.',
+        confirmText: 'Marcar no disponible',
+        tone: 'danger',
+      }
+    : {
+        title: 'Marcar como disponible',
+        message: 'Tu institución volverá a recibir alertas nuevas.',
+        confirmText: 'Marcar disponible',
+      })
+  if (!aceptado || availabilityBusy.value) return
   availabilityBusy.value = true
   availabilityError.value = ''
   availabilityNotice.value = ''

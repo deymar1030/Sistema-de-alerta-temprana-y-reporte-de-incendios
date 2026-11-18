@@ -13,8 +13,10 @@ import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import { useToast } from '../composables/useToast'
 import type { GeographicZone } from '../services/location.service'
 import { useLocationStore } from '../stores/location.store'
+import { useConfirm } from '../composables/useConfirm'
 
 const locationStore = useLocationStore()
+const { confirm: confirmar } = useConfirm()
 const { showToast } = useToast()
 
 type ZoneForm = {
@@ -166,9 +168,12 @@ const submit = async () => {
 const handleDelete = async (
   location: GeographicZone,
 ) => {
-  const confirmed = window.confirm(
-    `¿Deseas desactivar la zona "${location.nombre}"?`,
-  )
+  const confirmed = await confirmar({
+    title: 'Desactivar zona',
+    message: `La zona "${location.nombre}" quedará desactivada.`,
+    confirmText: 'Desactivar',
+    tone: 'danger',
+  })
 
   if (!confirmed) {
     return

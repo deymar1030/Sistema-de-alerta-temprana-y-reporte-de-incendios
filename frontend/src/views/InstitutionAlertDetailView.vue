@@ -5,8 +5,10 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
 import { backendAlertsService, type BackendAlert, type InstitutionDelivery } from '../services/backend-alerts.service'
 import { operativeAssignmentService, type InstitutionOperative } from '../services/operative-assignment.service'
+import { useConfirm } from '../composables/useConfirm'
 
 const route = useRoute()
+const { confirm: confirmar } = useConfirm()
 const auth = useAuthStore()
 const institutionId = computed(() => auth.user?.institucionId ?? auth.user?.institutionId ?? null)
 const isHead = computed(() => auth.role === 'JEFE_INSTITUCION')
@@ -133,7 +135,13 @@ function toggleOperative(id: string, checked: boolean) {
 async function assign() {
   if (!canAssign.value || assigning.value || loading.value || operativeLoading.value || !selected.value.length || !alert.value) return
   // Se confirma la operación antes de notificar al personal seleccionado.
-  if (!window.confirm(`¿Asignar ${selected.value.length} operativo(s) a la alerta #${alert.value.id_alerta}?`)) return
+  const cantidad = selected.value.length
+  const aceptado = await confirmar({
+    title: 'Asignar personal',
+    message: `Se asignará${cantidad === 1 ? '' : 'n'} ${cantidad} operativo${cantidad === 1 ? '' : 's'} a la alerta #${alert.value.id_alerta} y se les enviará una notificación.`,
+    confirmText: 'Asignar',
+  })
+  if (!aceptado || assigning.value) return
   assigning.value = true
   assignmentError.value = ''
   assignmentSuccess.value = ''

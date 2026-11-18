@@ -68,7 +68,7 @@ async function avanzarEnvio() {
 function formatDate(date?: string | null): string {
   if (!date) return 'No registrada'
   const parsed = new Date(date)
-  return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleString('es-BO')
+  return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
 async function loadOperatives() {

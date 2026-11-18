@@ -31,7 +31,7 @@ const hasNoFreeOperatives = computed(() => isHead.value && operatives.value.leng
 const hasNoOperatives = computed(() => isHead.value && operativesLoaded.value && !operativeError.value && operatives.value.length === 0 && !loading.value)
 function fmt(value: string) {
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('es-BO')
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
 async function load() {

@@ -10,7 +10,7 @@ const error = ref('')
 const rows = computed(() => alerts.value.flatMap((alert) =>
   (alert.instituciones_notificadas ?? []).filter((item) => String(item.id_institucion) === String(institutionId.value)).map((item) => ({ alert, item })),
 ).sort((a, b) => (b.item.fecha_actualizacion ?? b.item.fecha_envio ?? '').localeCompare(a.item.fecha_actualizacion ?? a.item.fecha_envio ?? '')))
-function date(value?: string | null) { if (!value) return 'No registrada'; const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleString('es-BO') }
+function date(value?: string | null) { if (!value) return 'No registrada'; const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleString('es-BO', { timeZone: 'America/La_Paz' }) }
 async function load() {
   error.value = ''
   if (!institutionId.value) { error.value = 'Esta cuenta no tiene una institución asignada.'; return }

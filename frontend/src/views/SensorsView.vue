@@ -235,7 +235,7 @@ function dateLabel(date: string): string {
 
   return Number.isNaN(value.getTime())
     ? date
-    : value.toLocaleDateString('es-BO')
+    : value.toLocaleDateString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
 function mapStateToApi(state: Sensor['estado']): string {

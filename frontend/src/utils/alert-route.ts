@@ -50,7 +50,7 @@ export function distanceLabel(meters: number): string {
 export function dateLabel(value?: string | null): string {
   if (!value) return 'Sin fecha registrada'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? 'Sin fecha registrada' : date.toLocaleString('es-BO')
+  return Number.isNaN(date.getTime()) ? 'Sin fecha registrada' : date.toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
 export function gapInMeters(a: MapPoint, b: MapPoint): number {

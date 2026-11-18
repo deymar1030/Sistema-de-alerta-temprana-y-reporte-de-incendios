@@ -56,7 +56,7 @@ async function refresh() {
   alertError.value = alertResult.status === 'rejected' ? 'No se pudieron actualizar las alertas del mapa. Pulsa Actualizar mapa para reintentar.' : ''
   institutionError.value = institutionResult.status === 'rejected' ? 'No se pudieron actualizar las instituciones del mapa.' : ''
   updatedAt.value = alertResult.status === 'fulfilled' && institutionResult.status === 'fulfilled'
-    ? new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
+    ? new Date().toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
   loading.value = false
 }
 

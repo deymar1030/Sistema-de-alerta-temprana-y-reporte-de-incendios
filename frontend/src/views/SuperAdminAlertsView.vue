@@ -379,7 +379,7 @@ function dateLabel(
 
   return Number.isNaN(parsed.getTime())
     ? value
-    : parsed.toLocaleString('es-BO')
+    : parsed.toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
 // El socket trae la alerta actualizada: si ya esta en pantalla y no cambio de

@@ -160,7 +160,7 @@ const notificationItems = computed(() =>
 )
 
 const formattedTime = computed(() =>
-  new Intl.DateTimeFormat('es-BO', {
+  new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz',
     day: '2-digit',
     month: 'short',
     year: 'numeric',

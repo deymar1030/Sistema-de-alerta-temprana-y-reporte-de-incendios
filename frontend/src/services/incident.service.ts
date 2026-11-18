@@ -106,11 +106,12 @@ const mapStatus = (
   }
 }
 
+// El backend entrega fecha/hora en hora de Bolivia (UTC-4 fijo, sin horario de verano).
 const buildCreatedAt = (
   fecha: string,
   hora: string,
 ): string => {
-  return `${fecha}T${hora}`
+  return `${fecha}T${hora}-04:00`
 }
 
 const mapAlertToIncident = (

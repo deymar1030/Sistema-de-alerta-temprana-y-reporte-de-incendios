@@ -181,6 +181,19 @@ const pedirAlertas = async () => {
   return fetch(`${API_URL}/alertas/activas`, { credentials: 'include' })
 }
 
+// Varios eventos seguidos se juntan en una sola recarga extra como maximo.
+let cargandoDashboard = false
+let dashboardPendiente = false
+const refrescarDashboard = async () => {
+  if (cargandoDashboard) { dashboardPendiente = true; return }
+  cargandoDashboard = true
+  try {
+    do { dashboardPendiente = false; await loadDashboardData() } while (dashboardPendiente)
+  } finally {
+    cargandoDashboard = false
+  }
+}
+
 const loadDashboardData = async () => {
   try {
     const [alertasRes, reportesRes] = await Promise.all([
@@ -319,15 +332,18 @@ onMounted(async () => {
   }
 
   initMap()
-  loadDashboardData()
 
-  socket.on('alerta:abierta', loadDashboardData)
-  socket.on('alerta:actualizada', loadDashboardData)
-  socket.on('alerta:confirmada', loadDashboardData)
-  socket.on('alerta:descartada', loadDashboardData)
-  socket.on('notificacion:reporte-ciudadano', loadDashboardData)
-  socket.on('connect', loadDashboardData)
+  socket.on('alerta:abierta', refrescarDashboard)
+  socket.on('alerta:actualizada', refrescarDashboard)
+  socket.on('alerta:confirmada', refrescarDashboard)
+  socket.on('alerta:descartada', refrescarDashboard)
+  socket.on('notificacion:reporte-ciudadano', refrescarDashboard)
+  socket.on('connect', refrescarDashboard)
 })
+
+// Ionic conserva la pagina en memoria al cambiar de pestaña: sin esto, al
+// volver al inicio se seguian viendo las alertas de la ultima carga.
+onIonViewDidEnter(() => { void refrescarDashboard() })
 
 onUnmounted(() => {
   if (watchId) {
@@ -343,12 +359,12 @@ onUnmounted(() => {
     map = null
   }
   
-  socket.off('alerta:abierta', loadDashboardData)
-  socket.off('alerta:actualizada', loadDashboardData)
-  socket.off('alerta:confirmada', loadDashboardData)
-  socket.off('alerta:descartada', loadDashboardData)
-  socket.off('notificacion:reporte-ciudadano', loadDashboardData)
-  socket.off('connect', loadDashboardData)
+  socket.off('alerta:abierta', refrescarDashboard)
+  socket.off('alerta:actualizada', refrescarDashboard)
+  socket.off('alerta:confirmada', refrescarDashboard)
+  socket.off('alerta:descartada', refrescarDashboard)
+  socket.off('notificacion:reporte-ciudadano', refrescarDashboard)
+  socket.off('connect', refrescarDashboard)
 })
 </script>
 

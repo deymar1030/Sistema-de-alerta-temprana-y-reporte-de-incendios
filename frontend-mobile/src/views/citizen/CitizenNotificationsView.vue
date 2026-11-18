@@ -248,6 +248,19 @@ const cargarTodo = async (event?: any) => {
   event?.target?.complete?.()
 }
 
+// Eventos seguidos del socket se juntan en una sola recarga extra como maximo.
+let cargando = false
+let pendiente = false
+const refrescarPorEvento = async () => {
+  if (cargando) { pendiente = true; return }
+  cargando = true
+  try {
+    do { pendiente = false; await cargarTodo() } while (pendiente)
+  } finally {
+    cargando = false
+  }
+}
+
 // Se actualiza cada vez que entras a esta pestaña
 onIonViewWillEnter(() => {
   cargarTodo()
@@ -258,10 +271,10 @@ onIonViewWillEnter(() => {
 // o "incendio controlado"), que no siempre vienen acompañados de un
 // evento alerta:* -- ver asignarAlertaOperativos.useCase.js.
 const eventos = ['alerta:abierta', 'alerta:actualizada', 'alerta:confirmada', 'alerta:descartada', 'notificacion:nueva']
-eventos.forEach((e) => socket.on(e, cargarTodo))
+eventos.forEach((e) => socket.on(e, refrescarPorEvento))
 
 onUnmounted(() => {
-  eventos.forEach((e) => socket.off(e, cargarTodo))
+  eventos.forEach((e) => socket.off(e, refrescarPorEvento))
 })
 </script>
 

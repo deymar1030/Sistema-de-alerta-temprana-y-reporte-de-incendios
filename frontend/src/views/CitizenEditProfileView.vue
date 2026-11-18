@@ -2,8 +2,10 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
+import { useToast } from '../composables/useToast'
 
 const router = useRouter()
+const { showToast } = useToast()
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 const form = ref({
@@ -20,7 +22,7 @@ const save = () => {
   user.value.phone = form.value.phone
   user.value.city = form.value.city
   user.value.nombre = `${form.value.firstName} ${form.value.lastName}`.trim()
-  window.alert('Perfil actualizado correctamente')
+  showToast({ type: 'success', title: 'Perfil actualizado correctamente' }, 5000)
   router.push('/ciudadano/perfil')
 }
 </script>

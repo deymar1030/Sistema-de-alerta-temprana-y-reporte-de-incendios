@@ -2,8 +2,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
+import { useToast } from '../composables/useToast'
 
 const router = useRouter()
+const { showToast } = useToast()
 const authStore = useAuthStore()
 const form = ref({ currentPassword: '', newPassword: '', confirmPassword: '' })
 const error = ref('')
@@ -11,7 +13,7 @@ const error = ref('')
 const save = async () => {
   try {
     await authStore.changePassword(form.value.currentPassword, form.value.newPassword, form.value.confirmPassword)
-    window.alert('Contraseña actualizada correctamente')
+    showToast({ type: 'success', title: 'Contraseña actualizada correctamente' }, 5000)
     router.push('/ciudadano/perfil')
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'No se pudo cambiar la contraseña.'

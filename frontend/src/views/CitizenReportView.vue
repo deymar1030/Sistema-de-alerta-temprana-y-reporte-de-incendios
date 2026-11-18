@@ -2,8 +2,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCitizenReportStore } from '../stores/citizen-report.store'
+import { useToast } from '../composables/useToast'
 
 const router = useRouter()
+const { showToast } = useToast()
 const reportStore = useCitizenReportStore()
 
 const form = ref({
@@ -58,7 +60,7 @@ const submitReport = async () => {
       photo: form.value.photo,
     })
 
-    window.alert('Reporte enviado correctamente. Será revisado por el centro de monitoreo.')
+    showToast({ type: 'success', title: 'Reporte enviado correctamente. Será revisado por el centro de monitoreo.' }, 5000)
     await router.push('/ciudadano/mis-reportes')
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'No se pudo enviar el reporte.'

@@ -576,71 +576,26 @@ const refreshMapLayout = () => {
   })
 }
 
+// Siempre pide datos frescos al montar: antes solo pedia si el store estaba
+// vacio, y tras limpiar la BD seguian en pantalla alertas que ya no existian.
 const loadMapData = async () => {
   const requests: Promise<unknown>[] = []
 
-  if (
-    props.showSensors &&
-    sensorStore.sensors.length === 0
-  ) {
-    requests.push(
-      sensorStore.fetchSensors(),
-    )
-  }
+  if (props.showSensors) requests.push(sensorStore.fetchSensors())
+  if (props.showIncidents) requests.push(incidentStore.fetchIncidents())
+  if (props.showInstitutions) requests.push(institutionStore.fetchInstitutions())
+  if (props.showReports) requests.push(citizenReportStore.fetchReports())
+  if (props.showPredios) requests.push(predioStore.fetchPrediosForMap())
+  if (props.mode === 'institution' && props.institutionId) requests.push(dispatchStore.fetchDispatches())
 
-  if (
-    props.showIncidents &&
-    incidentStore.incidents.length === 0
-  ) {
-    requests.push(
-      incidentStore.fetchIncidents(),
-    )
-  }
-
-  if (
-    props.showInstitutions &&
-    institutionStore.institutions
-      .length === 0
-  ) {
-    requests.push(
-      institutionStore.fetchInstitutions(),
-    )
-  }
-
-  if (
-    props.showReports &&
-    citizenReportStore.reports.length ===
-      0
-  ) {
-    requests.push(
-      citizenReportStore.fetchReports(),
-    )
-  }
-
-  if (
-    props.showPredios &&
-    predioStore.predios.length === 0
-  ) {
-    requests.push(
-      predioStore.fetchPrediosForMap(),
-    )
-  }
-
-  if (
-    props.mode === 'institution' &&
-    props.institutionId &&
-    dispatchStore.dispatches.length === 0
-  ) {
-    requests.push(
-      dispatchStore.fetchDispatches(),
-    )
-  }
-
-  if (requests.length > 0) {
-    await Promise.all(requests)
-  }
+  await Promise.allSettled(requests)
 
   rebuildLayers()
+}
+
+// Una alerta nueva o que cambia llega por socket; el mapa refresca solo las alertas.
+const onRealtimeAlerta = () => {
+  if (props.showIncidents) void incidentStore.fetchIncidents()
 }
 
 onMounted(async () => {
@@ -690,6 +645,8 @@ onMounted(async () => {
     'resize',
     handleResize,
   )
+  window.addEventListener('realtime:alerta', onRealtimeAlerta)
+  window.addEventListener('realtime:reconectado', loadMapData)
 
   setTimeout(
     () =>
@@ -769,6 +726,8 @@ onBeforeUnmount(() => {
     'resize',
     handleResize,
   )
+  window.removeEventListener('realtime:alerta', onRealtimeAlerta)
+  window.removeEventListener('realtime:reconectado', loadMapData)
 
   map?.remove()
   map = null

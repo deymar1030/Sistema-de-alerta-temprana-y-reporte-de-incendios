@@ -6,6 +6,7 @@ import { useInstitutionStore } from '../stores/institution.store'
 import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
 import { operativeAssignmentService, type InstitutionOperative } from '../services/operative-assignment.service'
 import DashboardAlertsMap from '../components/dashboard/DashboardAlertsMap.vue'
+import { aplicarEventoAlerta, payloadDeEvento } from '../utils/realtime-alerts'
 
 const auth = useAuthStore()
 const institutions = useInstitutionStore()
@@ -95,13 +96,22 @@ async function toggleAvailability() {
   }
 }
 
-function onRealtimeAlerta() { void load() }
+// Un evento de una alerta ya listada se aplica en memoria; solo una alerta
+// nueva o un cambio de estado recargan el panel.
+function onRealtimeAlerta(event: Event) {
+  if (aplicarEventoAlerta(alerts.value, payloadDeEvento(event))) return
+  void load()
+}
 
 onMounted(() => {
   void load()
   window.addEventListener('realtime:alerta', onRealtimeAlerta)
+  window.addEventListener('realtime:reconectado', load)
 })
-onBeforeUnmount(() => window.removeEventListener('realtime:alerta', onRealtimeAlerta))
+onBeforeUnmount(() => {
+  window.removeEventListener('realtime:alerta', onRealtimeAlerta)
+  window.removeEventListener('realtime:reconectado', load)
+})
 </script>
 
 <template>

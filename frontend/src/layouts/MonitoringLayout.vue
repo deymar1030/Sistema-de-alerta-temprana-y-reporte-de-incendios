@@ -307,7 +307,9 @@ const ALERTA_TITULOS: Record<string, string> = {
 function onAlertaEvento(evento: string) {
   return (payload: Record<string, unknown>) => {
     const nombrePredio = (payload?.predio as { nombre?: string } | undefined)?.nombre
-    showToast({
+    // 'actualizada' llega con cada cambio de puntaje: solo refresca las vistas,
+    // sin aviso emergente (antes llenaba la pantalla de avisos).
+    if (evento !== 'alerta:actualizada') showToast({
       type: evento === 'alerta:confirmada' ? 'error' : evento === 'alerta:descartada' ? 'info' : 'warning',
       title: ALERTA_TITULOS[evento] ?? 'Alerta',
       description: nombrePredio ? `Predio: ${nombrePredio}` : undefined,
@@ -332,6 +334,13 @@ function onEnvioActualizado(payload: Record<string, unknown>) {
   window.dispatchEvent(new CustomEvent('realtime:envio', { detail: payload }))
 }
 
+// Mientras el socket estuvo caido se pudieron perder eventos: las vistas
+// recargan una sola vez al reconectar (reemplaza el sondeo periodico por HTTP).
+function onReconectado() {
+  void notificationStore.fetchNotifications()
+  window.dispatchEvent(new Event('realtime:reconectado'))
+}
+
 const ALERTA_EVENTOS = ['alerta:abierta', 'alerta:actualizada', 'alerta:confirmada', 'alerta:descartada'] as const
 const alertaHandlers = ALERTA_EVENTOS.map((evento) => [evento, onAlertaEvento(evento)] as const)
 
@@ -350,6 +359,7 @@ onMounted(() => {
     for (const [evento, handler] of alertaHandlers) socket.on(evento, handler)
     socket.on('notificacion:nueva', onNotificacionNueva)
     socket.on('notificacion:envio-actualizado', onEnvioActualizado)
+    socket.io.on('reconnect', onReconectado)
   }
 })
 

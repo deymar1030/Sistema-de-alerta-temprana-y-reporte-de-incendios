@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth.store'
 import { Check } from 'lucide-vue-next'
 import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
 import { describirAtencion, enAtencion } from '../utils/alert-attention'
+import { aplicarEventoAlerta, payloadDeEvento } from '../utils/realtime-alerts'
 
 const authStore = useAuthStore()
 const institutionId = computed(() => authStore.user?.institucionId ?? null)
@@ -11,14 +12,15 @@ const alerts = ref<BackendAlert[]>([])
 const loading = ref(false)
 const error = ref('')
 
-async function load() {
-  alerts.value = []
+// silent: recarga en segundo plano sin vaciar la lista ni mostrar "Cargando".
+async function load(silent = false) {
   error.value = ''
   if (!institutionId.value) {
+    alerts.value = []
     error.value = 'La cuenta no tiene una institución asignada.'
     return
   }
-  loading.value = true
+  if (!silent) loading.value = true
   try {
     alerts.value = await backendAlertsService.byInstitution(institutionId.value)
   } catch (cause) {
@@ -28,16 +30,24 @@ async function load() {
   }
 }
 
-function onRealtimeAlerta() { void load() }
+function onRealtimeAlerta(event: Event) {
+  if (aplicarEventoAlerta(alerts.value, payloadDeEvento(event))) return
+  void load(true)
+}
+
+function onRealtimeEnvio() { void load(true) }
+function onReconectado() { void load(true) }
 
 onMounted(() => {
   void load()
   window.addEventListener('realtime:alerta', onRealtimeAlerta)
-  window.addEventListener('realtime:envio', onRealtimeAlerta)
+  window.addEventListener('realtime:envio', onRealtimeEnvio)
+  window.addEventListener('realtime:reconectado', onReconectado)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('realtime:alerta', onRealtimeAlerta)
-  window.removeEventListener('realtime:envio', onRealtimeAlerta)
+  window.removeEventListener('realtime:envio', onRealtimeEnvio)
+  window.removeEventListener('realtime:reconectado', onReconectado)
 })
 </script>
 
@@ -49,7 +59,7 @@ onBeforeUnmount(() => {
         <h1 class="mt-1 text-2xl font-bold text-slate-900">Alertas recibidas</h1>
         <p class="mt-2 text-sm text-slate-600">Distribución automática confirmada por el backend. El jefe de institución puede asignar operativos desde el detalle; la atención en campo continúa en el flujo móvil.</p>
       </div>
-      <button type="button" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white disabled:opacity-50" :disabled="loading" @click="load">Actualizar</button>
+      <button type="button" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white disabled:opacity-50" :disabled="loading" @click="load()">Actualizar</button>
     </header>
 
     <p v-if="loading" role="status">Cargando alertas de tu institución...</p>

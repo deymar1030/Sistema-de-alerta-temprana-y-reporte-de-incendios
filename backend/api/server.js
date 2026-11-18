@@ -19,6 +19,13 @@ export function createApiApp() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+  // Datos operativos (alertas, lecturas, sesiones): ningun navegador, WebView
+  // ni proxy debe guardar copias. Sin esto podian quedar alertas viejas en
+  // pantalla despues de cambiar o limpiar la BD.
+  app.use("/api", (req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
   app.use("/api", AppRouter.routes);
   app.use("/internal/mqtt", MqttAuthRouter.routes);
   setupSwagger(app);

@@ -62,6 +62,10 @@ export class EvaluarLecturaUseCase {
     }
     return actualizada;
   }
+  async enPausaTrasCierre(tx, id_predio, ahora, config) {
+    const cierre = await tx.ultimoCierre(id_predio);
+    return !!cierre && +ahora - +cierre.fecha_cierre < config.reevaluacionTrasCierreMinutos * 60000;
+  }
   async execute(lectura) {
     const ahora = this.reloj();
     const resultado = await this.repository.enPredio(lectura.id_predio, async (tx) => {
@@ -87,7 +91,11 @@ export class EvaluarLecturaUseCase {
       const evaluacion = evaluarPredio({ ...contexto, config, ahora, alerta });
       const senal = evaluacion.sensores.find((s) => String(s.id_sensor) === String(sensor.id_sensor));
       let nueva = false;
-      if (!alerta && senal.anomala) {
+      // Recien cerrada una alerta del predio, durante unos minutos no se abre
+      // otra (ni con lectura critica): el incendio se acaba de dar por
+      // controlado y los sensores tardan en normalizarse.
+      const enPausa = !alerta && senal.anomala && await this.enPausaTrasCierre(tx, sensor.id_predio, ahora, config);
+      if (!alerta && senal.anomala && !enPausa) {
         const descarte = await tx.ultimoDescarte(sensor.id_predio);
         const espera = descarte && +ahora - +descarte.fecha_cierre < config.esperaMinutos * 60000;
         if (!espera || senal.critico) {

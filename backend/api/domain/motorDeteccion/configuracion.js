@@ -11,6 +11,10 @@ export const CONFIGURACION_BASE = {
   evaluacionMinutos: 1,
   contextoMinutos: 5,
   esperaMinutos: 15,
+  // Tras cerrar una alerta (informe de atencion que la da por controlada) el
+  // predio no abre otra durante este tiempo, aunque sigan llegando lecturas
+  // de incendio: da margen a que los sensores vuelvan a la normalidad.
+  reevaluacionTrasCierreMinutos: 5,
   // signo (direccion peligrosa de la variable) NO va aca: viene de
   // parametro_variable.signo en la BD, por motor (ver mas abajo). No es
   // hardcodeado porque, a diferencia de peso/bmax/madMin, un valor
@@ -49,7 +53,7 @@ export function resolverConfiguracion(motor, personalizada = {}) {
     if (p.umbralCritico != null) positivo(p.umbralCritico, `${variable}.umbralCritico`);
     config.variables[variable] = p;
   }
-  for (const clave of ['minLecturasBase', 'frescuraSegundos', 'evaluacionMinutos', 'contextoMinutos', 'esperaMinutos']) positivo(config[clave], clave);
+  for (const clave of ['minLecturasBase', 'frescuraSegundos', 'evaluacionMinutos', 'contextoMinutos', 'esperaMinutos', 'reevaluacionTrasCierreMinutos']) positivo(config[clave], clave);
   if (!Number.isInteger(config.minLecturasBase) || config.minLecturasBase < 3) throw new Error('minLecturasBase debe ser entero >= 3');
   if (!Array.isArray(config.confirmacion.variablesEvidencia) || !config.confirmacion.variablesEvidencia.length ||
       config.confirmacion.variablesEvidencia.some((v) => !['HUMO', 'CO', 'CO2', 'GAS_LEL'].includes(v))) {

@@ -143,7 +143,7 @@ watch([() => props.scope, () => props.institutionId], resetContext)
 watch([mappedAlerts, mappedInstitutions], draw)
 onMounted(() => {
   if (!canvas.value) return
-  map = L.map(canvas.value, { scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false }).setView([-16.505, -68.12], 12)
+  map = L.map(canvas.value, { scrollWheelZoom: true, zoomAnimation: false, fadeAnimation: false }).setView([-16.505, -68.12], 12)
   baseTileLayer()
     .on('tileerror', () => { tilesFailed.value = true }).addTo(map)
   markers = L.layerGroup().addTo(map)

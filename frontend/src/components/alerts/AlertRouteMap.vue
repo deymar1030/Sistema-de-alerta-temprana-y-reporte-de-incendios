@@ -71,7 +71,7 @@ async function toggleExpanded() {
 
 onMounted(() => {
   if (!container.value) return
-  map = L.map(container.value, { scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false })
+  map = L.map(container.value, { scrollWheelZoom: true, zoomAnimation: false, fadeAnimation: false })
     .setView(props.destination ?? [-16.505, -68.12], 13)
   const tiles = baseTileLayer().addTo(map)
   tiles.on('tileerror', () => { tilesFailed.value = true })

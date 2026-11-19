@@ -411,7 +411,7 @@ onMounted(async () => {
 
   map = L.map(mapContainer.value, {
     zoomControl: true,
-    scrollWheelZoom: false,
+    scrollWheelZoom: true,
   }).setView([-16.505, -68.12], 12)
 
   baseTileLayer().addTo(map)

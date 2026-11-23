@@ -10,7 +10,6 @@ import InstitutionEmergencyDetailView from '../views/institution/InstitutionEmer
 import InstitutionHistoryView from '../views/institution/InstitutionHistoryView.vue'
 import CitizenLayout from '../layouts/CitizenLayout.vue'
 import CitizenHomeView from '../views/citizen/CitizenHomeView.vue'
-import CitizenReportView from '../views/citizen/CitizenReportView.vue'
 import CitizenReportsView from '../views/citizen/CitizenReportsView.vue'
 import CitizenNotificationsView from '../views/citizen/CitizenNotificationsView.vue'
 import CitizenInstructionsView from '../views/citizen/CitizenInstructionsView.vue'
@@ -37,7 +36,9 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       { path: '', redirect: '/ciudadano/inicio' },
       { path: 'inicio', component: CitizenHomeView },
-      { path: 'reportar', component: CitizenReportView },
+      // El formulario real (con foto, enviado al backend) vive en "Reportes".
+      // Esta ruta antigua guardaba el reporte solo en el telefono.
+      { path: 'reportar', redirect: '/ciudadano/mis-reportes' },
       { path: 'mis-reportes', component: CitizenReportsView },
       { path: 'notificaciones', component: CitizenNotificationsView },
       { path: 'instrucciones', component: CitizenInstructionsView },

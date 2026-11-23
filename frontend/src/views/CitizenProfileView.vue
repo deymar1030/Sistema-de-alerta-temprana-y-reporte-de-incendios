@@ -19,7 +19,7 @@ const user = computed(() => authStore.user)
         <p><span class="font-semibold">Correo:</span> {{ user?.email }}</p>
         <p><span class="font-semibold">Teléfono:</span> {{ user?.phone ?? 'No registrado' }}</p>
         <p><span class="font-semibold">Ciudad:</span> {{ user?.city ?? 'No especificada' }}</p>
-        <p><span class="font-semibold">Fecha de registro:</span> {{ user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Reciente' }}</p>
+        <p><span class="font-semibold">Fecha de registro:</span> {{ user?.createdAt ? new Date(user.createdAt).toLocaleDateString('es-BO', { timeZone: 'America/La_Paz' }) : 'Reciente' }}</p>
       </div>
 
       <div class="mt-5 space-y-3">

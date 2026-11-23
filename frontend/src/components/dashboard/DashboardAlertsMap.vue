@@ -8,6 +8,7 @@ import { backendAlertsService, type MapAlert } from '../../services/backend-aler
 import { institutionService } from '../../services/institution.service'
 import type { Institution } from '../../types'
 import { describirAtencion, enAtencion } from '../../utils/alert-attention'
+import { aplicarEventoAlerta, payloadDeEvento } from '../../utils/realtime-alerts'
 import { dashboardAlerts, dashboardInstitutions, dashboardPoint, type DashboardScope, type DashboardPoint } from '../../utils/dashboard-map'
 
 const props = withDefaults(defineProps<{ scope: DashboardScope; institutionId?: string | number | null }>(), { institutionId: null })
@@ -34,7 +35,6 @@ let map: L.Map | null = null
 let markers: L.LayerGroup | null = null
 let bounds: L.LatLngBounds | null = null
 let observer: ResizeObserver | null = null
-let timer: ReturnType<typeof setInterval> | undefined
 let controller: AbortController | null = null
 let generation = 0
 let fitted = false
@@ -56,7 +56,7 @@ async function refresh() {
   alertError.value = alertResult.status === 'rejected' ? 'No se pudieron actualizar las alertas del mapa. Pulsa Actualizar mapa para reintentar.' : ''
   institutionError.value = institutionResult.status === 'rejected' ? 'No se pudieron actualizar las instituciones del mapa.' : ''
   updatedAt.value = alertResult.status === 'fulfilled' && institutionResult.status === 'fulfilled'
-    ? new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
+    ? new Date().toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
   loading.value = false
 }
 
@@ -131,23 +131,34 @@ function resetContext() {
 
 function refreshWhenVisible() { if (!document.hidden) void refresh() }
 
+// Los cambios llegan por socket: si la alerta ya esta en el mapa y no cambio
+// de estado se redibuja en memoria; si no, se pide el mapa una vez por HTTP.
+function onRealtimeAlerta(event: Event) {
+  if (aplicarEventoAlerta(alerts.value, payloadDeEvento(event))) draw()
+  else void refresh()
+}
+function onReconectado() { void refresh() }
+
 watch([() => props.scope, () => props.institutionId], resetContext)
 watch([mappedAlerts, mappedInstitutions], draw)
 onMounted(() => {
   if (!canvas.value) return
-  map = L.map(canvas.value, { scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false }).setView([-16.505, -68.12], 12)
+  map = L.map(canvas.value, { scrollWheelZoom: true, zoomAnimation: false, fadeAnimation: false }).setView([-16.505, -68.12], 12)
   baseTileLayer()
     .on('tileerror', () => { tilesFailed.value = true }).addTo(map)
   markers = L.layerGroup().addTo(map)
   observer = new ResizeObserver(() => { map?.invalidateSize(); fit() })
   observer.observe(canvas.value)
   void refresh()
-  timer = setInterval(refreshWhenVisible, 30_000)
   document.addEventListener('visibilitychange', refreshWhenVisible)
+  window.addEventListener('realtime:alerta', onRealtimeAlerta)
+  window.addEventListener('realtime:reconectado', onReconectado)
 })
 onBeforeUnmount(() => {
-  generation++; controller?.abort(); clearInterval(timer)
+  generation++; controller?.abort()
   document.removeEventListener('visibilitychange', refreshWhenVisible)
+  window.removeEventListener('realtime:alerta', onRealtimeAlerta)
+  window.removeEventListener('realtime:reconectado', onReconectado)
   observer?.disconnect(); map?.remove(); map = null; markers = null
 })
 defineExpose({ refresh })
@@ -170,7 +181,7 @@ defineExpose({ refresh })
       <span class="flex items-center gap-2"><i class="map-legend-key" :style="{ background: DEFAULT_COLORS.institution }" aria-hidden="true"><Landmark :size="12" /></i> {{ institutionError || !hasContext ? 'Instituciones no disponibles' : `${mappedInstitutions.length} ${mappedInstitutions.length === 1 ? 'institución ubicada' : 'instituciones ubicadas'}` }}</span>
       <span class="flex items-center gap-2 text-xs"><span class="map-legend-attending" aria-hidden="true"><Check :size="11" :stroke-width="4" /></span>En atención (personal asignado; deja de parpadear)</span>
       <span class="flex items-center gap-2 text-xs"><span class="map-legend-badge" aria-hidden="true">!</span>Alerta en predio de riesgo alto o crítico</span>
-      <span class="text-xs text-slate-600" role="status">{{ loading ? 'Consultando ubicaciones…' : updatedAt ? `Actualizado a las ${updatedAt}` : 'Sin actualización completa' }} · Consulta cada 30 s</span>
+      <span class="text-xs text-slate-600" role="status">{{ loading ? 'Consultando ubicaciones…' : updatedAt ? `Actualizado a las ${updatedAt}` : 'Sin actualización completa' }} · En tiempo real</span>
     </div>
     <div v-if="!hasContext || alertError || institutionError" role="alert" class="space-y-1 bg-red-50 px-4 py-3 text-sm text-red-800">
       <p v-if="!hasContext">Tu cuenta no tiene una institución asignada. No se muestran datos de otras instituciones.</p>

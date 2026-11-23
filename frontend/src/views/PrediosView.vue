@@ -10,6 +10,7 @@ import PrediosRiesgoPanel from '../components/predios/PrediosRiesgoPanel.vue'
 import { usePredioStore } from '../stores/predio.store'
 import { locationService, type GeographicZone } from '../services/location.service'
 import { predioService, type CreatePredioInput, type PredioDetail } from '../services/predio.service'
+import { useConfirm } from '../composables/useConfirm'
 
 type ScoreKey =
   | 'estado_electrico' | 'estado_gas' | 'fuentes_calor'
@@ -26,6 +27,8 @@ type PredioForm = {
   latitud: number | null
   longitud: number | null
 } & Record<ScoreKey, string>
+
+const { confirm: confirmar } = useConfirm()
 
 const tiposPredio = [
   'VIVIENDA', 'CASA', 'DEPARTAMENTO', 'EDIFICIO', 'GARAJE',
@@ -332,7 +335,13 @@ async function save() {
 }
 
 async function remove(id: string) {
-  if (!window.confirm('¿Eliminar este predio? Esta acción puede ser irreversible.')) return
+  const aceptado = await confirmar({
+    title: 'Eliminar predio',
+    message: 'El predio se eliminará. Esta acción puede ser irreversible.',
+    confirmText: 'Eliminar',
+    tone: 'danger',
+  })
+  if (!aceptado) return
 
   try {
     await store.deletePredio(id)

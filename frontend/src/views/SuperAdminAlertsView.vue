@@ -32,10 +32,10 @@ import {
 } from '../services/backend-alerts.service'
 import { baseTileLayer, irpElevado, irpLevel, mapIcon } from '../utils/map-icons'
 import { describirAtencion, enAtencion } from '../utils/alert-attention'
+import { aplicarEventoAlerta, payloadDeEvento } from '../utils/realtime-alerts'
 
 const alerts = ref<BackendAlert[]>([])
 const updatedScoreIds = ref<string[]>([])
-let pollTimer: ReturnType<typeof setInterval> | null = null
 const mapAlerts = ref<MapAlert[]>([])
 const selected = ref<BackendAlert | null>(null)
 const detailModalOpen = ref(false)
@@ -379,23 +379,39 @@ function dateLabel(
 
   return Number.isNaN(parsed.getTime())
     ? value
-    : parsed.toLocaleString('es-BO')
+    : parsed.toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
-function onRealtimeAlerta() {
-  if (document.visibilityState === 'visible' && !loading.value && !mapLoading.value) void refresh(true)
+// El socket trae la alerta actualizada: si ya esta en pantalla y no cambio de
+// estado se actualiza en memoria; solo una alerta nueva o un cambio de estado
+// piden la lista por HTTP.
+function onRealtimeAlerta(event: Event) {
+  const payload = payloadDeEvento(event)
+  const enLista = aplicarEventoAlerta(alerts.value, payload)
+  const enMapa = aplicarEventoAlerta(mapAlerts.value, payload)
+  if (enLista && enMapa) {
+    if (selected.value) aplicarEventoAlerta([selected.value], payload)
+    drawAlertMarkers(false)
+    return
+  }
+  if (!loading.value && !mapLoading.value) void refresh(true)
+}
+
+function onReconectado() {
+  if (!loading.value && !mapLoading.value) void refresh(true)
 }
 
 onMounted(async () => {
   document.addEventListener('keydown', onDialogKeydown)
   window.addEventListener('realtime:alerta', onRealtimeAlerta)
+  window.addEventListener('realtime:reconectado', onReconectado)
   await nextTick()
 
   if (!mapContainer.value) return
 
   map = L.map(mapContainer.value, {
     zoomControl: true,
-    scrollWheelZoom: false,
+    scrollWheelZoom: true,
   }).setView([-16.505, -68.12], 12)
 
   baseTileLayer().addTo(map)
@@ -411,22 +427,14 @@ onMounted(async () => {
   await refresh()
 
   map?.invalidateSize()
-  // El layout (ver MonitoringLayout.vue) conecta el socket y reemite
-  // 'realtime:alerta' en window: ahí se refresca al instante. Este poll
-  // queda solo como red de seguridad si el socket se cae y no reconecta.
-  pollTimer = setInterval(() => {
-    if (document.visibilityState === 'visible' && !loading.value && !mapLoading.value) {
-      void refresh(true)
-    }
-  }, 45_000)
 })
 
 onBeforeUnmount(() => {
   ++detailRequestVersion
   document.removeEventListener('keydown', onDialogKeydown)
   window.removeEventListener('realtime:alerta', onRealtimeAlerta)
+  window.removeEventListener('realtime:reconectado', onReconectado)
   if (detailModalOpen.value) document.body.style.overflow = bodyOverflowBeforeDetail
-  if (pollTimer) clearInterval(pollTimer)
   resizeObserver?.disconnect()
   map?.remove()
 

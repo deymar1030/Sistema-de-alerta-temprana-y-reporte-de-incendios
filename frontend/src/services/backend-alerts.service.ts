@@ -105,6 +105,10 @@ export interface BackendAlert {
 
   instituciones_notificadas?: InstitutionDelivery[]
 
+  // Envio de la institucion consultada (solo en listados filtrados por
+  // id_institucion): su propio ENVIADA/RECIBIDA/ATENDIDA/CERRADA.
+  mi_envio?: { estado: string } | null
+
   en_atencion?: boolean
   atendida_por?: AttendingInstitution[]
 }

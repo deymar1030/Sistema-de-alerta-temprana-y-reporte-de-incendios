@@ -5,8 +5,10 @@ import { useInstitutionStore } from '../stores/institution.store'
 import { useUserStore } from '../stores/user.store'
 import { userService, type CreateUserInput } from '../services/user.service'
 import { getRoleLabel, type User, type UserRole } from '../types'
+import { useConfirm } from '../composables/useConfirm'
 
 const institutions = useInstitutionStore()
+const { confirm: confirmar } = useConfirm()
 const users = useUserStore()
 const search = ref('')
 const roleFilter = ref<UserRole | 'TODOS'>('TODOS')
@@ -174,8 +176,15 @@ async function save() {
 }
 
 async function toggle(user: User) {
-  const verb = user.activo ? 'desactivar' : 'reactivar'
-  if (!window.confirm(`¿Quieres ${verb} a ${user.nombre}?`)) return
+  const aceptado = await confirmar({
+    title: user.activo ? 'Desactivar usuario' : 'Reactivar usuario',
+    message: user.activo
+      ? `${user.nombre} no podrá iniciar sesión hasta que lo reactives.`
+      : `${user.nombre} podrá volver a iniciar sesión.`,
+    confirmText: user.activo ? 'Desactivar' : 'Reactivar',
+    tone: user.activo ? 'danger' : 'primary',
+  })
+  if (!aceptado) return
 
   actionError.value = ''
   successMessage.value = ''

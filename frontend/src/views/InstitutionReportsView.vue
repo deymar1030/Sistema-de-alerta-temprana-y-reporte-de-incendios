@@ -26,6 +26,7 @@ import {
 import { useAuthStore } from '../stores/auth.store'
 import { useInstitutionStore } from '../stores/institution.store'
 import { useReportStore } from '../stores/report.store'
+import { useConfirm } from '../composables/useConfirm'
 
 import {
   backendAlertsService,
@@ -63,6 +64,8 @@ type FormData = {
   observaciones: string
   recomendaciones: string
 }
+
+const { confirm: confirmar } = useConfirm()
 
 const numberFields = [
   { key: 'personal', label: 'Personal participante' },
@@ -523,9 +526,12 @@ async function save() {
 
     if (
       changes.estado === 'COMPLETADO' &&
-      !window.confirm(
-        `¿Confirmas que el informe pasará a COMPLETADO? Esto cerrará la alerta #${idAlerta} y liberará al personal operativo asignado.`
-      )
+      !(await confirmar({
+        title: 'Completar informe',
+        message: `El informe pasará a COMPLETADO. Esto cerrará la alerta #${idAlerta} y liberará al personal operativo asignado.`,
+        confirmText: 'Completar informe',
+        tone: 'danger',
+      }))
     ) {
       return
     }

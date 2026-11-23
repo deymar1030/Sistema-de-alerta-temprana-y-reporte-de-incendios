@@ -9,7 +9,7 @@ const report = ref<CitizenReport | null>(null)
 const loading = ref(false)
 const error = ref('')
 function imageSrc(url?: string): string | null { if (!url) return null; try { const u = new URL(url, window.location.origin); return ['http:', 'https:', 'data:'].includes(u.protocol) ? u.href : null } catch { return null } }
-function date(value: string) { const d = new Date(value); return Number.isNaN(d.getTime()) ? 'Sin fecha' : d.toLocaleString('es-BO') }
+function date(value: string) { const d = new Date(value); return Number.isNaN(d.getTime()) ? 'Sin fecha' : d.toLocaleString('es-BO', { timeZone: 'America/La_Paz' }) }
 async function load() {
   loading.value = true; error.value = ''; report.value = null
   try { report.value = await store.getReportById(String(route.params.id)) }

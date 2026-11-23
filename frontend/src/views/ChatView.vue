@@ -14,7 +14,7 @@ const listEl = ref<HTMLElement | null>(null)
 
 function formatHora(value: string) {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit' })
 }
 
 function esMio(idUsuario: string) {

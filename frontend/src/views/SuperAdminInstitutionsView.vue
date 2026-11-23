@@ -35,6 +35,7 @@ import {
 } from '../services/institution.service'
 
 import type { Institution } from '../types'
+import { useConfirm } from '../composables/useConfirm'
 
 interface InstitutionForm {
   nombre: string
@@ -46,6 +47,7 @@ interface InstitutionForm {
 }
 
 const store = useInstitutionStore()
+const { confirm: confirmar } = useConfirm()
 
 const search = ref('')
 const modalOpen = ref(false)
@@ -253,9 +255,12 @@ async function remove(institution: Institution) {
     return
   }
 
-  const confirmed = window.confirm(
-    `¿Eliminar la institución "${institution.nombre}"?\n\nEsta acción puede ser irreversible y afectar registros relacionados.`
-  )
+  const confirmed = await confirmar({
+    title: 'Eliminar institución',
+    message: `La institución "${institution.nombre}" se eliminará. Esta acción puede ser irreversible y afectar registros relacionados.`,
+    confirmText: 'Eliminar',
+    tone: 'danger',
+  })
 
   if (!confirmed) {
     return

@@ -1,14 +1,15 @@
 import { ResponseEnvioDTO } from "../../envia/dtos/responseEnvia.dto.js";
 import { agruparPorInstitucion } from "../../recepciona/agruparPorInstitucion.js";
+import { fechaHoraBolivia } from "../../shared/zonaHoraria.js";
 
-function toFechaString(value) {
-  if (!value) return null;
-  return value.toISOString().slice(0, 10);
-}
-
-function toHoraString(value) {
-  if (!value) return null;
-  return value.toISOString().slice(11, 19);
+// alerta.fecha / alerta.hora se guardan en UTC (la fecha y la hora del
+// instante de apertura). Se devuelven en hora de Bolivia: si no, la alerta se
+// mostraba 4 horas adelantada y, de noche, con la fecha del dia siguiente.
+function fechaHoraAlerta(alerta) {
+  if (!alerta.fecha || !alerta.hora) return { fecha: null, hora: null };
+  const fecha = new Date(alerta.fecha), hora = new Date(alerta.hora);
+  if (Number.isNaN(+fecha) || Number.isNaN(+hora)) return { fecha: null, hora: null };
+  return fechaHoraBolivia(new Date(`${fecha.toISOString().slice(0, 10)}T${hora.toISOString().slice(11, 23)}Z`));
 }
 
 // Si el repositorio incluyo `envia` filtrado por id_institucion (ver
@@ -44,8 +45,7 @@ export class ResponseAlertaDTO {
     return new ResponseAlertaDTO({
       atendida_por: Array.isArray(alerta.recepciona) ? agruparPorInstitucion(alerta.recepciona) : undefined,
       id_alerta: alerta.id_alerta,
-      fecha: toFechaString(alerta.fecha),
-      hora: toHoraString(alerta.hora),
+      ...fechaHoraAlerta(alerta),
       estado: alerta.estado,
       puntaje: alerta.puntaje != null ? Number(alerta.puntaje) : null,
       clasificacion: alerta.clasificacion,
@@ -123,8 +123,7 @@ export class ResponseAlertaMapaDTO {
       id_alerta: alerta.id_alerta,
       estado: alerta.estado,
       clasificacion: alerta.clasificacion,
-      fecha: toFechaString(alerta.fecha),
-      hora: toHoraString(alerta.hora),
+      ...fechaHoraAlerta(alerta),
       ubicaciones,
       mi_envio: miEnvio(alerta),
       atendida_por: agruparPorInstitucion(alerta.recepciona),

@@ -21,7 +21,15 @@ function buildWhere(filters = {}) {
     if (filters.hasta) where.fecha.lte = new Date(filters.hasta);
   }
 
+  // Limite por rol (ver alcanceAlertas): se combina con el estado pedido.
+  if (filters.estados) where.estado = { in: estadosPermitidos(filters.estado ? [filters.estado] : null, filters.estados) };
+
   return where;
+}
+
+function estadosPermitidos(pedidos, permitidos) {
+  if (!permitidos) return pedidos;
+  return pedidos ? pedidos.filter((e) => permitidos.includes(e)) : permitidos;
 }
 
 // Cuando el llamador filtra por su propia institucion, trae tambien SU fila
@@ -59,7 +67,7 @@ export default class PrismaAlertaRepository extends AlertaRepository {
 
   async findActivas(filters) {
     const where = buildWhere(filters);
-    where.estado = { in: ESTADOS_ACTIVOS };
+    where.estado = { in: estadosPermitidos(ESTADOS_ACTIVOS, filters.estados) };
 
     return await this.prisma.alerta.findMany({
       where,
@@ -74,7 +82,7 @@ export default class PrismaAlertaRepository extends AlertaRepository {
 
   async findMapa(filters) {
     const where = buildWhere(filters);
-    where.estado = { in: ESTADOS_ACTIVOS };
+    where.estado = { in: estadosPermitidos(ESTADOS_ACTIVOS, filters.estados) };
 
     return await this.prisma.alerta.findMany({
       where,

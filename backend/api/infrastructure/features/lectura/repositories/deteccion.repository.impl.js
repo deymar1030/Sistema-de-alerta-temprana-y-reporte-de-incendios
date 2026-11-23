@@ -22,6 +22,9 @@ class TransaccionDeteccion {
   ultimoDescarte(id) {
     return this.db.alerta.findFirst({ where: { ...delPredio(id), estado: 'DESCARTADA', fecha_cierre: { not: null } }, orderBy: { fecha_cierre: 'desc' } });
   }
+  ultimoCierre(id) {
+    return this.db.alerta.findFirst({ where: { ...delPredio(id), estado: 'CERRADA', fecha_cierre: { not: null } }, orderBy: { fecha_cierre: 'desc' } });
+  }
   async contexto(id, ahora) {
     const predio = await this.db.predio.findUnique({ where: { id_predio: BigInt(id) }, include: { motor_det: { include: { parametro_variable: true } } } });
     if (!predio) return null;

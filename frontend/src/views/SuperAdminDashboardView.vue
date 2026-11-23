@@ -14,6 +14,7 @@ import {
 } from 'lucide-vue-next'
 import DashboardAlertsMap from '../components/dashboard/DashboardAlertsMap.vue'
 import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
+import { aplicarEventoAlerta, payloadDeEvento } from '../utils/realtime-alerts'
 import { useInstitutionStore } from '../stores/institution.store'
 import { useUserStore } from '../stores/user.store'
 
@@ -86,28 +87,44 @@ function readableStatus(status: string): string {
   return status.replace(/_/g, ' ')
 }
 
+async function loadAlerts() {
+  try {
+    alerts.value = await backendAlertsService.list()
+  } catch (cause) {
+    alerts.value = []
+    error.value = cause instanceof Error ? cause.message : 'No se pudieron cargar las alertas.'
+  }
+}
+
 async function load() {
   void dashboardMap.value?.refresh()
   loading.value = true
   error.value = ''
   await Promise.all([userStore.fetchUsers(), institutionStore.fetchInstitutions()])
   try {
-    alerts.value = await backendAlertsService.list()
-  } catch (cause) {
-    alerts.value = []
-    error.value = cause instanceof Error ? cause.message : 'No se pudieron cargar las alertas.'
+    await loadAlerts()
   } finally {
     loading.value = false
   }
 }
 
-function onRealtimeAlerta() { void load() }
+// Un evento de una alerta ya listada se aplica en memoria; solo una alerta
+// nueva o un cambio de estado vuelven a pedir las alertas (no usuarios). El
+// mapa escucha el mismo evento por su cuenta.
+function onRealtimeAlerta(event: Event) {
+  if (aplicarEventoAlerta(alerts.value, payloadDeEvento(event))) return
+  void loadAlerts()
+}
 
 onMounted(() => {
   void load()
   window.addEventListener('realtime:alerta', onRealtimeAlerta)
+  window.addEventListener('realtime:reconectado', load)
 })
-onBeforeUnmount(() => window.removeEventListener('realtime:alerta', onRealtimeAlerta))
+onBeforeUnmount(() => {
+  window.removeEventListener('realtime:alerta', onRealtimeAlerta)
+  window.removeEventListener('realtime:reconectado', load)
+})
 </script>
 
 <template>

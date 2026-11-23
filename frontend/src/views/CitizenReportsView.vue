@@ -9,7 +9,7 @@ const auth = useAuthStore()
 const store = useCitizenReportStore()
 const reports = computed(() => store.reports.filter((report) => report.usuarioId === auth.user?.id || report.citizenId === auth.user?.id))
 onMounted(() => { void store.fetchReports() })
-function when(value: string) { const d = new Date(value); return Number.isNaN(d.getTime()) ? 'Sin fecha' : d.toLocaleString('es-BO') }
+function when(value: string) { const d = new Date(value); return Number.isNaN(d.getTime()) ? 'Sin fecha' : d.toLocaleString('es-BO', { timeZone: 'America/La_Paz' }) }
 </script>
 
 <template>

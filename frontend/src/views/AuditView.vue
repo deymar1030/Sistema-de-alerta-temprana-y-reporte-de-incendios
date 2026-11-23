@@ -17,7 +17,7 @@ function searchUsers() {
 }
 function formatDate(value: string) {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('es-BO')
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
 onMounted(() => {

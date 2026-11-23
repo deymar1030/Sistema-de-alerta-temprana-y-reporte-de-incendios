@@ -12,7 +12,7 @@ const eventLabels: Record<TimelineEventType, string> = {
   INTERVENCION_FINALIZADA: 'Intervención finalizada',
 }
 
-const formatTime = (timestamp: string) => new Intl.DateTimeFormat('es-BO', {
+const formatTime = (timestamp: string) => new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz',
   hour: '2-digit',
   minute: '2-digit',
   hourCycle: 'h23',

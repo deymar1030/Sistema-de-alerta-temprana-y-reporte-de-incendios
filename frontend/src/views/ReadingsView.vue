@@ -40,7 +40,7 @@ const statusClass: Record<string, string> = {
 }
 function dateLabel(date: string) {
   const value = new Date(date)
-  return Number.isNaN(value.getTime()) ? 'Fecha no disponible' : value.toLocaleString('es-BO')
+  return Number.isNaN(value.getTime()) ? 'Fecha no disponible' : value.toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
 }
 async function loadSensors() {
   sensorsLoading.value = true

@@ -13,6 +13,7 @@ import { useAuthStore } from '../../stores/auth.store'
 import { socket } from '../../services/realtime'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { crearEncuadre } from '../../utils/encuadreMapa'
 import { Geolocation } from '@capacitor/geolocation'
 import { Camera } from '@capacitor/camera'
 
@@ -28,6 +29,7 @@ let userMarker: L.CircleMarker | null = null
 let watchId: string | null = null
 let markersLayer = L.layerGroup()
 let resizeObserver: ResizeObserver | null = null
+let encuadre: ReturnType<typeof crearEncuadre> | null = null
 let userLatLng: L.LatLngTuple | null = null
 let alertPoints: L.LatLngTuple[] = []
 
@@ -105,17 +107,11 @@ const ubicacionesDesdeReportes = (idAlerta: any, reportes: any[]): Ubicacion[] =
 }
 
 // Encuadra el mapa para que se vean a la vez las alertas y tu ubicación
+// (se reaplica solo cuando el contenedor toma su tamaño real, ver encuadreMapa.ts).
 const ajustarVista = () => {
-  if (!map) return
   const puntos: L.LatLngTuple[] = [...alertPoints]
   if (userLatLng) puntos.push(userLatLng)
-  if (puntos.length === 0) return
-
-  if (puntos.length === 1) {
-    map.setView(puntos[0], 14)
-  } else {
-    map.fitBounds(L.latLngBounds(puntos), { padding: [40, 40], maxZoom: 16 })
-  }
+  encuadre?.encuadrar(puntos)
 }
 
 // ---------- Mapa ----------
@@ -128,10 +124,11 @@ const initMap = async () => {
   }).addTo(map)
 
   markersLayer.addTo(map)
+  encuadre = crearEncuadre(map, { centroPorDefecto: [-16.2902, -63.5887], zoomPorDefecto: 5, zoomUnPunto: 14, maxZoom: 16 })
 
   const el = document.getElementById('map-container')
   if (el && 'ResizeObserver' in window) {
-    resizeObserver = new ResizeObserver(() => map?.invalidateSize())
+    resizeObserver = new ResizeObserver(() => encuadre?.reajustar())
     resizeObserver.observe(el)
   }
 
@@ -179,6 +176,19 @@ const pedirAlertas = async () => {
     console.warn('/alertas/mapa no disponible, usando /alertas/activas', error)
   }
   return fetch(`${API_URL}/alertas/activas`, { credentials: 'include' })
+}
+
+// Varios eventos seguidos se juntan en una sola recarga extra como maximo.
+let cargandoDashboard = false
+let dashboardPendiente = false
+const refrescarDashboard = async () => {
+  if (cargandoDashboard) { dashboardPendiente = true; return }
+  cargandoDashboard = true
+  try {
+    do { dashboardPendiente = false; await loadDashboardData() } while (dashboardPendiente)
+  } finally {
+    cargandoDashboard = false
+  }
 }
 
 const loadDashboardData = async () => {
@@ -319,14 +329,20 @@ onMounted(async () => {
   }
 
   initMap()
-  loadDashboardData()
 
-  socket.on('alerta:abierta', loadDashboardData)
-  socket.on('alerta:actualizada', loadDashboardData)
-  socket.on('alerta:confirmada', loadDashboardData)
-  socket.on('alerta:descartada', loadDashboardData)
-  socket.on('notificacion:reporte-ciudadano', loadDashboardData)
-  socket.on('connect', loadDashboardData)
+  socket.on('alerta:abierta', refrescarDashboard)
+  socket.on('alerta:actualizada', refrescarDashboard)
+  socket.on('alerta:confirmada', refrescarDashboard)
+  socket.on('alerta:descartada', refrescarDashboard)
+  socket.on('notificacion:reporte-ciudadano', refrescarDashboard)
+  socket.on('connect', refrescarDashboard)
+})
+
+// Ionic conserva la pagina en memoria al cambiar de pestaña: sin esto, al
+// volver al inicio se seguian viendo las alertas de la ultima carga.
+onIonViewDidEnter(() => {
+  encuadre?.reajustar()
+  void refrescarDashboard()
 })
 
 onUnmounted(() => {
@@ -343,12 +359,12 @@ onUnmounted(() => {
     map = null
   }
   
-  socket.off('alerta:abierta', loadDashboardData)
-  socket.off('alerta:actualizada', loadDashboardData)
-  socket.off('alerta:confirmada', loadDashboardData)
-  socket.off('alerta:descartada', loadDashboardData)
-  socket.off('notificacion:reporte-ciudadano', loadDashboardData)
-  socket.off('connect', loadDashboardData)
+  socket.off('alerta:abierta', refrescarDashboard)
+  socket.off('alerta:actualizada', refrescarDashboard)
+  socket.off('alerta:confirmada', refrescarDashboard)
+  socket.off('alerta:descartada', refrescarDashboard)
+  socket.off('notificacion:reporte-ciudadano', refrescarDashboard)
+  socket.off('connect', refrescarDashboard)
 })
 </script>
 

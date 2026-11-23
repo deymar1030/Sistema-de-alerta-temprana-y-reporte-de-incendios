@@ -167,7 +167,7 @@ const formatearFecha = (fechaISO: string) => {
   const fecha = new Date(fechaISO)
   if (isNaN(fecha.getTime())) return ''
   return fecha.toLocaleString('es-BO', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+    timeZone: 'America/La_Paz', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
   })
 }
 
@@ -200,7 +200,8 @@ const cargarAlertas = async () => {
       return {
         id: String(a.id_alerta),
         clasificacion: a.clasificacion || 'INCENDIO',
-        fechaHora: a.fecha && a.hora ? `${a.fecha}T${a.hora}` : '',
+        // fecha/hora vienen en hora de Bolivia (UTC-4 fijo).
+        fechaHora: a.fecha && a.hora ? `${a.fecha}T${a.hora}-04:00` : '',
         coords,
         distanciaKm: coords && usuario ? distanciaKm(usuario, coords) : null,
         lugar: '',
@@ -247,6 +248,19 @@ const cargarTodo = async (event?: any) => {
   event?.target?.complete?.()
 }
 
+// Eventos seguidos del socket se juntan en una sola recarga extra como maximo.
+let cargando = false
+let pendiente = false
+const refrescarPorEvento = async () => {
+  if (cargando) { pendiente = true; return }
+  cargando = true
+  try {
+    do { pendiente = false; await cargarTodo() } while (pendiente)
+  } finally {
+    cargando = false
+  }
+}
+
 // Se actualiza cada vez que entras a esta pestaña
 onIonViewWillEnter(() => {
   cargarTodo()
@@ -257,10 +271,10 @@ onIonViewWillEnter(() => {
 // o "incendio controlado"), que no siempre vienen acompañados de un
 // evento alerta:* -- ver asignarAlertaOperativos.useCase.js.
 const eventos = ['alerta:abierta', 'alerta:actualizada', 'alerta:confirmada', 'alerta:descartada', 'notificacion:nueva']
-eventos.forEach((e) => socket.on(e, cargarTodo))
+eventos.forEach((e) => socket.on(e, refrescarPorEvento))
 
 onUnmounted(() => {
-  eventos.forEach((e) => socket.off(e, cargarTodo))
+  eventos.forEach((e) => socket.off(e, refrescarPorEvento))
 })
 </script>
 

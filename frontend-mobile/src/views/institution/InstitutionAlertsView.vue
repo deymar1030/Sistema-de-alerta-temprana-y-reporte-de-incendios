@@ -38,7 +38,7 @@ const tono = (status: AlertStatus): 'success' | 'warning' | 'info' =>
   status === 'FINALIZADA' ? 'success' : status === 'NUEVA' ? 'warning' : 'info'
 
 const fechaHora = (iso: string) =>
-  new Date(iso).toLocaleString('es-BO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  new Date(iso).toLocaleString('es-BO', { timeZone: 'America/La_Paz', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 // Las asignaciones y las alertas se piden en paralelo; un fallo de asignaciones
 // devuelve un conjunto vacío y no afecta a la lista.

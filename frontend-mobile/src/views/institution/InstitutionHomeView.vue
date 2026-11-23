@@ -3,7 +3,7 @@ import {
   IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonContent, 
   IonHeader, IonIcon, IonPage, IonTitle, IonToolbar, onIonViewDidEnter, IonToast 
 } from '@ionic/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { 
   alertCircleOutline, arrowForwardOutline, checkmarkCircleOutline, flameOutline, 
   locationOutline, personOutline, shieldCheckmarkOutline, timeOutline, logOutOutline, 
@@ -22,6 +22,8 @@ import { useInstitutionAlertStore } from '../../stores/institution-alert.store'
 import { useAuthStore } from '../../stores/auth.store'
 import { API_URL } from '../../services/api'
 import { sessionService } from '../../services/session.service'
+import { useRealtimeRefresh } from '../../composables/useRealtimeRefresh'
+import { crearEncuadre } from '../../utils/encuadreMapa'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -31,6 +33,7 @@ const alertStore = useInstitutionAlertStore()
 const nombreInstitucion = ref('Cargando...')
 const mapContainer = ref<HTMLElement | null>(null)
 let mapInstance: L.Map | null = null
+let encuadre: ReturnType<typeof crearEncuadre> | null = null
 
 // Estados del Toast para alertas de GPS
 const toastOpen = ref(false)
@@ -60,8 +63,9 @@ const onLogout = async () => {
   router.replace('/auth/login')
 }
 
-// 1. Obtener la ubicación del usuario (GPS Nativo)
-const obtenerUbicacionUsuario = async () => {
+// 1. Obtener la ubicación del usuario (GPS Nativo). centrarEnMi solo cuando
+// lo pide el boton: al abrir la pantalla el mapa encuadra alertas + usuario.
+const obtenerUbicacionUsuario = async (centrarEnMi = false) => {
   try {
     if (Capacitor.isNativePlatform()) {
       // Pedir permisos en Android/iOS
@@ -86,9 +90,8 @@ const obtenerUbicacionUsuario = async () => {
     };
     
     dibujarMapa(); // Redibujamos para incluir el punto azul
-    
-    // Si el usuario tocó el botón manualmente, centramos el mapa en él
-    if (mapInstance && userLocation.value) {
+
+    if (centrarEnMi && mapInstance && userLocation.value) {
       mapInstance.setView([userLocation.value.lat, userLocation.value.lng], 16);
     }
   } catch (error: any) {
@@ -121,11 +124,10 @@ const dibujarMapa = () => {
       attribution: '© OpenStreetMap'
     }).addTo(mapInstance);
     L.control.zoom({ position: 'topleft' }).addTo(mapInstance);
+    encuadre = crearEncuadre(mapInstance, { centroPorDefecto: [-16.5, -68.15], zoomPorDefecto: 13, zoomUnPunto: 15, padding: 30 });
 
     if ('ResizeObserver' in window) {
-      const observador = new ResizeObserver(() => {
-        mapInstance?.invalidateSize();
-      });
+      const observador = new ResizeObserver(() => encuadre?.reajustar());
       observador.observe(mapContainer.value);
     }
   } else {
@@ -188,26 +190,41 @@ const dibujarMapa = () => {
     markers.push(userMarker);
   }
 
-  // Ajustar la vista si hay elementos, si no, centrar en La Paz
-  if (markers.length > 0 && !userLocation.value) {
-    const group = new L.FeatureGroup(markers);
-    mapInstance.fitBounds(group.getBounds(), { padding: [20, 20], maxZoom: 16 });
-  } else if (!userLocation.value) {
-    mapInstance.setView([-16.5000, -68.1500], 13);
-  }
-
-  setTimeout(() => { mapInstance?.invalidateSize(); }, 400);
+  // Encuadra alertas asignadas + ubicacion propia (o La Paz si no hay nada) y
+  // lo vuelve a aplicar cuando el contenedor termina de tomar su tamaño.
+  encuadre?.encuadrar(markers.map((m) => { const p = m.getLatLng(); return [p.lat, p.lng] as L.LatLngTuple }));
 }
 
-onIonViewDidEnter(() => {
-  if (mapInstance) mapInstance.invalidateSize();
-})
-
-onMounted(async () => {
-  void obtenerNombreInstitucion();
-  obtenerUbicacionUsuario(); // Llamamos al GPS al montar la vista
+const cargarAlertas = async () => {
   await Promise.all([incidentStore.fetchIncidents(), alertStore.fetchAlerts()]);
   dibujarMapa();
+}
+
+// Antes solo se cargaba al montar: Ionic conserva esta pagina en memoria, asi
+// que una alerta asignada con la app abierta no aparecia hasta reiniciarla.
+// Ahora recarga al volver a la pantalla y cuando llega un aviso por socket
+// (notificacion:nueva de la asignacion, cambios de la alerta o del envio).
+const { refresh: refrescarAlertas } = useRealtimeRefresh(cargarAlertas)
+
+onIonViewDidEnter(() => {
+  encuadre?.reajustar();
+  void refrescarAlertas();
+})
+
+// Al volver la app a primer plano (p. ej. tras abrir la notificacion de la
+// asignacion) tambien se recarga, por si el socket estuvo desconectado.
+const alVolverAPrimerPlano = () => {
+  if (document.visibilityState === 'visible') void refrescarAlertas();
+}
+
+onMounted(() => {
+  void obtenerNombreInstitucion();
+  obtenerUbicacionUsuario(); // Llamamos al GPS al montar la vista
+  document.addEventListener('visibilitychange', alVolverAPrimerPlano);
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', alVolverAPrimerPlano);
 })
 </script>
 
@@ -242,7 +259,7 @@ onMounted(async () => {
             <div id="map" ref="mapContainer" class="leaflet-map"></div>
             
             <!-- Botón flotante para ubicar al usuario -->
-            <ion-button class="locate-btn" shape="round" color="light" @click="obtenerUbicacionUsuario">
+            <ion-button class="locate-btn" shape="round" color="light" @click="obtenerUbicacionUsuario(true)">
               <ion-icon :icon="locateOutline"></ion-icon>
             </ion-button>
           </ion-card-content>

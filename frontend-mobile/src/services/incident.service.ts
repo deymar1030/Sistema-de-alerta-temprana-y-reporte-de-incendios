@@ -90,7 +90,7 @@ export const incidentService = {
         description: 'Emergencia reportada y confirmada en el sistema.',
         institutionId,
         institutionName: 'Mi Institución',
-        createdAt: item.fecha && item.hora ? `${item.fecha}T${item.hora}Z` : new Date().toISOString(),
+        createdAt: item.fecha && item.hora ? `${item.fecha}T${item.hora}-04:00` : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         distanceKm: 0,
         latitude: first?.latitude ?? 0,

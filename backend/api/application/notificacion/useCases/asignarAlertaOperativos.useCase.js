@@ -34,6 +34,13 @@ export default class AsignarAlertaOperativosUseCase {
       throw new Error("Esta alerta no fue enviada a tu institución");
     }
 
+    // Una alerta ya cerrada (incendio certificado como controlado) o
+    // descartada no admite mas personal.
+    const alerta = await this.alertaRepository.findById(BigInt(id_alerta));
+    if (alerta && ["CERRADA", "DESCARTADA"].includes(alerta.estado)) {
+      throw new Error(`La alerta #${id_alerta} ya está ${alerta.estado.toLowerCase()}: no se puede asignar personal`);
+    }
+
     const operativosInstitucion = await this.usuarioRepository.findByInstitucionAndRol(
       jefe.id_institucion,
       RolNombres.OPERATIVO
@@ -63,6 +70,13 @@ export default class AsignarAlertaOperativosUseCase {
     const esPrimeraAsignacion = !(await this.recepcionaRepository.existeAsignacionParaAlerta(id_alerta));
 
     await this.recepcionaRepository.asignar(id_alerta, idsSolicitados);
+
+    // Si la institucion ya habia finalizado su intervencion y el jefe vuelve
+    // a mandar personal, la intervencion se reabre (CERRADA -> ATENDIDA):
+    // si no, el operativo reasignado no tendria como volver a finalizarla.
+    if (envio.estado === "CERRADA") {
+      await this.enviaRepository.reabrir(id_alerta, jefe.id_institucion);
+    }
 
     const notificacionesData = idsSolicitados.map((id_usuario) => ({
       id_usuario,

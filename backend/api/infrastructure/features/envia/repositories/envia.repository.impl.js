@@ -49,6 +49,16 @@ export default class PrismaEnviaRepository extends EnviaRepository {
     });
   }
 
+  // Vuelve a abrir la intervencion de una institucion que ya la habia
+  // finalizado (CERRADA -> ATENDIDA), cuando su jefe reasigna personal.
+  async reabrir(id_alerta, id_institucion) {
+    const { count } = await this.prisma.envia.updateMany({
+      where: { id_alerta: BigInt(id_alerta), id_institucion: BigInt(id_institucion), estado: "CERRADA" },
+      data: { estado: "ATENDIDA", fecha_actualizacion: new Date() },
+    });
+    return count > 0;
+  }
+
   async actualizarRuta(id_alerta, id_institucion, { ruta_json, ruta_error }) {
     return this.prisma.envia.update({
       where: { id_alerta_id_institucion: { id_alerta: BigInt(id_alerta), id_institucion: BigInt(id_institucion) } },

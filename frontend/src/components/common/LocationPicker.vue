@@ -75,7 +75,7 @@ onMounted(async () => {
   const center: L.LatLngExpression = hasPoint
     ? [props.latitud!, props.longitud!] : [-16.5, -68.15]
   // El centro del mapa es visual. Nunca se envía como ubicación seleccionada.
-  map = L.map(element.value, { scrollWheelZoom: false })
+  map = L.map(element.value, { scrollWheelZoom: true })
     .setView(center, hasPoint ? 15 : 12)
   baseTileLayer().addTo(map)
   map.on('click', (event: LeafletMouseEvent) => {

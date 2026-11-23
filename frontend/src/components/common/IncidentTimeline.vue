@@ -24,7 +24,7 @@ const fallbackSteps: Array<{ status: IncidentStatus; label: string }> = [
 const currentIndex = computed(() => fallbackSteps.findIndex((step) => step.status === props.currentStatus))
 const sortedEvents = computed(() => [...props.events].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()))
 const visibleEvents = computed(() => sortedEvents.value.slice(0, 1))
-const formatTime = (value: string) => new Intl.DateTimeFormat('es-BO', { hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const formatTime = (value: string) => new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 </script>
 
 <template>

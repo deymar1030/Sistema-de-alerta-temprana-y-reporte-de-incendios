@@ -6,8 +6,11 @@ import { useInstitutionStore } from '../stores/institution.store'
 import { backendAlertsService, type BackendAlert } from '../services/backend-alerts.service'
 import { operativeAssignmentService, type InstitutionOperative } from '../services/operative-assignment.service'
 import DashboardAlertsMap from '../components/dashboard/DashboardAlertsMap.vue'
+import { aplicarEventoAlerta, payloadDeEvento } from '../utils/realtime-alerts'
+import { useConfirm } from '../composables/useConfirm'
 
 const auth = useAuthStore()
+const { confirm: confirmar } = useConfirm()
 const institutions = useInstitutionStore()
 const id = computed(() => auth.user?.institutionId ?? auth.user?.institucionId ?? null)
 const isHead = computed(() => auth.role === 'JEFE_INSTITUCION')
@@ -25,12 +28,38 @@ const operativeError = ref('')
 const availabilityError = ref('')
 const availabilityNotice = ref('')
 const active = computed(() => alerts.value.filter(item => !['CERRADA', 'DESCARTADA', 'CANCELADA'].includes(item.estado)))
-const closed = computed(() => alerts.value.filter(item => item.instituciones_notificadas?.some(delivery => String(delivery.id_institucion) === String(id.value) && delivery.estado === 'CERRADA')).length)
+// El listado por institucion trae el envio propio en `mi_envio`;
+// `instituciones_notificadas` solo viene en el detalle de una alerta.
+function estadoEnvio(alerta: BackendAlert): string | null {
+  return alerta.mi_envio?.estado
+    ?? alerta.instituciones_notificadas?.find(row => String(row.id_institucion) === String(id.value))?.estado
+    ?? null
+}
+const closed = computed(() => alerts.value.filter(item => estadoEnvio(item) === 'CERRADA').length)
+
+// El estado global manda cuando la alerta ya termino (cerrada o descartada);
+// si no, se muestra en que paso va la intervencion de esta institucion.
+const ESTADOS_ACTIVIDAD: Record<string, { texto: string; clase: string }> = {
+  CERRADA: { texto: 'Cerrada', clase: 'bg-emerald-50 text-emerald-800' },
+  DESCARTADA: { texto: 'Descartada', clase: 'bg-slate-100 text-slate-600' },
+  CANCELADA: { texto: 'Cancelada', clase: 'bg-slate-100 text-slate-600' },
+  ENVIO_CERRADA: { texto: 'Intervención finalizada', clase: 'bg-emerald-50 text-emerald-800' },
+  ENVIO_ATENDIDA: { texto: 'En atención', clase: 'bg-sky-50 text-sky-800' },
+  ENVIO_RECIBIDA: { texto: 'Recibida', clase: 'bg-amber-50 text-amber-800' },
+  ENVIO_ENVIADA: { texto: 'Nueva', clase: 'bg-orange-50 text-orange-800' },
+}
+function estadoActividad(alerta: BackendAlert) {
+  const global = String(alerta.estado ?? '').toUpperCase()
+  if (ESTADOS_ACTIVIDAD[global]) return ESTADOS_ACTIVIDAD[global]
+  const envio = estadoEnvio(alerta)
+  const porEnvio = envio ? ESTADOS_ACTIVIDAD[`ENVIO_${envio.toUpperCase()}`] : undefined
+  return porEnvio ?? { texto: global ? global.replace(/_/g, ' ').toLowerCase() : 'Sin estado', clase: 'bg-slate-100 text-slate-600' }
+}
 const hasNoFreeOperatives = computed(() => isHead.value && operatives.value.length > 0 && operatives.value.every(person => !person.disponible))
 const hasNoOperatives = computed(() => isHead.value && operativesLoaded.value && !operativeError.value && operatives.value.length === 0 && !loading.value)
 function fmt(value: string) {
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('es-BO')
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
 async function load() {
@@ -75,10 +104,19 @@ async function load() {
 async function toggleAvailability() {
   if (!isHead.value || !id.value || availabilityBusy.value || !institution.value) return
   const next = isUnavailable.value ? 'DISPONIBLE' : 'NO_DISPONIBLE'
-  const question = next === 'NO_DISPONIBLE'
-    ? '¿Marcar tu institución como NO DISPONIBLE? Dejará de recibir alertas nuevas hasta que vuelvas a habilitarla.'
-    : '¿Marcar tu institución como DISPONIBLE para volver a recibir alertas nuevas?'
-  if (!window.confirm(question)) return
+  const aceptado = await confirmar(next === 'NO_DISPONIBLE'
+    ? {
+        title: 'Marcar como no disponible',
+        message: 'Tu institución dejará de recibir alertas nuevas hasta que vuelvas a habilitarla.',
+        confirmText: 'Marcar no disponible',
+        tone: 'danger',
+      }
+    : {
+        title: 'Marcar como disponible',
+        message: 'Tu institución volverá a recibir alertas nuevas.',
+        confirmText: 'Marcar disponible',
+      })
+  if (!aceptado || availabilityBusy.value) return
   availabilityBusy.value = true
   availabilityError.value = ''
   availabilityNotice.value = ''
@@ -95,13 +133,27 @@ async function toggleAvailability() {
   }
 }
 
-function onRealtimeAlerta() { void load() }
+// Un evento de una alerta ya listada se aplica en memoria; solo una alerta
+// nueva o un cambio de estado recargan el panel.
+function onRealtimeAlerta(event: Event) {
+  if (aplicarEventoAlerta(alerts.value, payloadDeEvento(event))) return
+  void load()
+}
+
+function onRealtimeEnvio() { void load() }
 
 onMounted(() => {
   void load()
   window.addEventListener('realtime:alerta', onRealtimeAlerta)
+  window.addEventListener('realtime:reconectado', load)
+  // Un operativo que recibe, atiende o finaliza cambia el estado del envio.
+  window.addEventListener('realtime:envio', onRealtimeEnvio)
 })
-onBeforeUnmount(() => window.removeEventListener('realtime:alerta', onRealtimeAlerta))
+onBeforeUnmount(() => {
+  window.removeEventListener('realtime:alerta', onRealtimeAlerta)
+  window.removeEventListener('realtime:reconectado', load)
+  window.removeEventListener('realtime:envio', onRealtimeEnvio)
+})
 </script>
 
 <template>
@@ -154,8 +206,8 @@ onBeforeUnmount(() => window.removeEventListener('realtime:alerta', onRealtimeAl
         <p v-else-if="!alerts.length" class="mt-4 rounded-xl bg-slate-50 p-5 text-sm text-slate-600">No se registran alertas de esta institución.</p>
         <ul v-else class="mt-4 divide-y divide-slate-100">
           <li v-for="entry in alerts.slice(0, 5)" :key="String(entry.id_alerta)" class="flex flex-wrap justify-between gap-3 py-3">
-            <div><RouterLink :to="`/institucion/alertas/${encodeURIComponent(String(entry.id_alerta))}`" class="font-bold text-slate-900 hover:text-orange-700">Alerta #{{ entry.id_alerta }}</RouterLink><p class="text-xs text-slate-500">{{ fmt(`${entry.fecha}T${entry.hora}Z`) }}</p></div>
-            <span class="rounded-full bg-orange-50 px-2 py-1 text-xs font-bold text-orange-800">{{ entry.instituciones_notificadas?.find(row => String(row.id_institucion) === String(id))?.estado ?? 'Sin estado' }}</span>
+            <div><RouterLink :to="`/institucion/alertas/${encodeURIComponent(String(entry.id_alerta))}`" class="font-bold text-slate-900 hover:text-orange-700">Alerta #{{ entry.id_alerta }}</RouterLink><p class="text-xs text-slate-500">{{ fmt(`${entry.fecha}T${entry.hora}-04:00`) }}</p></div>
+            <span class="rounded-full px-2 py-1 text-xs font-bold capitalize" :class="estadoActividad(entry).clase">{{ estadoActividad(entry).texto }}</span>
           </li>
         </ul>
       </section>

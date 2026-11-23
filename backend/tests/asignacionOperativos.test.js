@@ -5,8 +5,9 @@ import AsignarAlertaOperativosUseCase from '../api/application/notificacion/useC
 const jefe = { id_usuario: 1n, id_institucion: 10n, nombre: 'Ana', primer_apellido: 'Perez' };
 const operativos = [{ id_usuario: 2n }, { id_usuario: 3n }];
 
-function buildUseCase({ asignacionesActivas = [], yaAsignadaAntes = false, idsCiudadanos = [], supervisores = [] } = {}) {
+function buildUseCase({ asignacionesActivas = [], yaAsignadaAntes = false, idsCiudadanos = [], supervisores = [], estadoEnvio = 'ATENDIDA', estadoAlerta = 'CONFIRMADA' } = {}) {
   const asignados = [];
+  const reabiertos = [];
   const notificaciones = [];
   const alertasEmitidas = [];
   const useCase = new AsignarAlertaOperativosUseCase({
@@ -17,7 +18,10 @@ function buildUseCase({ asignacionesActivas = [], yaAsignadaAntes = false, idsCi
       findByInstitucionAndRol: async () => operativos,
       findSupervisoresDeAlerta: async () => supervisores,
     },
-    enviaRepository: { findByIds: async () => ({ id_alerta: 5, id_institucion: 10 }) },
+    enviaRepository: {
+      findByIds: async () => ({ id_alerta: 5, id_institucion: 10, estado: estadoEnvio }),
+      reabrir: async (id_alerta, id_institucion) => { reabiertos.push({ id_alerta, id_institucion }); return true; },
+    },
     recepcionaRepository: {
       findAsignacionesActivas: async () => asignacionesActivas,
       existeAsignacionParaAlerta: async () => yaAsignadaAntes,
@@ -25,13 +29,13 @@ function buildUseCase({ asignacionesActivas = [], yaAsignadaAntes = false, idsCi
       findInstitucionesAtendiendo: async () => [{ id_institucion: 10, nombre: 'Bomberos La Paz', operativos: 2 }],
     },
     reporteURepository: { findCiudadanosByAlerta: async () => idsCiudadanos },
-    alertaRepository: { findById: async (id) => ({ id_alerta: id, estado: 'CONFIRMADA' }) },
+    alertaRepository: { findById: async (id) => ({ id_alerta: id, estado: estadoAlerta }) },
     realtimeNotifier: {
       emitNotificacion: async () => {},
       emitAlertaActualizada: async (alerta) => { alertasEmitidas.push(alerta); },
     },
   });
-  return { useCase, asignados, notificaciones, alertasEmitidas };
+  return { useCase, asignados, notificaciones, alertasEmitidas, reabiertos };
 }
 
 test('Asignacion: operativo sin compromisos activos se asigna y notifica', async () => {
@@ -105,4 +109,24 @@ test('Asignacion: cada asignacion emite alerta:actualizada para refrescar los ma
   await useCase.execute({ id_alerta: 5, id_usuarios: [2, 3], jefe });
   assert.equal(alertasEmitidas.length, 1);
   assert.equal(String(alertasEmitidas[0].id_alerta), '5');
+});
+
+test('Asignacion: reasignar tras finalizar la intervencion la reabre para que el operativo pueda volver a cerrarla', async () => {
+  const { useCase, asignados, reabiertos } = buildUseCase({ estadoEnvio: 'CERRADA', yaAsignadaAntes: true });
+  await useCase.execute({ id_alerta: 5, id_usuarios: [2], jefe });
+  assert.equal(asignados.length, 1);
+  assert.deepEqual(reabiertos, [{ id_alerta: 5, id_institucion: 10n }]);
+});
+
+test('Asignacion: con la intervencion abierta no se toca el envio', async () => {
+  const { useCase, reabiertos } = buildUseCase({ estadoEnvio: 'ATENDIDA' });
+  await useCase.execute({ id_alerta: 5, id_usuarios: [2], jefe });
+  assert.equal(reabiertos.length, 0);
+});
+
+test('Asignacion: una alerta ya CERRADA no admite personal', async () => {
+  const { useCase, asignados, notificaciones } = buildUseCase({ estadoAlerta: 'CERRADA' });
+  await assert.rejects(useCase.execute({ id_alerta: 5, id_usuarios: [2], jefe }), /ya está cerrada/);
+  assert.equal(asignados.length, 0);
+  assert.equal(notificaciones.length, 0);
 });

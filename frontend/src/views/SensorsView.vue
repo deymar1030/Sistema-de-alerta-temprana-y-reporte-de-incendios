@@ -37,6 +37,7 @@ import {
 } from '../services/sensor.service'
 
 import type { Reading, Sensor } from '../types'
+import { useConfirm } from '../composables/useConfirm'
 
 type SensorForm = {
   id_predio: string
@@ -52,6 +53,7 @@ type SensorForm = {
 }
 
 const route = useRoute()
+const { confirm: confirmar } = useConfirm()
 const router = useRouter()
 const sensors = useSensorStore()
 const predios = usePredioStore()
@@ -235,7 +237,7 @@ function dateLabel(date: string): string {
 
   return Number.isNaN(value.getTime())
     ? date
-    : value.toLocaleDateString('es-BO')
+    : value.toLocaleDateString('es-BO', { timeZone: 'America/La_Paz' })
 }
 
 function mapStateToApi(state: Sensor['estado']): string {
@@ -515,9 +517,12 @@ async function save() {
 
 async function remove(sensor: Sensor) {
   if (
-    !window.confirm(
-      `¿Eliminar el sensor "${sensor.nombre}"? Esta acción puede ser irreversible.`
-    )
+    !(await confirmar({
+      title: 'Eliminar sensor',
+      message: `El sensor "${sensor.nombre}" se eliminará. Esta acción puede ser irreversible.`,
+      confirmText: 'Eliminar',
+      tone: 'danger',
+    }))
   ) {
     return
   }

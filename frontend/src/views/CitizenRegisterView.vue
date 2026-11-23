@@ -2,8 +2,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
+import { useToast } from '../composables/useToast'
 
 const router = useRouter()
+const { showToast } = useToast()
 const authStore = useAuthStore()
 
 const form = ref({
@@ -66,7 +68,7 @@ const handleSubmit = async () => {
       confirmPassword: form.value.confirmPassword,
     })
 
-    window.alert('Cuenta creada correctamente')
+    showToast({ type: 'success', title: 'Cuenta creada correctamente' }, 5000)
     await router.push('/ciudadano/login')
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'No se pudo crear la cuenta.'
